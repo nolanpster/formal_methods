@@ -33,6 +33,11 @@ class DFA(object):
         self.current_state = self.initial_state
         self.states =[ initial_state ] # the list of states in the machine.
 
+    def __del__(self):
+        """
+        @brief Destroy the DFA
+        """
+
     def reset (self):
 
         """This sets the current_state to the initial_state and sets
