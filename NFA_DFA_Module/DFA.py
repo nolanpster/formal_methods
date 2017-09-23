@@ -85,7 +85,8 @@ class DFA(object):
 
     def accessible(self):
         """
-        list a set of reachable states from the initial state. Used for pruning.
+        list a set of reachable states from the initial state.
+        Used for pruning.
         """
         reachable, index = [self.initial_state], 0
         while index < len(reachable):
@@ -138,15 +139,14 @@ class DFA(object):
         f.write("digraph G { rankdir = LR\n")
         i = 0
         indexed_states = {}
-        for q in self.states:
-            indexed_states[q]=i
-            if self.final_states:
-                if q in self.final_states:
-                    f.write("\t"+str(i) + "[label=\"" + str(q) + "\",shape=doublecircle]\n")
-                else:
-                    f.write("\t"+str(i) + "[label=\"" + str(q) + "\",shape=circle]\n")
+        for state in self.states:
+            indexed_states[state]=i
+            if state in self.final_states:
+                f.write("\t"+str(i) + "[label=\"" + str(state)
+                        + "\",shape=doublecircle]\n")
             else:
-                f.write("\t"+str(i) + "[label=\"" + str(q) + "\",shape=circle]\n")
+                f.write("\t"+str(i) + "[label=\"" + str(state)
+                        + "\",shape=circle]\n")
             i += 1
         for ((a,s0),s1) in self.state_transitions.items():
             f.write("\t"+str(indexed_states[s0])
@@ -164,7 +164,8 @@ class DRA(DFA):
     """
     def __init__(self, initial_state=None, alphabet=None, transitions=dict([]),
                  rabin_acc= None, memory=None):
-        # The rabin_acc is a list of rabin pairs rabin_acc=[(J_i, K_i), i =0,...,N]
+        # The rabin_acc is a list of rabin pairs
+        # rabin_acc=[(J_i, K_i), i =0,...,N]
         # Each K_i, J_i is a set of states.
         # J_i is visited only finitely often
         # K_i has to be visited infinitely often.
