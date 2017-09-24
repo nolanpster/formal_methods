@@ -281,47 +281,25 @@ class DRA(DFA):
 
 
 if __name__=='__main__':
-    #construct a DRA, which is a complete automaton.
+    #construct a DFA, which is a complete automaton.
     # we use 'E' to stand for everything else other than 1,2,3,4.
-    dra=DRA(0,['1','2','3','4','E'])
-    dra.add_transition('2',0,0)
-    dra.add_transition('3',0,0)
-    dra.add_transition('E',0,0)
+    # See figures 4.10 and 4.11 in Principals of Model Checking.
+    red = LTL_plus('red')
+    yellow = LTL_plus('yellow')
+    safety_spec_dfa=DFA(initial_state='q0', alphabet=[red, yellow, 'E'],
+                        final_states=['q0','q1'])
+    safety_spec_dfa.add_transition('E', 'q0', 'q0')
+    safety_spec_dfa.add_transition('E', 'q1', 'q1')
 
-    dra.add_transition('1',0,1)
-    dra.add_transition('1',1,2)
-    dra.add_transition('3',1,2)
-    dra.add_transition('E',1,2)
+    safety_spec_dfa.add_transition(~yellow, 'q1', 'q0')
+    safety_spec_dfa.add_transition(yellow, 'q1', 'q1')
 
-    dra.add_transition('2',1,3)
+    safety_spec_dfa.add_transition(~red + ' and '+ yellow, 'q0', 'q1')
+    safety_spec_dfa.add_transition(~red + ' and '+ ~yellow, 'q0', 'q0')
 
-    dra.add_transition('1',2,2)
-    dra.add_transition('3',2,2)
-    dra.add_transition('E',2,2)
+    # The state implying a bad-prefix.
+    safety_spec_dfa.add_transition(red, 'q0', 'q2')
 
-    dra.add_transition('2',2,3)
+    safety_spec_dfa.toDot('dfaSafetySpec.dot')
 
-    dra.add_transition('1',3,3)
-    dra.add_transition('2',3,3)
-    dra.add_transition('E',3,3)
-
-    dra.add_transition('3',3,0)
-
-    dra.add_transition('4',0,4)
-    dra.add_transition('4',1,4)
-    dra.add_transition('4',2,4)
-    dra.add_transition('4',3,4)
-    dra.add_transition('4',4,4)
-    dra.add_transition('1',4,4)
-    dra.add_transition('2',4,4)
-    dra.add_transition('3',4,4)
-    dra.add_transition('E',4,4)
-    dra.toDot('test_diagram')
-
-    J0={4}
-    K0={1}
-    rabin_acc=[(J0,K0)]
-    dra.add_rabin_acc(rabin_acc)
-    # Define complemente with ~ operator override.
-
-
+    dra.toDot('baAlwaysYellowBeforeRed.dot')
