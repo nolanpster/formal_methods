@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 __author__ = 'Jie Fu, jfu2@wpi.edu'
 
+from copy import deepcopy
 from types import *
+
 
 class ExceptionFSM(Exception):
 
@@ -142,12 +144,21 @@ class DFA(object):
         @brief Destroy the DFA
         """
 
-    def reset (self):
+    def __invert__(self):
+        """
+        @brief invert accepting and non-accepting states.
+        """
+        inverted_dfa = deepcopy(self)
+        old_final_states = inverted_dfa.final_states[:] # list "deep" copy
+        inverted_dfa.final_states = [s for s in inverted_dfa.states \
+                                     if (s not in old_final_states)]
+        return inverted_dfa
 
+
+    def reset (self):
         """This sets the current_state to the initial_state and sets
         input_symbol to None. The initial state was set by the constructor
          __init__(). """
-
         self.current_state = self.initial_state
         self.input_symbol = None
 
@@ -302,4 +313,6 @@ if __name__=='__main__':
 
     safety_spec_dfa.toDot('dfaSafetySpec.dot')
 
-    dra.toDot('baAlwaysYellowBeforeRed.dot')
+    # The complement of the dfa satisfies the negation of the specification.
+    bad_prefi_dfa = ~safety_spec_dfa
+    bad_prefi_dfa.toDot('dfaBadPref.dot')
