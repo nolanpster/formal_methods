@@ -14,6 +14,110 @@ class ExceptionFSM(Exception):
         return self.value
 
 
+class LTL_plus(str):
+    """
+    @brief Base class for a LTL_plus in alphabet.
+    """
+    # Harded Coded as empty string
+    empty = 'E'
+
+    def __new__(cls, value, *args, **kwargs):
+        return super(LTL_plus, cls).__new__(cls, value)
+
+    def __invert__(self):
+        return  LTL_plus(''.join(("not_",self)))
+
+    def __add__(self,other):
+        return LTL_plus(' '.join((self, other)))
+
+    def __radd__(self,other):
+        return LTL_plus(' '.join((other, self)))
+
+    def Or(self, other, label=None):
+        if type(other) is not LTL_plus:
+            raise ValueError('Type of {} must be LTL_plus.'
+                             .format(other))
+        if other == ~self:
+            # Trivial disjunction
+            return True
+        elif (self in label) or (other in label):
+            return True
+        else:
+            return False
+
+    def And(self, other, label=None):
+        if type(other) is not LTL_plus:
+            raise ValueError('Type of {} must be LTL_plus.'
+                             .format(other))
+        if ('not_' in self) and (self in label):
+            return False
+        elif ('not_' in other) and (other in label):
+            return False
+        elif (self in label) and (other in label):
+            return True
+        elif (self in label) and ('not_' in other) and (other not in label):
+            return True
+        elif (other in label) and ('not_' in self) and (self not in label):
+            return True
+        else:
+            return False
+
+    def split(self):
+        """
+        @brief return a list of LTL_plus parts instead of type(str).
+        """
+        return [LTL_plus(part) for part in  str.split(self)]
+
+    def eval(self, label):
+        """
+        @brief Gien a label from a TS, evaluate if the proposition is true.
+
+        Only works (currently) with one connector.
+        """
+        if self == LTL_plus.empty or label == LTL_plus.empty:
+            return True
+        num_supported_connectors = 1
+        num_supported_parts = (2*num_supported_connectors + 1)
+        prop_parts = self.split()
+        num_invalid_parts = len(prop_parts) - num_supported_parts
+        if num_invalid_parts > 0:
+            num_invalid_parts = len
+            return ValueError("LTL_plus.eval only supports {} connectors. {} "
+                              "were supplied".format((num_supported_connectors,
+                                                      num_invalid_parts)))
+        if num_invalid_parts == 0:
+            for connector_num  in range(num_supported_connectors):
+                connect_idx = 2*connector_num+1
+                connector = prop_parts[connect_idx]
+                if connector.lower() == 'and':
+                    return prop_parts[connect_idx-1].And(
+                                                     prop_parts[connect_idx+1],
+                                                     label)
+                elif connector.lower() == 'or':
+                    return prop_parts[connect_idx-1].Or(
+                                                     prop_parts[connect_idx+1],
+                                                     label)
+                else:
+                    raise ValueError("Unsupported connector: {}".format(connector))
+        if num_invalid_parts == -2:
+            # Check to see if the single proposition satisfies the label.
+            label_parts = label.split()
+            if (len(label_parts) is 1) and (len(prop_parts) is 1):
+                if label_parts[0] == prop_parts[0]:
+                    return True
+                elif ~label_parts[0] == prop_parts[0]:
+                    return False
+                elif ('not_' in label_parts[0]) or ('not_' in prop_parts[0]):
+                    #E.g., 'red' satisfies 'not_yellow '
+                    return True
+                else:
+                    # E.g., 'red' does not satisfy 'yellow'
+                    return False
+            if len(label_parts) == num_supported_parts:
+                # E.g., swap to check if label="red and not_yellow" satisfies
+                # self="red"
+                return label.eval(self) #swapped recursion.
+
 class DFA(object):
     """This is a deterministic Finite State Automaton (DFA).
     """
