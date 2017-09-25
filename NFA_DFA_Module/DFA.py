@@ -2,6 +2,7 @@
 __author__ = 'Jie Fu, jfu2@wpi.edu'
 
 from copy import deepcopy
+import itertools
 from types import *
 
 
@@ -248,6 +249,16 @@ class DFA(object):
         self.states=states
         self.state_transitions = transitions
         return
+
+    def transitionsFrom(self, state):
+        next_states = []
+        words = []
+        for word in self.alphabet:
+            next_state = self.get_transition(word, state)
+            if next_state is not None:
+                next_states.append(next_state)
+                words.append(word)
+        return zip(itertools.repeat(state), words, next_states)
 
     def toDot(self,filename):
         f = open(filename,'w')
