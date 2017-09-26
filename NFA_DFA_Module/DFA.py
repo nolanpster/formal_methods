@@ -187,7 +187,14 @@ class DFA(object):
         if (input_symbol, state) in self.state_transitions:
             return self.state_transitions[(input_symbol, state)]
         else:
-            return None
+            # Look for equivalent transition
+            alternative_symbol = self.findEquivalentTransition(
+                                                        LTL_plus(input_symbol),
+                                                        state)
+            if alternative_symbol is not None:
+                return self.state_transitions[(alternative_symbol, state)]
+            else:
+                return None
 
     def predecessor(self,s):
         """
@@ -259,6 +266,24 @@ class DFA(object):
                 next_states.append(next_state)
                 words.append(word)
         return zip(itertools.repeat(state), words, next_states)
+
+    def findEquivalentTransition(self, input_symbol, dfa_state):
+        satisfiable_symbol = []
+        satisfiable_at_state = []
+        # Given th current state, find evaluations of the current
+        # input symbol.
+        for key in self.state_transitions.keys():
+            if input_symbol.eval(key[0]):
+               satisfiable_symbol.append(key[0])
+               satisfiable_at_state.append(key[1])
+        if dfa_state in satisfiable_at_state:
+            satisfying_index = satisfiable_at_state.index(dfa_state)
+            satisfying_symbol = satisfiable_symbol[satisfying_index]
+            return satisfying_symbol
+        else:
+            # Don't change this, lots of functions have a programmed response
+            # to 'None'
+            return None
 
     def toDot(self,filename):
         f = open(filename,'w')
