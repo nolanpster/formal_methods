@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 __author__ = 'Jie Fu, jfu2@wpi.edu'
 from NFA_DFA_Module.NFA import NFA
+from MDP_solvers import MDP_solvers
 
 from scipy import stats
 import numpy as np
@@ -204,3 +205,12 @@ class MDP:
             p=float(trans_str[3])
             mdp.prob[act][mdp.states.index(state), mdp.states.index(next_state)]=p
         return mdp
+
+    def solve(self, method='valueIteration', **kwargs):
+        """
+        @brief Solves a given MDP. Defaults to the Value Iteration method.
+
+        @param an instance of @ref MDP.
+        @param a string matching a method name in @ref MDP_solvers.py.
+        """
+        MDP_solvers(self, method=method).solve(**kwargs)
