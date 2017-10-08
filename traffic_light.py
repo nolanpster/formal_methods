@@ -52,8 +52,6 @@ if __name__=='__main__':
     tl_1.add_transition('change','red', 'redyellow')
     tl_1.add_transition('E', 'redyellow')
     tl_1.add_transition('change', 'redyellow','green')
-    #tl_1.doAction('change')
-    tl_1.toDot('trafficLight_1.dot')
     # Note, after X changes!
     with open(trafficLight.log_file,"w+") as log_file:
         pprint("The Transistion system of the traffic light:", log_file)
@@ -63,9 +61,11 @@ if __name__=='__main__':
         pprint('', log_file)
     # Note how extra states are removed.
     tl_1.accessible()
+    #tl_1.doAction('change')
+    tl_1.toDot('trafficLight_1.dot')
     # Relabel after pruning this is used in TS*DFA formation.
     tl_1.labelStates()
-    with open(trafficLight.log_file,"w+") as log_file:
+    with open(trafficLight.log_file,"a") as log_file:
         pprint("The pruned Transistion system of the traffic light:", log_file)
         pprint('', log_file)
         pprint(vars(tl_1), log_file)
@@ -117,8 +117,8 @@ if __name__=='__main__':
         pprint('', log_file)
         pprint('', log_file)
     # After two actions we are at the augmented statee = (('red',), 'q0')
-    verify_tl_safe.delta('change')
-    verify_tl_safe.delta('change')
+    verify_tl_safe.delta(action=('change',))
+    verify_tl_safe.delta(action=('change',))
     with open(trafficLight.log_file,"a") as log_file:
         pprint("After two \"change\" actions, the product system is at the "
                " following state:", log_file)
@@ -127,7 +127,7 @@ if __name__=='__main__':
         pprint('', log_file)
         pprint('', log_file)
     # The third action:
-    verify_tl_safe.delta('change')
+    verify_tl_safe.delta(action=('change',))
     with open(trafficLight.log_file,"a") as log_file:
         pprint("After three \"change\" actions, the product system is at the "
                " following state:", log_file)
@@ -135,7 +135,7 @@ if __name__=='__main__':
         pprint(verify_tl_safe.current_state, log_file)
         pprint('', log_file)
     # The fourth action:
-    verify_tl_safe.delta('change')
+    verify_tl_safe.delta(action=('change',))
     with open(trafficLight.log_file,"a") as log_file:
         pprint("After three \"change\" actions, the product system is at the "
                " following state:", log_file)
