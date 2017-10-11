@@ -39,7 +39,6 @@ if __name__=='__main__':
 
     quiz_mdp = MDP(init='1', actlist=['a','b'], states=['1', '2', '3'],
                    prob=prob_dict, gamma=1.0, reward=reward)
-    quiz_mdp.solve(do_print=True) # Defaults to value iteration algorithm.
     quiz_mdp.gamma = 0.9
     quiz_mdp.solve(do_print=True) # Defaults to value iteration algorithm.
     # For the simple 6-state gridworld, see slide 8 of Lecture 7, write the
@@ -52,7 +51,7 @@ if __name__=='__main__':
     empty = LTL_plus('E')
     # Where empty is the empty string/label/dfa-action.
     atom_prop = [green3, green4, red, empty]
-    actions = ['North', 'South', 'East', 'West']
+    actions = ['North', 'South', 'East', 'West', 'Empty']
     initial_state = '1'
 
     prob_grid = {'North': np.array([[0.9, 0.1, 0.0, 0.0, 0.0, 0.0],
@@ -82,7 +81,14 @@ if __name__=='__main__':
                                    [0.1, 0.0, 0.0, 0.9, 0.0, 0.0],
                                    [0.0, 0.1, 0.0, 0.4, 0.1, 0.0],
                                    [0.0, 0.0, 0.1, 0.0, 0.8, 0.1]]
-                                   )
+                                   ),
+                 'Empty': np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                    [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+                                    [0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                                    [0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                                    [0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                                    [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]]
+                                    )
                  }
     labels = {'1': empty,
               '2': empty,
@@ -94,7 +100,7 @@ if __name__=='__main__':
     grid_mdp = MDP(init=initial_state, actlist=actions,
                    states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
                    gamma=1, AP=atom_prop, L=labels)
-    co_safe_dra = DRA(initial_state='q0', alphabet=[green3, green4, red,empty],
+    co_safe_dra = DRA(initial_state='q0', alphabet=[green3, green4, red, empty],
                       rabin_acc=[({'q3'},{})])
     # Empty transitions
     co_safe_dra.add_transition(empty, 'q0', 'q0')
@@ -109,41 +115,59 @@ if __name__=='__main__':
     co_safe_dra.add_transition(green4, 'q0', 'q2')
     co_safe_dra.add_transition(green4, 'q2', 'q2')
     co_safe_dra.add_transition(green3, 'q2', 'q3')
-    co_safe_dra.add_transition(red + 'Or' + ~red, 'q3', 'q3')
+    co_safe_dra.add_transition(empty, 'q3', 'q5')
+    co_safe_dra.add_transition(empty, 'q5', 'q5')
     co_safe_dra.add_transition(red, 'q0', 'q4')
     co_safe_dra.add_transition(red, 'q1', 'q4')
     co_safe_dra.add_transition(red, 'q2', 'q4')
     # Once at sink, you're stuck there.
-    co_safe_dra.add_transition(red + 'Or' + ~red, 'q4')
+    #co_safe_dra.add_transition(red + 'Or' + ~red, 'q4')
     # Not adding a transition from 'q3' to 'q4' under red for simplicity. If we
     # get to 'q3' we win.
     co_safe_dra.toDot('visitGreensAndNoRed.dot')
     pprint(vars(co_safe_dra))
     game_mdp = MDP.productMDP(grid_mdp, co_safe_dra)
     # Define the reward function for the game_mdp. Get a reward when leaving
+    # the winning state.
     pos_reward = {
                  'North': 1.0,
                  'South': 1.0,
                  'East': 1.0,
                  'West': 1.0,
                  }
+    pos_reward = {
+                 'North': 0.0,
+                 'South': 0.0,
+                 'East': 0.0,
+                 'West': 0.0,
+                 'Empty': 1.0
+                 }
     no_reward = {
                  'North': 0.0,
                  'South': 0.0,
                  'East': 0.0,
                  'West': 0.0,
+                 'Empty': 0.0
                  }
     reward_dict = {}
+
     for state in game_mdp.states:
-        if state in game_mdp.acc[0][0]:
+        if state in game_mdp.acc[0][0] and '5' not in state:
             # Winning state
             reward_dict[state] = pos_reward
         else:
             # No reward when leaving current state.
             reward_dict[state] = no_reward
     game_mdp.reward = reward_dict
-    game_mdp.solve(do_print=True)
+    import pdb; pdb.set_trace()
+    # Set all transition probabilities from a state containing 'q4' to take a
+    # self loop with probability 1.
+    game_mdp.findSinks('q4')
+    game_mdp.findSinks('5')
+    game_mdp.findSinks('q5')
     discounted_game_mdp = deepcopy(game_mdp)
+    # Force this to be true since MDP constructor has a default gamma=0.9.
     discounted_game_mdp.gamma = 0.9
     discounted_game_mdp.solve(do_print=True)
-    import pdb; pdb.set_trace()
+    game_mdp.gamma = 1.0
+    game_mdp.solve(do_print=True)
