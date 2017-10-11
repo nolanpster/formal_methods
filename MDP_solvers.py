@@ -43,6 +43,8 @@ class MDP_solvers(object):
         # Decision Processes: Lecture Notes for STP 425'.
         iter_count = 0 # Iteration counter
         epsilon = 0.01 # Stopping threshold
+        # Initialize decision of each state to none.
+        policy = {state: None for state in self.mdp.states}
         # Initialize value of each state to zero.
         values =  np.array([0.0 for _ in self.mdp.states])
         prev_values = np.array([float('inf') for _ in self.mdp.states])
@@ -68,26 +70,13 @@ class MDP_solvers(object):
                     # Update value if new one is larger.
                     if this_value > values[s_idx]:
                         values[s_idx] = this_value
+                        policy[state] = act
             delta_value_norm = np.linalg.norm(values - prev_values)
         self.mdp.values = {state: value for state, value in zip(self.mdp.states, values)}
-        # Loop over one lasts time to record optimal decisions.
-        policy = {state: None for state in self.mdp.states}
-        prev_values = deepcopy(values)
-        for s_idx, state in enumerate(self.mdp.states):
-            decision = None
-            for act in self.mdp.actlist:
-                reward = self.mdp.reward[state][act]
-                # Column of Transition matrix
-                prob_dist = self.mdp.T(state, act)
-                this_value = reward \
-                             + self.mdp.gamma * np.dot(prob_dist, prev_values)
-                # Update value if new one is larger.
-                if this_value >= values[s_idx]:
-                    decision = act
-            policy[state] = decision
         self.mdp.policy = policy
         if do_print:
             print("Value iteration took {} iterations.".format(iter_count))
             pprint(self.mdp.values)
             print("Policy as a {state: action} dictionary.")
             pprint(self.mdp.policy)
+        return
