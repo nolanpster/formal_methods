@@ -58,9 +58,9 @@ class MDP:
     def actions(self, state):
         N=len(self.states)
         S=set([])
-        for a in self.actlist:
-            if not np.array_equal(self.T(state,a), np.zeros(N)):
-                S.add(a)
+        for _a in self.actlist:
+            if not np.array_equal(self.T(state,_a), np.zeros(N)):
+                S.add(_a)
         return S
 
     def labeling(self, s, A):
@@ -85,33 +85,32 @@ class MDP:
         pmdp=MDP()
         init=(mdp.init, dra.get_transition(mdp.L[mdp.init], dra.initial_state))
         states=[]
-        for s in mdp.states:
-            for q in dra.states:
-                states.append((s, q))
+        for _s in mdp.states:
+            for _q in dra.states:
+                states.append((_s, _q))
         N=len(states)
         pmdp.init=init
         pmdp.actlist=list(mdp.actlist)
         pmdp.states=list(states)
-        for a in pmdp.actlist:
-            pmdp.prob[a]=np.zeros((N, N))
+        for _a in pmdp.actlist:
+            pmdp.prob[_a]=np.zeros((N, N))
             for i in range(N):
-                (s,q)=pmdp.states[i]
-
-                pmdp.L[(s,q)]=mdp.L[s]
-                for j in range(N):
-                    (next_s,next_q)=pmdp.states[j]
-                    if next_q == dra.get_transition(mdp.L[next_s], q):
-                        p=mdp.P(s,a,next_s)
-                        pmdp.prob[a][i, j]= p
+                (_s,_q)=pmdp.states[i]
+                pmdp.L[(_s,_q)]=mdp.L[_s]
+                for _j in range(N):
+                    (next_s,next_q)=pmdp.states[_j]
+                    if next_q == dra.get_transition(mdp.L[next_s], _q):
+                        _p=mdp.P(_s,_a,next_s)
+                        pmdp.prob[_a][i, _j]= _p
         mdp_acc=[]
         for (J,K) in dra.acc:
             Jmdp=set([])
             Kmdp=set([])
-            for s in states:
-                if s[1] in J:
-                    Jmdp.add(s)
-                if s[1] in K:
-                    Kmdp.add(s)
+            for _s in states:
+                if _s[1] in J:
+                    Jmdp.add(_s)
+                if _s[1] in K:
+                    Kmdp.add(_s)
             mdp_acc.append((Jmdp, Kmdp))
         pmdp.acc=mdp_acc
         return pmdp
@@ -127,13 +126,13 @@ class MDP:
         nfa.initial_state=mdp.init
         nfa.states=mdp.states
         nfa.alphabet=mdp.actlist
-        for a in mdp.actlist:
+        for _a in mdp.actlist:
             for s in mdp.states:
                 next_state_list=[]
                 for next_s in mdp.states:
-                    if mdp.prob[a][mdp.states.index(s), mdp.states.index(next_s)] != 0:
+                    if mdp.prob[_a][mdp.states.index(s), mdp.states.index(next_s)] != 0:
                         next_state_list.append(next_s)
-                nfa.add_transition(a, s, next_state_list)
+                nfa.add_transition(_a, s, next_state_list)
         nfa.final_states=mdp.terminals
         return nfa
 
@@ -152,18 +151,18 @@ class MDP:
         submdp.states.append(-1) # -1 is the sink state.
         N=len(submdp.states)
         submdp.actlist=list(mdp.actlist)
-        submdp.prob={a:np.zeros((N, N)) for a in submdp.actlist}
+        submdp.prob={_a:np.zeros((N, N)) for _a in submdp.actlist}
         temp=np.zeros(len(mdp.states))
         for k in set(mdp.states) - H:
             temp[mdp.states.index(k)]=1
-        for a in submdp.actlist:
+        for _a in submdp.actlist:
             for s in H: # except the last sink state.
                 i=submdp.states.index(s)
                 for next_s in H:
                     j=submdp.states.index(next_s)
-                    submdp.prob[a][i, j] = mdp.P(s, a, next_s)
-                submdp.prob[a][i, -1]= np.inner(mdp.T(s, a), temp)
-            submdp.prob[a][submdp.states.index(-1), submdp.states.index(-1)]=1
+                    submdp.prob[_a][i, j] = mdp.P(s, _a, next_s)
+                submdp.prob[_a][i, -1]= np.inner(mdp.T(s, _a), temp)
+            submdp.prob[_a][submdp.states.index(-1), submdp.states.index(-1)]=1
         acc=[]
         for (J,K) in mdp.acc:
             Jsub = set(H).intersection(J)
@@ -195,8 +194,8 @@ class MDP:
         mdp.actlist=act_str
         mdp.prob=dict([])
         N=len(mdp.states)
-        for a in mdp.actlist:
-            mdp.prob[a]=np.zeros((N, N))
+        for _a in mdp.actlist:
+            mdp.prob[_a]=np.zeros((N, N))
         for line in array[2: len(array)]:
             trans_str=line.split(",")
             state=int(trans_str[0])
