@@ -80,6 +80,26 @@ class MDP:
         next_index= np.random.choice(N, num, p=self.prob[action][i,:])[0]
         return self.states[next_index]
 
+    def findSinks(self, sink_frag):
+        """
+        @brief Finds augmented states that contain @c sink_frag and updates
+               the row corresponding to their transition probabilities so that
+               all transitions take a self loop with probability 1.
+
+        Used for product MDPs (see @ref productMDP), to identify augmented
+        states that include @c sink_frag. @c sink_frag is the DRA/DFA
+        component of an augmented state that is terminal.
+        """
+        num_states = len(self.states)
+        for state in self.states:
+            if sink_frag in state:
+                # Set the transition probability of this state to always self
+                # loop.
+                s_idx = self.states.index(state)
+                for act in self.actlist:
+                    self.prob[act][s_idx, :] = np.zeros((1, num_states))
+                    self.prob[act][s_idx, s_idx] = 1.0
+
     @staticmethod
     def productMDP(mdp, dra):
         pmdp=MDP()
