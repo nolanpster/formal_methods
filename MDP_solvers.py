@@ -80,3 +80,66 @@ class MDP_solvers(object):
             print("Policy as a {state: action} dictionary.")
             pprint(self.mdp.policy)
         return
+
+    def expectationMaximization(self, do_print=False):
+        """
+        @brief
+        """
+        num_iters = 100
+        S = self.mdp.S
+        for _ in range(num_iters):
+            P = self.mdp.setProbMatGivenPolicy()
+            R = [self.mdp.probRewardGivenX_T(state) for state in self.mdp.states]
+            R = np.array(R)
+            alpha, beta, P_R, P_T_given_R, expect_T_given_R = \
+                MDP_solvers.e_step(self, S, R, P, self.mdp.gamma)
+            MDP_solvers.m_step(self, beta)
+            self.mdp.prunePolicyHack()
+        if do_print:
+            policy_out = self.mdp.policy.copy()
+            for state, act_dist in policy_out.items():
+                for act, prob in act_dist.items():
+                    policy_out[state][act] = round(prob,3)
+            print("EM found the following policy: {}")
+            pprint(self.mdp.policy)
+            print("Prob. or reward = {0:.3f}, expectation of T given R = "
+                  "{1:.3f}.".format(P_R, expect_T_given_R))
+
+    def e_step(self, S, R, P, gamma, H=100):
+        """
+        @brief Algorithm 1 from Toussaint and Storkey 2010.
+
+        @param H Horizon length.
+        """
+        L = np.empty(2*H+1)
+        _a = S
+        _b = R
+        alpha = _a
+        beta = gamma*_b
+        L[0] = np.inner(_a, _b)
+        for h in range(1, H+1):
+            _a = np.inner(P,_a)
+            l_ind = 2*h-1
+            L[l_ind] = gamma**(l_ind) * np.inner(_a, _b)
+            l_ind += 1
+            _b = np.inner(_b, P)
+            L[l_ind] = gamma**(l_ind) * np.inner(_a, _b)
+            alpha += gamma**h * _a
+            beta += gamma**(h+1) * _b
+        L *= (1-gamma)
+        alpha *= (1-gamma)
+        P_R = np.sum(L)
+        P_T_given_R = L / P_R
+        expect_T_given_R = np.dot(range(2*H+1), L) / P_R
+        return alpha, beta, P_R, P_T_given_R, expect_T_given_R
+
+    def m_step(self, beta):
+        for state_ind, state in enumerate(self.mdp.states):
+            norm_factor = 0
+            for act in self.mdp.action_list:
+                self.mdp.policy[state][act] = self.mdp.policy[state][act] * \
+                    (self.mdp.reward[state][act] +
+                     np.inner(beta, self.mdp.prob[act][state_ind, :]))
+                norm_factor += self.mdp.policy[state][act]
+            for act in self.mdp.action_list:
+                self.mdp.policy[state][act] /= norm_factor
