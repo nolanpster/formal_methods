@@ -80,3 +80,8 @@ class MDP_solvers(object):
             print("Policy as a {state: action} dictionary.")
             pprint(self.mdp.policy)
         return
+
+    def expectationMaximization(self, do_print=False):
+        """
+        @brief
+        """

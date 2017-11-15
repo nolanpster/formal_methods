@@ -80,6 +80,25 @@ class MDP:
         next_index= np.random.choice(N, num, p=self.prob[action][i,:])[0]
         return self.states[next_index]
 
+    def addKernels(self, kernels):
+        self.kernels = kernels
+
+    def phi(self, state, action):
+        # Create vector of basis functions, phi and an action indicator
+        # function. A feature vector will have @c m*p elements, where @c m is
+        # the number of actions, and @c p is the number of kernels.
+        # this function takes arguments (<int>state, <string>action).
+        _m = len(self.action_list)
+        _p = len(self.kernels)
+        phi = np.empty([_m*_p, 1]) # Column vector
+        # Action indicator function.
+        act_ind = lambda a_0, a_i: int(a_0 == a_i)
+        for _i, act in enumerate(self.action_list):
+            this_ind = lambda a_in, a_i=act: act_ind(a_in, a_i)
+            for _j, kern in enumerate(self.kernels):
+                phi[_i+(_j)*_m] = this_ind(action)*kern(state)
+        return phi
+
     def findSinks(self, sink_frag):
         """
         @brief Finds augmented states that contain @c sink_frag and updates
