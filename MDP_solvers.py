@@ -1,13 +1,6 @@
 #!/usr/bin/env python
 __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 
-from pprint import pprint
-
-from TS import TS
-from DFA_TS_product import DFATimesTS
-from NFA_DFA_Module.DFA import DFA
-from NFA_DFA_Module.DFA import LTL_plus
-
 import numpy as np
 from copy import deepcopy
 from pprint import pprint
@@ -28,9 +21,11 @@ class MDP_solvers(object):
     def solve(self, method=None, **kwargs):
         if method is not None and (not self.method == method):
             self.setMethod(method)
-        self.algorithm(self, **kwargs) # Unbound method call requires passing in 'self'.
-
-    def setMethod(self, method):
+        # Unbound method call requires passing in 'self'.
+        self.algorithm(self, **kwargs)
+    def setMethod(self, method='valueIteration'):
+            # Calles a method named 'method'. So self.algorithm points to the
+            # method in the MDP_solvers class.
             self.method = method
             self.algorithm = getattr(MDP_solvers, method)
 
@@ -52,6 +47,8 @@ class MDP_solvers(object):
         delta_value_norm = np.linalg.norm(values - prev_values)
         if self.mdp.gamma == 1.0:
             # Override gamma to be a very conservative discount factor.
+            # This allows the solution to eventually converge if the problem is
+            # well defined.
             gamma = 0.99999
         else:
             gamma = self.mdp.gamma
@@ -64,15 +61,18 @@ class MDP_solvers(object):
                 for act in self.mdp.actlist:
                     reward = self.mdp.reward[state][act]
                     # Column of Transition matrix
-                    prob_dist = self.mdp.T(state, act)
-                    this_value = reward \
-                                 + self.mdp.gamma * np.dot(prob_dist, prev_values)
+                    trans_prob = self.mdp.T(state, act)
+                    # Using the actual discount factor, comput the value.
+                    this_value = \
+                             reward \
+                             + self.mdp.gamma * np.dot(trans_prob, prev_values)
                     # Update value if new one is larger.
-                    if this_value > values[s_idx]:
+                    if this_value >= values[s_idx]:
                         values[s_idx] = this_value
                         policy[state] = act
             delta_value_norm = np.linalg.norm(values - prev_values)
-        self.mdp.values = {state: value for state, value in zip(self.mdp.states, values)}
+        self.mdp.values = {state: value for state, value in \
+                                                  zip(self.mdp.states, values)}
         self.mdp.policy = policy
         if do_print:
             print("Value iteration took {} iterations.".format(iter_count))
