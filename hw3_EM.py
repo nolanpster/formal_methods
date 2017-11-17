@@ -93,7 +93,7 @@ if __name__=='__main__':
               }
     # Note that input gamma is overwritten in DRA/MDP product method, so we'll
     # need to set it again later.
-    grid_mdp = MDP(init=initial_state, actlist=actions,
+    grid_mdp = MDP(init=initial_state, action_list=actions,
                    states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
                    gamma=1, AP=atom_prop, L=labels)
 

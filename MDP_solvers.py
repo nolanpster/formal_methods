@@ -58,7 +58,7 @@ class MDP_solvers(object):
             iter_count += 1
             prev_values = deepcopy(values)
             for s_idx, state in enumerate(self.mdp.states):
-                for act in self.mdp.actlist:
+                for act in self.mdp.action_list:
                     reward = self.mdp.reward[state][act]
                     # Column of Transition matrix
                     trans_prob = self.mdp.T(state, act)
