@@ -22,10 +22,10 @@ class MDP:
         tuple.  AP: a set of atomic propositions. Each proposition is
         identified by an index between 0 -N.  L: the labeling
         function, implemented as a dictionary: state: a subset of AP."""
-    def __init__(self, init=None, actlist=[], states=[], prob=dict([]),
+    def __init__(self, init=None, action_list=[], states=[], prob=dict([]),
                  acc=None, gamma=.9, AP=set([]), L=dict([]), reward=dict([])):
         self.init=init
-        self.actlist=actlist
+        self.action_list=action_list
         self.states=states
         self.acc=acc
         self.gamma=gamma
@@ -58,7 +58,7 @@ class MDP:
     def actions(self, state):
         N=len(self.states)
         S=set([])
-        for _a in self.actlist:
+        for _a in self.action_list:
             if not np.array_equal(self.T(state,_a), np.zeros(N)):
                 S.add(_a)
         return S
@@ -115,7 +115,7 @@ class MDP:
                 # Set the transition probability of this state to always self
                 # loop.
                 s_idx = self.states.index(state)
-                for act in self.actlist:
+                for act in self.action_list:
                     self.prob[act][s_idx, :] = np.zeros((1, num_states))
                     self.prob[act][s_idx, s_idx] = 1.0
 
@@ -129,9 +129,9 @@ class MDP:
                 states.append((_s, _q))
         N=len(states)
         pmdp.init=init
-        pmdp.actlist=list(mdp.actlist)
+        pmdp.action_list=list(mdp.action_list)
         pmdp.states=list(states)
-        for _a in pmdp.actlist:
+        for _a in pmdp.action_list:
             pmdp.prob[_a]=np.zeros((N, N))
             for i in range(N):
                 (_s,_q)=pmdp.states[i]
@@ -164,8 +164,8 @@ class MDP:
         nfa=NFA()
         nfa.initial_state=mdp.init
         nfa.states=mdp.states
-        nfa.alphabet=mdp.actlist
-        for _a in mdp.actlist:
+        nfa.alphabet=mdp.action_list
+        for _a in mdp.action_list:
             for s in mdp.states:
                 next_state_list=[]
                 for next_s in mdp.states:
@@ -189,12 +189,12 @@ class MDP:
         submdp.states=list(H)
         submdp.states.append(-1) # -1 is the sink state.
         N=len(submdp.states)
-        submdp.actlist=list(mdp.actlist)
-        submdp.prob={_a:np.zeros((N, N)) for _a in submdp.actlist}
+        submdp.action_list=list(mdp.action_list)
+        submdp.prob={_a:np.zeros((N, N)) for _a in submdp.action_list}
         temp=np.zeros(len(mdp.states))
         for k in set(mdp.states) - H:
             temp[mdp.states.index(k)]=1
-        for _a in submdp.actlist:
+        for _a in submdp.action_list:
             for s in H: # except the last sink state.
                 i=submdp.states.index(s)
                 for next_s in H:
@@ -230,10 +230,10 @@ class MDP:
         state_str=array[0].split(",")
         mdp.states=[int(i) for i in state_str]
         act_str=array[1].split(",")
-        mdp.actlist=act_str
+        mdp.action_list=act_str
         mdp.prob=dict([])
         N=len(mdp.states)
-        for _a in mdp.actlist:
+        for _a in mdp.action_list:
             mdp.prob[_a]=np.zeros((N, N))
         for line in array[2: len(array)]:
             trans_str=line.split(",")
