@@ -26,8 +26,10 @@ class MDP:
                  acc=None, gamma=.9, AP=set([]), L=dict([]), reward=dict([])):
         self.init=init
         self.action_list=action_list
+        self.num_actions = len(self.action_list)
         self.states=states
         self.state_vec = np.array(map(int, self.states))
+        self.num_states = len(self.states)
         self.acc=acc
         self.gamma=gamma
         self.reward=reward
@@ -57,10 +59,9 @@ class MDP:
         return self.prob[action][i, j]
 
     def actions(self, state):
-        N=len(self.states)
         S=set([])
         for _a in self.action_list:
-            if not np.array_equal(self.T(state,_a), np.zeros(N)):
+            if not np.array_equal(self.T(state,_a), np.zeros(self.num_states)):
                 S.add(_a)
         return S
 
@@ -74,35 +75,31 @@ class MDP:
         """
         if action not in self.actions(state):
             return None # Todo: considering adding the sink state
-        N=len(self.states)
         i=self.states.index(state)
         # Note that only one element is chosen from the array, which is the
         # output by random.choice
-        next_index= np.random.choice(N, num, p=self.prob[action][i,:])[0]
+        next_index= np.random.choice(self.num_states, num, p=self.prob[action][i,:])[0]
         return self.states[next_index]
 
     def addKernels(self, kernels):
         self.kernels = kernels
+        self.num_kern = len(self.kernels)
 
     def phi(self, state, action):
         # Create vector of basis functions, phi. All kernels are multiplied an
         # action indicator function. A feature vector will have @c m*p
         # elements, where @c m is the number of actions, and @c p is the number
         # of kernels. This function takes arguments (<str>state, <str>action).
-        _m = len(self.action_list)
-        _p = len(self.kernels)
-        phi = np.empty([_m*_p, 1]) # Column vector
+        phi = np.empty([self.num_actions*self.num_kern, 1]) # Column vector
         i_state = int(state)
-        # Action indicator function.
-        act_ind = lambda a_0, a_i: int(a_0 == a_i)
         for _i, act in enumerate(self.action_list):
-            this_ind = lambda a_in, a_i=act: act_ind(a_in, a_i)
+            this_ind = lambda a_in, a_i=act: self.act_ind(a_in, a_i)
             trans_probs = self.T(state, act)
             for _j, kern in enumerate(self.kernels):
                 # Eq. 3.3 Sugiyama 2015
                 kern_weights = np.array(map(kern, self.state_vec))
-                phi[_i+(_j)*_m] = this_ind(action) * np.inner(trans_probs,
-                                                              kern_weights)
+                phi[_i+(_j)*self.num_kern] = \
+                    this_ind(action) * np.inner(trans_probs, kern_weights)
         return phi
 
     def findSinks(self, sink_frag):
@@ -115,14 +112,13 @@ class MDP:
         states that include @c sink_frag. @c sink_frag is the DRA/DFA
         component of an augmented state that is terminal.
         """
-        num_states = len(self.states)
         for state in self.states:
             if sink_frag in state:
                 # Set the transition probability of this state to always self
                 # loop.
                 s_idx = self.states.index(state)
                 for act in self.action_list:
-                    self.prob[act][s_idx, :] = np.zeros((1, num_states))
+                    self.prob[act][s_idx, :] = np.zeros((1, self.num_states))
                     self.prob[act][s_idx, s_idx] = 1.0
 
     @staticmethod
