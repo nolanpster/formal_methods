@@ -35,7 +35,7 @@ if __name__=='__main__':
                         'b': 0.0
                         }
               }
-    quiz_mdp = MDP(init='1', actlist=['a','b'], states=['1', '2', '3'],
+    quiz_mdp = MDP(init='1', action_list=['a','b'], states=['1', '2', '3'],
                    prob=prob_dict, gamma=1.0, reward=reward)
     quiz_mdp.gamma = 0.9
     # Solve method defaults to value iteration algorithm.
@@ -102,7 +102,7 @@ if __name__=='__main__':
               }
     # Note that input gamma is overwritten in DRA/MDP product method, so we'll
     # need to set it again later.
-    grid_mdp = MDP(init=initial_state, actlist=actions,
+    grid_mdp = MDP(init=initial_state, action_list=actions,
                    states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
                    gamma=1, AP=atom_prop, L=labels)
     # Define a Deterministic (finitie) Raban Automata to match the sketch on
@@ -172,11 +172,11 @@ if __name__=='__main__':
     game_mdp.reward = reward_dict
     # Then I set up all sink states so all transition probabilities from a sink
     # states take a self loop with probability 1.
-    game_mdp.findSinks('q4')
+    game_mdp.setSinks('q4')
     # If I uncomment the following line, all states at grid cell '5' no longer
     # build up any reward.
-    #game_mdp.findSinks('5')
-    game_mdp.findSinks('q5')
+    #game_mdp.setSinks('5')
+    game_mdp.setSinks('q5')
     discounted_game_mdp = deepcopy(game_mdp)
     # Force this to be true since MDP constructor has a default gamma=0.9.
     discounted_game_mdp.gamma = 0.9
