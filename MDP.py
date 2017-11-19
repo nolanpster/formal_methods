@@ -36,10 +36,10 @@ class MDP:
         self.prob=prob
         self.AP=AP
         self.L=L
-
-    def R(self, state):
-        "Return a numeric reward for this state."
-        return self.reward[state]
+        # For EM Solving
+        self.act_ind = lambda a_0, a_i: int(a_0 == a_i)
+        self.makeUniformPolicy()
+        self.setInitialProbDist()
 
     def T(self, state, action):
         """
@@ -58,7 +58,7 @@ class MDP:
         j=self.states.index(next_state)
         return self.prob[action][i, j]
 
-    def actions(self, state):
+    def getActions(self, state):
         S=set([])
         for _a in self.action_list:
             if not np.array_equal(self.T(state,_a), np.zeros(self.num_states)):
@@ -73,7 +73,7 @@ class MDP:
         Sample the next state according to the current state, the action, and
         the transition probability.
         """
-        if action not in self.actions(state):
+        if action not in self.getActions(state):
             return None # Todo: considering adding the sink state
         i=self.states.index(state)
         # Note that only one element is chosen from the array, which is the
@@ -97,12 +97,56 @@ class MDP:
             trans_probs = self.T(state, act)
             for _j, kern in enumerate(self.kernels):
                 # Eq. 3.3 Sugiyama 2015
-                kern_weights = np.array(map(kern, self.state_vec))
-                phi[_i+(_j)*self.num_kern] = \
-                    this_ind(action) * np.inner(trans_probs, kern_weights)
+                try:
+                    kern_weights = np.array(map(kern, self.state_vec))
+                    phi[_i+(_j)*self.num_actions] = \
+                        this_ind(action) * np.inner(trans_probs, kern_weights)
+                except:
+                    import pdb; pdb.set_trace()
         return phi
 
-    def findSinks(self, sink_frag):
+    def timePrior(self, _t):
+        """
+        Returns the geometric time prior from [TS2010?] for a finite-time MDP,
+        @c P(T) = (1-gamma)*gamma^t.
+        """
+        return (1-self.gamma) * self.gamma**_t
+
+    def probRewardGivenX_T(self, state, policy=None):
+        """
+        @brief The probability of a reward given the current state and a policy.
+
+        If no policy is provided, then this defaults to mdp.policy.
+        """
+        if policy is None:
+            policy = self.policy
+        # List rewards available at this state for every action.
+        rewards = [self.reward[state][act] for act in self.action_list]
+        return np.inner(self.policy[state], rewards)
+
+    def probNextStateGivenState(self, state, policy=None):
+        """
+        """
+        if policy is None:
+            policy = self.policy
+        pass
+
+    def setInitialProbDist(self, dist=None):
+        # S based on section 1.2.2 of Toussaint and Storkey - the initial
+        # distribution.
+        if dist is None:
+            # Default to uniform distribution.
+            self.S = np.ones(self.num_states)/self.num_states
+        else:
+            raise NotImplementedError()
+            pass
+
+
+    def makeUniformPolicy(self):
+        uniform_choice = np.ones(self.num_actions)/self.num_actions
+        self.policy = {state: uniform_choice for state in self.states}
+
+    def setSinks(self, sink_frag):
         """
         @brief Finds augmented states that contain @c sink_frag and updates
                the row corresponding to their transition probabilities so that
@@ -124,7 +168,9 @@ class MDP:
     @staticmethod
     def productMDP(mdp, dra):
         pmdp=MDP()
-        init=(mdp.init, dra.get_transition(mdp.L[mdp.init], dra.initial_state))
+        if mdp.init is not None:
+            init=(mdp.init, dra.get_transition(mdp.L[mdp.init],
+                                               dra.initial_state))
         states=[]
         for _s in mdp.states:
             for _q in dra.states:
@@ -154,6 +200,9 @@ class MDP:
                     Kmdp.add(_s)
             mdp_acc.append((Jmdp, Kmdp))
         pmdp.acc=mdp_acc
+        pmdp.num_states = len(pmdp.states)
+        pmdp.num_actions = len(pmdp.action_list)
+        pmdp.makeUniformPolicy()
         return pmdp
 
 
