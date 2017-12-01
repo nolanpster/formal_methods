@@ -44,7 +44,7 @@ prob_grid = {'North': np.array([[0.9, 0.1, 0.0, 0.0, 0.0, 0.0],
                                [0.0, 0.1, 0.0, 0.8, 0.1, 0.0],
                                [0.0, 0.0, 0.1, 0.0, 0.8, 0.1]]
                                ),
-             'Empty': np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+             'Stay': np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
                                 [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
                                 [0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
                                 [0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
@@ -84,7 +84,7 @@ if __name__=='__main__':
     # Where empty is the empty string/label/dfa-action.
     atom_prop = [green3, green4, red, empty]
     # Defined empty action for MDP incurrs a self loop.
-    action_list = ['North', 'South', 'East', 'West', 'Empty']
+    action_list = ['North', 'South', 'East', 'West', 'Stay']
     initial_state = '1'
     labels = {'1': empty,
               '2': empty,
@@ -124,14 +124,14 @@ if __name__=='__main__':
                  'South': 0.0,
                  'East': 0.0,
                  'West': 0.0,
-                 'Empty': 1.0
+                 'Stay': 1.0
                  }
     no_reward = {
                  'North': 0.0,
                  'South': 0.0,
                  'East': 0.0,
                  'West': 0.0,
-                 'Empty': 0.0
+                 'Stay': 0.0
                  }
     # 11/19/17. The goal is to reach state 3. All states are acceptable.  There
     # are no sinks.
