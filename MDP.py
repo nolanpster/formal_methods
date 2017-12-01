@@ -182,6 +182,12 @@ class MDP:
                     self.prob[act][s_idx, :] = np.zeros((1, self.num_states))
                     self.prob[act][s_idx, s_idx] = 1.0
 
+    def prunePolicyHack(self):
+        for state, action_dict in self.policy.items():
+            for act, prob in action_dict.items():
+                if np.isnan(prob):
+                    self.policy[state][act] = 0
+
     @staticmethod
     def productMDP(mdp, dra):
         pmdp=MDP()
