@@ -11,6 +11,8 @@ import numpy as np
 from copy import deepcopy
 from pprint import pprint
 
+np.set_printoptions(linewidth=300)
+np.set_printoptions(precision=3)
 
 # Transition probabilities for each action in each cell (gross, explodes with
 # the number of states).
