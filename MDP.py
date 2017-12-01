@@ -38,7 +38,8 @@ class MDP:
         self.L=L
         # For EM Solving
         self.act_ind = lambda a_0, a_i: int(a_0 == a_i)
-        self.makeUniformPolicy()
+        if self.num_actions > 0:
+            self.makeUniformPolicy()
         self.setInitialProbDist()
 
     def T(self, state, action):
@@ -114,37 +115,53 @@ class MDP:
 
     def probRewardGivenX_T(self, state, policy=None):
         """
-        @brief The probability of a reward given the current state and a policy.
+        @brief The probability of a reward given a final state x at final time
+        T, and a policy.
 
         If no policy is provided, then this defaults to mdp.policy.
         """
         if policy is None:
             policy = self.policy
         # List rewards available at this state for every action.
-        rewards = [self.reward[state][act] for act in self.action_list]
-        return np.inner(self.policy[state], rewards)
+        prob_reward = 0
+        for act in self.action_list:
+            prob_reward += self.reward[state][act]*self.policy[state][act]
 
-    def probNextStateGivenState(self, state, policy=None):
+        return prob_reward
+
+    def setProbMatGivenPolicy(self, policy=None):
         """
         """
         if policy is None:
             policy = self.policy
-        pass
+        # Assume that all transition probabiliity matricies are the same size.
+        # The method below should work in python 2 and 3.
+        prob_keys = tuple(self.prob.keys())
+        self.prob_mat_given_policy = np.zeros_like(self.prob[prob_keys[0]])
 
-    def setInitialProbDist(self, dist=None):
+        for state_idx, state_str in enumerate(self.states):
+            this_policy = self.policy[state_str]
+            for act in this_policy.keys():
+                self.prob_mat_given_policy[state_idx,:] += \
+                    this_policy[act]*self.prob[act][state_idx, :]
+        return self.prob_mat_given_policy
+
+    def setInitialProbDist(self, initial_state=None):
         # S based on section 1.2.2 of Toussaint and Storkey - the initial
         # distribution.
-        if dist is None:
+        if initial_state is None:
             # Default to uniform distribution.
             self.S = np.ones(self.num_states)/self.num_states
         else:
-            raise NotImplementedError()
-            pass
-
+            self.S = np.zeros(self.num_states)
+            init_idx = self.states.index(self.init)
+            self.S[init_idx] = 1
 
     def makeUniformPolicy(self):
-        uniform_choice = np.ones(self.num_actions)/self.num_actions
-        self.policy = {state: uniform_choice for state in self.states}
+        uninform_prob = 1.0/self.num_actions
+        uniform_policy_dist = {act: uninform_prob for act in self.action_list}
+        self.policy = {state: uniform_policy_dist.copy() for state in
+                       self.states}
 
     def setSinks(self, sink_frag):
         """
@@ -203,6 +220,8 @@ class MDP:
         pmdp.num_states = len(pmdp.states)
         pmdp.num_actions = len(pmdp.action_list)
         pmdp.makeUniformPolicy()
+        if pmdp.num_states > 0 and pmdp.init is not None:
+            pmdp.setInitialProbDist(pmdp.init)
         return pmdp
 
 
