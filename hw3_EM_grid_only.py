@@ -144,9 +144,6 @@ if __name__=='__main__':
             # No reward when leaving current state.
             reward_dict[state] = no_reward
     grid_mdp.reward = reward_dict
-    import pdb; pdb.set_trace()
-    for state in grid_mdp.states:
-        pprint((state, grid_mdp.probRewardGivenX_T(state)))
     # The following line should(?) force state 5 to be a sink state.
     # grid_mdp.setSinks('5')
 

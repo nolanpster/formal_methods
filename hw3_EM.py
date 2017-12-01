@@ -184,9 +184,6 @@ if __name__=='__main__':
             # No reward when leaving current state.
             reward_dict[state] = no_reward
     VI_game_mdp.reward = reward_dict
-    for state in VI_game_mdp.states:
-        pprint((state, VI_game_mdp.probRewardGivenX_T(state)))
-    import pdb; pdb.set_trace()
     # Then I set up all sink states so all transition probabilities from a sink
     # states take a self loop with probability 1.
     VI_game_mdp.setSinks('q4')
@@ -196,7 +193,25 @@ if __name__=='__main__':
     VI_game_mdp.setSinks('q5')
     # @TODO Prune the MDP. Eg, state ('1', 'q3') is not reachable.
     EM_game_mdp = deepcopy(VI_game_mdp)
+    # Set uniform initial distribution (this includes a uniform chance of being
+    # at all states in the DRA which is wrong) -- need to fix!
+    EM_game_mdp.setInitialProbDist()
 
     ##### SOLVE #####
     EM_game_mdp.solve(do_print=True, method='expectationMaximization')
     VI_game_mdp.solve(do_print=True, method='valueIteration')
+
+    compare_to_decimals = 3
+    VI_policy = VI_game_mdp.policy.copy()
+    EM_policy = EM_game_mdp.policy.copy()
+    policy_difference = EM_game_mdp.policy.copy()
+    for state, action_dict in VI_policy.items():
+        for act in action_dict.keys():
+            VI_prob = round(VI_policy[state][act], compare_to_decimals)
+            VI_policy[state][act] = VI_prob
+            EM_prob = round(EM_policy[state][act], compare_to_decimals)
+            EM_policy[state][act] = EM_prob
+            policy_difference[state][act] = round(abs(VI_prob - EM_prob),
+                                                  compare_to_decimals)
+    print("Policy Difference:")
+    pprint(policy_difference)
