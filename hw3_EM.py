@@ -7,12 +7,17 @@ from NFA_DFA_Module.DFA import LTL_plus
 from MDP import MDP
 from grid_graph import GridGraph
 
+import os
+import datetime
+import pickle
+import dill # For pickling lambda functions.
 import numpy as np
 from copy import deepcopy
 from pprint import pprint
 
 np.set_printoptions(linewidth=300)
 np.set_printoptions(precision=3)
+
 
 # Transition probabilities for each action in each cell (gross, explodes with
 # the number of states).
@@ -70,8 +75,23 @@ shortest_paths = {frozenset([1, 2]): (1, 2),
                   frozenset([5, 6]): (5, 6)
                   }
 
-# Entry point when called from Command line.
-if __name__=='__main__':
+mdp_obj_path = os.path.abspath('pickled_mdps')
+
+def getOutFile(name_prefix='EM_MDP'):
+    # Dev machine returns UTC.
+    current_datetime = datetime.datetime.now()
+    formatted_time = current_datetime.strftime('_UTC%y%m%d_%H%M')
+    # Filepath for mdp objects.
+    full_file_path = os.path.join(mdp_obj_path, name_prefix + formatted_time)
+    if not os.path.exists(os.path.dirname(full_file_path)):
+        try:
+            os.makedirs(os.path.dirname(full_file_path))
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+    return full_file_path
+
+def makeGridMDPxDRA():
     ##### Problem 2 - Configure MDP #####
     # For the simple 6-state gridworld, see slide 8 of Lecture 7, write the
     # specification automata for the following: visit all green cells and avoid
@@ -98,7 +118,6 @@ if __name__=='__main__':
     grid_mdp = MDP(init=initial_state, action_list=action_list,
                    states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
                    gamma=0.9, AP=atom_prop, L=labels)
-
     ##### Configure EM inputs #####
     # Use a @ref GridGraph object to record, and seach for shortest paths
     # between two grid-cells.
@@ -215,3 +234,34 @@ if __name__=='__main__':
                                                   compare_to_decimals)
     print("Policy Difference:")
     pprint(policy_difference)
+
+    # Solved mdp.
+    return EM_game_mdp
+
+
+# Entry point when called from Command line.
+if __name__=='__main__':
+    make_new_mdp = False
+    if make_new_mdp:
+        mdp = makeGridMDPxDRA()
+    else:
+        # Manually choose file here:
+        pickled_mdp = os.path.join(mdp_obj_path, 'EM_MDP_UTC171204_1305')
+        print "Loading file {}.".format(pickled_mdp)
+        with open(pickled_mdp) as _file:
+            mdp = pickle.load(_file)
+
+    # Only pickle a newe file if we made a new one and we want to save it.
+    saveMDP = True and not make_new_mdp
+    if saveMDP:
+        with open(getOutFile(), 'w+') as _file:
+            pickle.dump(mdp, _file)
+
+    # Use policy to simulate and record results.
+
+    # Save sampled trajectories.
+
+    # (optionally load trajectories)
+
+    # Solve for approximated observed policy.
+
