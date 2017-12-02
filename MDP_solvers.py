@@ -88,7 +88,7 @@ class MDP_solvers(object):
         @brief
         """
         num_iters = 100
-        S = self.mdp.S # Initial distribution.
+        S = deepcopy(self.mdp.S) # Initial distribution.
         for _ in range(num_iters):
             P = self.mdp.setProbMatGivenPolicy()
             R = [self.mdp.probRewardGivenX_T(state) for state in self.mdp.states]
@@ -103,7 +103,7 @@ class MDP_solvers(object):
                 for act, prob in act_dist.items():
                     policy_out[state][act] = round(prob,3)
             print("EM found the following policy: {}")
-            pprint(self.mdp.policy)
+            pprint(policy_out)
             print("Prob. or reward = {0:.3f}, expectation of T given R = "
                   "{1:.3f}.".format(P_R, expect_T_given_R))
 
