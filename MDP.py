@@ -145,10 +145,14 @@ class MDP:
 
     def setProbMatGivenPolicy(self, policy=None):
         """
+        @brief Returns a transition probability matrix that has been summed over all actions
+        multiplied with all transition probabilities.
+
+        Rows of un-reachable states are not guranteed to sum to 1.
         """
         if policy is None:
             policy = self.policy
-        # Assume that all transition probabiliity matricies are the same size.
+        # Assume that all transition probability matricies are the same size.
         # The method below should work in python 2 and 3.
         prob_keys = tuple(self.prob.keys())
         self.prob_mat_given_policy = np.zeros_like(self.prob[prob_keys[0]])
