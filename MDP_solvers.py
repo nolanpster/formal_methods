@@ -98,7 +98,7 @@ class MDP_solvers(object):
             MDP_solvers.m_step(self, beta)
             self.mdp.removeNaNValues()
         if do_print:
-            policy_out = self.mdp.policy.copy()
+            policy_out = deepcopy(self.mdp.policy)
             for state, act_dist in policy_out.items():
                 for act, prob in act_dist.items():
                     policy_out[state][act] = round(prob,3)
