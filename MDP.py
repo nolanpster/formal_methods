@@ -210,10 +210,19 @@ class MDP:
                     self.prob[act][s_idx, s_idx] = 1.0
 
     def removeNaNValues(self):
+        """
+        @brief Find NaN entries in policy, and replace them with a 0 or 1.
+
+        Only replace with 1 if the state is in the list of sink states and the action
+        equals the "sink action".
+        """
         for state, action_dict in self.policy.items():
             for act, prob in action_dict.items():
                 if np.isnan(prob):
-                    self.policy[state][act] = 0
+                    if state in self.sink_list and act==self.sink_act:
+                        self.policy[state][act] = 1
+                    else:
+                        self.policy[state][act] = 0
 
     @staticmethod
     def productMDP(mdp, dra):
