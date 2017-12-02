@@ -221,9 +221,9 @@ def makeGridMDPxDRA():
     VI_game_mdp.solve(do_print=True, method='valueIteration')
 
     compare_to_decimals = 3
-    VI_policy = VI_game_mdp.policy.copy()
-    EM_policy = EM_game_mdp.policy.copy()
-    policy_difference = EM_game_mdp.policy.copy()
+    VI_policy = deepcopy(VI_game_mdp.policy)
+    EM_policy = deepcopy(EM_game_mdp.policy)
+    policy_difference = deepcopy(EM_game_mdp.policy)
     for state, action_dict in VI_policy.items():
         for act in action_dict.keys():
             VI_prob = round(VI_policy[state][act], compare_to_decimals)
