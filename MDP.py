@@ -24,7 +24,7 @@ class MDP:
         function, implemented as a dictionary: state: a subset of AP."""
     def __init__(self, init=None, action_list=[], states=[], prob=dict([]),
                  acc=None, gamma=.9, AP=set([]), L=dict([]), reward=dict([])):
-        self.init=init
+        self.init=init # Initial state
         self.action_list=action_list
         self.num_actions = len(self.action_list)
         self.states=states
@@ -34,12 +34,14 @@ class MDP:
         self.gamma=gamma
         self.reward=reward
         self.prob=prob
-        self.AP=AP
-        self.L=L
+        self.AP=AP # Atomic propositions
+        self.L=L # Labels of states
+        self.S = None # Initial probability distribution.
         # For EM Solving
         self.act_ind = lambda a_0, a_i: int(a_0 == a_i)
         if self.num_actions > 0:
             self.makeUniformPolicy()
+        self.init_set = None
         self.setInitialProbDist()
 
     def T(self, state, action):
@@ -152,6 +154,12 @@ class MDP:
         if initial_state is None:
             # Default to uniform distribution.
             self.S = np.ones(self.num_states)/self.num_states
+        elif type(initial_state) is list:
+            init_prob = 1.0/len(initial_state)
+            self.S = np.zeros(self.num_states)
+            for state in initial_state:
+                state_idx = self.states.index(state)
+                self.S[state_idx] = init_prob
         else:
             self.S = np.zeros(self.num_states)
             init_idx = self.states.index(self.init)

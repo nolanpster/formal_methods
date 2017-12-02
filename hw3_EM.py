@@ -212,9 +212,8 @@ def makeGridMDPxDRA():
     VI_game_mdp.setSinks('q5')
     # @TODO Prune the MDP. Eg, state ('1', 'q3') is not reachable.
     EM_game_mdp = deepcopy(VI_game_mdp)
-    # Set uniform initial distribution (this includes a uniform chance of being
-    # at all states in the DRA which is wrong) -- need to fix!
-    EM_game_mdp.setInitialProbDist()
+    EM_game_mdp.init_set = [state for state in EM_game_mdp.states if 'q0' in state]
+    EM_game_mdp.setInitialProbDist(EM_game_mdp.init_set)
 
     ##### SOLVE #####
     EM_game_mdp.solve(do_print=True, method='expectationMaximization')
@@ -251,8 +250,8 @@ if __name__=='__main__':
         with open(pickled_mdp) as _file:
             mdp = pickle.load(_file)
 
-    # Only pickle a newe file if we made a new one and we want to save it.
-    saveMDP = True and not make_new_mdp
+    # Only pickle a new file if we made a new one and we want to save it.
+    saveMDP = True and make_new_mdp
     if saveMDP:
         with open(getOutFile(), 'w+') as _file:
             pickle.dump(mdp, _file)

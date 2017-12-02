@@ -88,7 +88,7 @@ class MDP_solvers(object):
         @brief
         """
         num_iters = 100
-        S = self.mdp.S
+        S = self.mdp.S # Initial distribution.
         for _ in range(num_iters):
             P = self.mdp.setProbMatGivenPolicy()
             R = [self.mdp.probRewardGivenX_T(state) for state in self.mdp.states]
@@ -138,6 +138,7 @@ class MDP_solvers(object):
     def m_step(self, beta):
         for state_ind, state in enumerate(self.mdp.states):
             norm_factor = 0
+            # Update policy and record value in normalization factor.
             for act in self.mdp.action_list:
                 self.mdp.policy[state][act] = self.mdp.policy[state][act] * \
                     (self.mdp.reward[state][act] +
