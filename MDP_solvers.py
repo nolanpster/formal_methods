@@ -96,7 +96,7 @@ class MDP_solvers(object):
             alpha, beta, P_R, P_T_given_R, expect_T_given_R = \
                 MDP_solvers.e_step(self, S, R, P, self.mdp.gamma)
             MDP_solvers.m_step(self, beta)
-            self.mdp.prunePolicyHack()
+            self.mdp.removeNaNValues()
         if do_print:
             policy_out = self.mdp.policy.copy()
             for state, act_dist in policy_out.items():
