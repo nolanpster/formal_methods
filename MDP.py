@@ -43,6 +43,8 @@ class MDP:
         if self.num_actions > 0:
             self.makeUniformPolicy()
         self.init_set = None
+        self.sink_act = None
+        self.sink_list = []
         self.setInitialProbDist()
 
     def T(self, state, action):
@@ -201,6 +203,7 @@ class MDP:
             if sink_frag in state:
                 # Set the transition probability of this state to always self
                 # loop.
+                self.sink_list.append(state)
                 s_idx = self.states.index(state)
                 for act in self.action_list:
                     self.prob[act][s_idx, :] = np.zeros((1, self.num_states))

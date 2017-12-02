@@ -205,6 +205,7 @@ def makeGridMDPxDRA():
     VI_game_mdp.reward = reward_dict
     # Then I set up all sink states so all transition probabilities from a sink
     # states take a self loop with probability 1.
+    VI_game_mdp.sink_act = 'Empty'
     VI_game_mdp.setSinks('q4')
     # If I uncomment the following line, all states at grid cell '5' no longer
     # build up any reward.
