@@ -258,6 +258,11 @@ if __name__=='__main__':
             pickle.dump(mdp, _file)
 
     # Use policy to simulate and record results.
+    mdp.resetState()
+    print mdp.current_state
+    for _ in range(10):
+        mdp.step()
+        print mdp.current_state
 
     # Save sampled trajectories.
 

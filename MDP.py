@@ -87,6 +87,25 @@ class MDP:
         next_index= np.random.choice(self.num_states, num, p=self.prob[action][i,:])[0]
         return self.states[next_index]
 
+    def step(self):
+        """
+        @brief Given the current state and the policy, creates the joint distribution of
+            next-states and actions. Then samples from that distribution.
+
+        Returns the current state number as an integer.
+        """
+        # Creates a transition probability vector of the same dimesion as a row in the
+        # transition probability matrix.
+        this_trans_prob = np.zeros(self.num_states)
+        this_policy = self.policy[self.current_state]
+        for act in this_policy.keys():
+            this_trans_prob += this_policy[act] \
+                               * self.prob[act][self.states.index(self.current_state), :]
+        # Sample a new state given joint distribution of states and actions.
+        next_index= np.random.choice(self.num_states, 1, p=this_trans_prob)[0]
+        self.current_state = self.states[next_index]
+        return int(self.current_state[0])
+
     def resetState(self):
         """
         @brief Reset state to a random position in the grid.
