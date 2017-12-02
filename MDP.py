@@ -30,6 +30,7 @@ class MDP:
         self.states=states
         self.state_vec = np.array(map(int, self.states))
         self.num_states = len(self.states)
+        self.current_state = None
         self.acc=acc
         self.gamma=gamma
         self.reward=reward
@@ -83,6 +84,17 @@ class MDP:
         # output by random.choice
         next_index= np.random.choice(self.num_states, num, p=self.prob[action][i,:])[0]
         return self.states[next_index]
+
+    def resetState(self):
+        """
+        @brief Reset state to a random position in the grid.
+        """
+        if self.init_set is not None:
+            self.current_state = self.states[np.random.choice(self.num_states, 1,
+                                                              p=self.S)[0]]
+        elif self.init is not None:
+            self.current_state = self.init
+        return int(self.current_state[0])
 
     def addKernels(self, kernels):
         self.kernels = kernels
