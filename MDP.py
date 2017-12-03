@@ -5,6 +5,7 @@ from MDP_solvers import MDP_solvers
 
 from scipy import stats
 import numpy as np
+import sys # For float_info.epsilon.
 
 
 class MDP:
@@ -236,12 +237,22 @@ class MDP:
         equals the "sink action".
         """
         for state, action_dict in self.policy.items():
+            this_total_prob = 0
             for act, prob in action_dict.items():
                 if np.isnan(prob):
                     if state in self.sink_list and act==self.sink_act:
                         self.policy[state][act] = 1
+                        this_total_prob += 1
                     else:
                         self.policy[state][act] = 0
+                else:
+                    this_total_prob += prob
+            if this_total_prob == 0:
+                # Zero policy, just pick sink_action.
+                self.policy[state][self.sink_act] = 1
+            elif this_total_prob > 1.0+sys.float_info.epsilon:
+                raise ValueError('Total probability greater than 1!')
+
 
     @staticmethod
     def productMDP(mdp, dra):
