@@ -210,7 +210,7 @@ def makeGridMDPxDRA():
     VI_game_mdp.setSinks('q4')
     # If I uncomment the following line, all states at grid cell '5' no longer
     # build up any reward.
-    VI_game_mdp.setSinks('5')
+    #VI_game_mdp.setSinks('5')
     VI_game_mdp.setSinks('q5')
     # @TODO Prune the MDP. Eg, state ('1', 'q3') is not reachable.
     EM_game_mdp = deepcopy(VI_game_mdp)
