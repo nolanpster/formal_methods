@@ -118,6 +118,7 @@ def makeGridMDPxDRA():
     grid_mdp = MDP(init=initial_state, action_list=action_list,
                    states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
                    gamma=0.9, AP=atom_prop, L=labels)
+    grid_mdp.init_set = grid_mdp.states
     ##### Configure EM inputs #####
     # Use a @ref GridGraph object to record, and seach for shortest paths
     # between two grid-cells.
@@ -213,7 +214,6 @@ def makeGridMDPxDRA():
     VI_game_mdp.setSinks('q5')
     # @TODO Prune the MDP. Eg, state ('1', 'q3') is not reachable.
     EM_game_mdp = deepcopy(VI_game_mdp)
-    EM_game_mdp.init_set = [state for state in EM_game_mdp.states if 'q0' in state]
     EM_game_mdp.setInitialProbDist(EM_game_mdp.init_set)
 
     ##### SOLVE #####

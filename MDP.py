@@ -260,6 +260,9 @@ class MDP:
         if mdp.init is not None:
             init=(mdp.init, dra.get_transition(mdp.L[mdp.init],
                                                dra.initial_state))
+        if mdp.init_set is not None:
+            pmdp.init_set = [(m_i, dra.get_transition(mdp.L[m_i], dra.initial_state))
+                             for m_i in mdp.init_set]
         states=[]
         for _s in mdp.states:
             for _q in dra.states:
