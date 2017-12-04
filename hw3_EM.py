@@ -224,6 +224,20 @@ def makeGridMDPxDRA():
     # Solved mdp.
     return EM_game_mdp
 
+def evalGibbsPolicy(theta, phi, state_0, state_1, action_list):
+    """
+    @brief Returns an approximated policy update.
+
+    @param theta vector of weights.
+    @param phi vector of basis functions.
+    @param The starting state.
+    @param The resulting state, used with @ref state_0 to deduce observed action.
+    """
+    observed_action = state_transition_actions[(state_0, state_1)]
+    exp_Q = {act:np.exp(np.dot(theta, phi(str(state_0), act))) for act in action_list}
+
+    return exp_Q[observed_action]/sum(exp_Q.values())
+
 
 # Entry point when called from Command line.
 if __name__=='__main__':
@@ -269,4 +283,37 @@ if __name__=='__main__':
     # (optionally load trajectories)
 
     # Solve for approximated observed policy.
+    # New mdp to model created/loaded one.
+    grid_mdp = MDP(init=initial_state, action_list=action_list,
+                   states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
+                   gamma=0.9, AP=atom_prop, L=labels)
+    grid_mdp.init_set = grid_mdp.states
+    ##### Configure EM inputs #####
+    # Use a @ref GridGraph object to record, and seach for shortest paths
+    # between two grid-cells.
+    graph = GridGraph(shortest_paths)
+    # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
+    # Learning, Sugiyama, 2015.
+    ggk_sig = 1.0;
+    kernel_centers = [1, 2, 3, 4, 5, 6]
+    gg_kernel_func = lambda s_i, C_i: \
+               np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
+    # Note that we need to use a keyword style argument passing to ensure that
+    # each lambda function gets its own value of C.
+    K = [lambda s, C=cent: gg_kernel_func(s, C)
+         for cent in kernel_centers]
+    # It could be worth pre-computing all of the feature vectors for a small
+    # grid...
+    grid_mdp.addKernels(K)
+
+    import pdb; pdb.set_trace()
+    test_phi = grid_mdp.phi(str(1), 'East')
+    theta_0 = np.ones_like(test_phi).T
+    # Probability of actions been chosen given theta and state.#
+    (num_episodes, num_steps) = run_histories.shape
+    for episode in range(num_episodes):
+        for t_step in range(1, num_steps):
+            beta = evalGibbsPolicy(theta_0, grid_mdp.phi, run_histories[episode, t_step-1],
+                                   run_histories[episode, t_step], grid_mdp.action_list)
+    #beta = np.apply_along_axis(evalGibbsPolicy, axis=1, arr=run_histories)
 
