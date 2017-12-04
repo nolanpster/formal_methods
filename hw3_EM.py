@@ -122,23 +122,6 @@ def makeGridMDPxDRA():
                    states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
                    gamma=0.9, AP=atom_prop, L=labels)
     grid_mdp.init_set = grid_mdp.states
-    ##### Configure EM inputs #####
-    # Use a @ref GridGraph object to record, and seach for shortest paths
-    # between two grid-cells.
-    graph = GridGraph(shortest_paths)
-    # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
-    # Learning, Sugiyama, 2015.
-    ggk_sig = 1.0;
-    kernel_centers = [1, 2, 3, 4, 5, 6]
-    gg_kernel_func = lambda s_i, C_i: \
-               np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
-    # Note that we need to use a keyword style argument passing to ensure that
-    # each lambda function gets its own value of C.
-    K = [lambda s, C=cent: gg_kernel_func(s, C)
-         for cent in kernel_centers]
-    # It could be worth pre-computing all of the feature vectors for a small
-    # grid...
-    grid_mdp.addKernels(K)
 
     ##### Add DRA for co-safe spec #####
     # Define a Deterministic (finitie) Raban Automata to match the sketch on
