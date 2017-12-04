@@ -76,13 +76,14 @@ shortest_paths = {frozenset([1, 2]): (1, 2),
                   }
 
 mdp_obj_path = os.path.abspath('pickled_mdps')
+data_path = os.path.abspath('pickled_episodes')
 
-def getOutFile(name_prefix='EM_MDP'):
+def getOutFile(name_prefix='EM_MDP', dir_path=mdp_obj_path):
     # Dev machine returns UTC.
     current_datetime = datetime.datetime.now()
     formatted_time = current_datetime.strftime('_UTC%y%m%d_%H%M')
     # Filepath for mdp objects.
-    full_file_path = os.path.join(mdp_obj_path, name_prefix + formatted_time)
+    full_file_path = os.path.join(dir_path, name_prefix + formatted_time)
     if not os.path.exists(os.path.dirname(full_file_path)):
         try:
             os.makedirs(os.path.dirname(full_file_path))
@@ -255,15 +256,31 @@ if __name__=='__main__':
         with open(mdp_file) as _file:
             mdp = pickle.load(_file)
 
-    # Use policy to simulate and record results.
-    mdp.resetState()
-    print mdp.current_state
-    for _ in range(10):
-        mdp.step()
-        print mdp.current_state
-
-    # Save sampled trajectories.
-
+    gather_new_data = False
+    if gather_new_data:
+        # Use policy to simulate and record results.
+        #
+        # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
+        num_episodes = 100
+        steps_per_episode = 10
+        run_histories = np.zeros([num_episodes, steps_per_episode])
+        for episode in range(num_episodes):
+            # Create time-history for this episode.
+            run_histories[episode, 0] = mdp.resetState()
+            for t_step in range(1, steps_per_episode):
+                run_histories[episode, t_step] = mdp.step()
+        # Save sampled trajectories.
+        history_file = getOutFile(os.path.basename(mdp_file)
+                                  + ('_HIST_{}eps{}steps'.format(num_episodes, steps_per_episode)), data_path)
+        with open(history_file, 'w+') as _file:
+            print "Pickling Episode histories to {}.".format(history_file)
+            pickle.dump(run_histories, _file)
+    else:
+        # Manually choose data to load here:
+        history_file = os.path.join(data_path, 'EM_MDP_UTC171204_1305_HIST_100eps10steps_UTC171204_1437')
+        print "Loading history data file {}.".format(history_file)
+        with open(history_file) as _file:
+            run_histories = pickle.load(_file)
     # (optionally load trajectories)
 
     # Solve for approximated observed policy.
