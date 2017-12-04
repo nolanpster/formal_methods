@@ -272,7 +272,7 @@ if __name__=='__main__':
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
         num_episodes = 100
         steps_per_episode = 10
-        run_histories = np.zeros([num_episodes, steps_per_episode])
+        run_histories = np.zeros([num_episodes, steps_per_episode], dtype=np.int8)
         for episode in range(num_episodes):
             # Create time-history for this episode.
             run_histories[episode, 0] = mdp.resetState()
@@ -286,7 +286,7 @@ if __name__=='__main__':
             pickle.dump(run_histories, _file)
     else:
         # Manually choose data to load here:
-        history_file = os.path.join(data_path, 'EM_MDP_UTC171204_1548_HIST_100eps10steps_UTC171204_1550')
+        history_file = os.path.join(data_path, 'EM_MDP_UTC171204_1548_HIST_100eps10steps_UTC171204_1700')
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
