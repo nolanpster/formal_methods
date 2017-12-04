@@ -92,28 +92,30 @@ def getOutFile(name_prefix='EM_MDP', dir_path=mdp_obj_path):
                 raise
     return full_file_path
 
+# Shared MDP Initialization Parameters.
+green3 = LTL_plus('green3')
+green4 = LTL_plus('green4')
+red = LTL_plus('red')
+empty = LTL_plus('E')
+# Where empty is the empty string/label/dfa-action.
+atom_prop = [green3, green4, red, empty]
+# Defined empty action for MDP incurrs a self loop.
+action_list = ['North', 'South', 'East', 'West', 'Empty']
+initial_state = '1'
+labels = {'1': empty,
+          '2': empty,
+          '3': green3,
+          '4': green4,
+          '5': red,
+          '6': empty
+          }
+
 def makeGridMDPxDRA():
     ##### Problem 2 - Configure MDP #####
     # For the simple 6-state gridworld, see slide 8 of Lecture 7, write the
     # specification automata for the following: visit all green cells and avoid
     # the red cell.
     # Shared atomic propositions:
-    green3 = LTL_plus('green3')
-    green4 = LTL_plus('green4')
-    red = LTL_plus('red')
-    empty = LTL_plus('E')
-    # Where empty is the empty string/label/dfa-action.
-    atom_prop = [green3, green4, red, empty]
-    # Defined empty action for MDP incurrs a self loop.
-    action_list = ['North', 'South', 'East', 'West', 'Empty']
-    initial_state = '1'
-    labels = {'1': empty,
-              '2': empty,
-              '3': green3,
-              '4': green4,
-              '5': red,
-              '6': empty
-              }
     # Note that input gamma is overwritten in DRA/MDP product method, so we'll
     # need to set it again later.
     grid_mdp = MDP(init=initial_state, action_list=action_list,
