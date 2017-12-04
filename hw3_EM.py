@@ -244,18 +244,16 @@ if __name__=='__main__':
     make_new_mdp = False
     if make_new_mdp:
         mdp = makeGridMDPxDRA()
+        mdp_file = getOutFile()
+        with open(mdp_file, 'w+') as _file:
+            print "Pickling mdp to {}".format(mdp_file)
+            pickle.dump(mdp, _file)
     else:
         # Manually choose file here:
-        pickled_mdp = os.path.join(mdp_obj_path, 'EM_MDP_UTC171204_1305')
-        print "Loading file {}.".format(pickled_mdp)
-        with open(pickled_mdp) as _file:
+        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC171204_1305')
+        print "Loading file {}.".format(mdp_file)
+        with open(mdp_file) as _file:
             mdp = pickle.load(_file)
-
-    # Only pickle a new file if we made a new one and we want to save it.
-    saveMDP = True and make_new_mdp
-    if saveMDP:
-        with open(getOutFile(), 'w+') as _file:
-            pickle.dump(mdp, _file)
 
     # Use policy to simulate and record results.
     mdp.resetState()
