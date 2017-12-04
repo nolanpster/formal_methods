@@ -75,6 +75,16 @@ shortest_paths = {frozenset([1, 2]): (1, 2),
                   frozenset([5, 6]): (5, 6)
                   }
 
+# (Initial_state, next_state): Action
+state_transition_actions = {
+    (1,1): 'Empty', (1,2): 'East',  (1,3): None,    (1,4): 'South', (1,5): None,    (1,6): None,
+    (2,1): 'West',  (2,2): 'Empty', (2,3): 'East',  (2,4): None,    (2,5): 'South', (2,6): None,
+    (3,1): None,    (3,2): 'West',  (3,3): 'Empty', (3,4): None,    (3,5): None,    (3,6): 'South',
+    (4,1): 'North', (4,2): None,    (4,3): None,    (4,4): 'Empty', (4,5): 'East',  (4,6): None,
+    (5,1): None,    (5,2): 'North', (5,3): None,    (5,4): 'West',  (5,5): 'Empty', (5,6): 'East',
+    (6,1): None,    (6,2): None,    (6,3): 'North', (6,4): None,    (6,5): 'West',  (6,6): 'Empty'
+    }
+
 mdp_obj_path = os.path.abspath('pickled_mdps')
 data_path = os.path.abspath('pickled_episodes')
 
