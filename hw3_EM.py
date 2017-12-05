@@ -275,34 +275,33 @@ if __name__=='__main__':
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
-    # (optionally load trajectories)
+    # Make sure we don't do anything with the loaded mdp other than gather data with it (we'll load it later for
+    # comparison).
+    mdp = None
+
 
     # Solve for approximated observed policy.
-    # New mdp to model created/loaded one.
-    grid_mdp = MDP(init=initial_state, action_list=action_list,
+    # Use a new mdp to model created/loaded one and a @ref GridGraph object to record, and seach for shortest paths
+    # between two grid-cells.
+    infer_mdp = MDP(init=initial_state, action_list=action_list,
                    states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
                    gamma=0.9, AP=atom_prop, L=labels)
-    grid_mdp.init_set = grid_mdp.states
-    ##### Configure EM inputs #####
-    # Use a @ref GridGraph object to record, and seach for shortest paths
-    # between two grid-cells.
+    infer_mdp.init_set = infer_mdp.states
     graph = GridGraph(shortest_paths)
-    # Set the actions corresponding to state pairs.
     graph.setStateTransitionsFromActions(state_transition_actions)
-    mdp.graph = graph
+    infer_mdp.graph = graph
     # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
     # Learning, Sugiyama, 2015.
     ggk_sig = 1.0;
     kernel_centers = [1, 2, 3, 4, 5, 6]
-    gg_kernel_func = lambda s_i, C_i: \
-               np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
+    gg_kernel_func = lambda s_i, C_i: np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
     # Note that we need to use a keyword style argument passing to ensure that
     # each lambda function gets its own value of C.
     K = [lambda s, C=cent: gg_kernel_func(s, C)
          for cent in kernel_centers]
     # It could be worth pre-computing all of the feature vectors for a small
     # grid...
-    grid_mdp.addKernels(K)
+    infer_mdp.addKernels(K)
 
     import pdb; pdb.set_trace()
 
