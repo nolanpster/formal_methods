@@ -2,6 +2,7 @@
 __author__ = 'Jie Fu, jfu2@wpi.edu'
 from NFA_DFA_Module.NFA import NFA
 from MDP_solvers import MDP_solvers
+from policy_inference import PolicyInference
 
 from scipy import stats
 import numpy as np
@@ -49,6 +50,7 @@ class MDP:
         self.setInitialProbDist()
         # GridGraph class is used for path searching. Assigned externally.
         self.graph = None
+        self.theta = None
 
     def T(self, state, action):
         """
@@ -143,6 +145,10 @@ class MDP:
                 except:
                     import pdb; pdb.set_trace()
         return phi
+
+    def precomputePhiAtState(self):
+        self.phi_at_state = {state: {act: self.phi(str(state), act) for act in self.action_list} for state in
+                             self.state_vec}
 
     def timePrior(self, _t):
         """
@@ -399,3 +405,12 @@ class MDP:
         @param a string matching a method name in @ref MDP_solvers.py.
         """
         MDP_solvers(self, method=method).solve(**kwargs)
+
+    def inferPolicy(self, method='gradientAscent', **kwargs):
+        """
+        @brief Infers the policy of a given MDP. Defaults to the Gradient Ascent method.
+
+        @param an instance of @ref MDP.
+        @param a string matching a method name in @ref policy_solvers.py.
+        """
+        PolicyInference(self, method=method).infer(**kwargs)

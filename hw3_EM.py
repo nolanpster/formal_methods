@@ -230,23 +230,8 @@ def makeGridMDPxDRA():
                                                   compare_to_decimals)
     print("Policy Difference:")
     pprint(policy_difference)
-
     # Solved mdp.
     return EM_game_mdp
-
-def evalGibbsPolicy(theta, phi, state_0, state_1, action_list):
-    """
-    @brief Returns an approximated policy update.
-
-    @param theta vector of weights.
-    @param phi vector of basis functions.
-    @param The starting state.
-    @param The resulting state, used with @ref state_0 to deduce observed action.
-    """
-    observed_action = state_transition_actions[(state_0, state_1)]
-    exp_Q = {act:np.exp(np.dot(theta, phi(str(state_0), act))) for act in action_list}
-
-    return exp_Q[observed_action]/sum(exp_Q.values())
 
 
 # Entry point when called from Command line.
@@ -320,13 +305,4 @@ if __name__=='__main__':
     grid_mdp.addKernels(K)
 
     import pdb; pdb.set_trace()
-    test_phi = grid_mdp.phi(str(1), 'East')
-    theta_0 = np.ones_like(test_phi).T
-    # Probability of actions been chosen given theta and state.#
-    (num_episodes, num_steps) = run_histories.shape
-    for episode in range(num_episodes):
-        for t_step in range(1, num_steps):
-            beta = evalGibbsPolicy(theta_0, grid_mdp.phi, run_histories[episode, t_step-1],
-                                   run_histories[episode, t_step], grid_mdp.action_list)
-    #beta = np.apply_along_axis(evalGibbsPolicy, axis=1, arr=run_histories)
 
