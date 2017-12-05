@@ -304,4 +304,6 @@ if __name__=='__main__':
     infer_mdp.addKernels(K)
 
     import pdb; pdb.set_trace()
+    # Infer the policy from the recorded data.
+    infer_mdp.inferPolicy(histories=run_histories)
 
