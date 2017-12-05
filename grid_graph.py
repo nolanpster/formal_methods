@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 class GridGraph(object):
     # Doesnt' really look like a graph yet.
 
@@ -17,4 +19,16 @@ class GridGraph(object):
     def shortestPathLength(self, s_0, s_N):
         path = self.getShortestPath(s_0, s_N)
         return len(path) if path is not None else 0
+
+    def setStateTransitionsFromActions(self, state_transition_actions):
+        """
+        @brief Placeholder method for an automated way to do this.abs
+        """
+        self.state_transition_actions = state_transition_actions
+
+    def getObservedAction(self, s_0, s_N):
+        """
+        @brief dummy implementation. Should not be using hard-coded state-action pairs.
+        """
+        return self.state_transition_actions[(s_0, s_N)]
 

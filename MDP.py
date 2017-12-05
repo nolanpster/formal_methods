@@ -47,6 +47,8 @@ class MDP:
         self.sink_act = None
         self.sink_list = []
         self.setInitialProbDist()
+        # GridGraph class is used for path searching. Assigned externally.
+        self.graph = None
 
     def T(self, state, action):
         """

@@ -302,6 +302,9 @@ if __name__=='__main__':
     # Use a @ref GridGraph object to record, and seach for shortest paths
     # between two grid-cells.
     graph = GridGraph(shortest_paths)
+    # Set the actions corresponding to state pairs.
+    graph.setStateTransitionsFromActions(state_transition_actions)
+    mdp.graph = graph
     # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
     # Learning, Sugiyama, 2015.
     ggk_sig = 1.0;
