@@ -4,8 +4,8 @@ __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 
 from NFA_DFA_Module.DFA import DRA
 from NFA_DFA_Module.DFA import LTL_plus
-from MDP import MDP
-from grid_graph import GridGraph
+from MDP_EM.MDP_EM.MDP import MDP
+from MDP_EM.MDP_EM.grid_graph import GridGraph
 
 import os
 import datetime
@@ -87,6 +87,7 @@ state_transition_actions = {
 
 mdp_obj_path = os.path.abspath('pickled_mdps')
 data_path = os.path.abspath('pickled_episodes')
+infered_mdps_path = os.path.abspath('pickled_inference')
 
 def getOutFile(name_prefix='EM_MDP', dir_path=mdp_obj_path):
     # Dev machine returns UTC.
@@ -115,9 +116,9 @@ initial_state = '1'
 labels = {'1': empty,
           '2': empty,
           '3': green3,
-          '4': green4,
+          '4': empty,
           '5': red,
-          '6': empty
+          '6': green4
           }
 
 def makeGridMDPxDRA():
@@ -172,7 +173,7 @@ def makeGridMDPxDRA():
         pprint(vars(co_safe_dra))
     VI_game_mdp = MDP.productMDP(grid_mdp, co_safe_dra)
     # Define the reward function for the VI_game_mdp. Get a reward when leaving
-    # the winning statei 'q3' to 'q5'.
+    # the winning state 'q3' to 'q5'.
     pos_reward = {
                  'North': 0.0,
                  'South': 0.0,
@@ -279,31 +280,49 @@ if __name__=='__main__':
     # comparison).
     mdp = None
 
+    perform_new_inference = True
+    if perform_new_inference:
+        # Solve for approximated observed policy.
+        # Use a new mdp to model created/loaded one and a @ref GridGraph object to record, and seach for shortest paths
+        # between two grid-cells.
+        infer_mdp = MDP(init=initial_state, action_list=action_list,
+                       states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
+                       gamma=0.9, AP=atom_prop, L=labels)
+        infer_mdp.init_set = infer_mdp.states
+        graph = GridGraph(shortest_paths)
+        graph.setStateTransitionsFromActions(state_transition_actions)
+        infer_mdp.graph = graph
+        # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
+        # Learning, Sugiyama, 2015.
+        ggk_sig = 1;
+        kernel_centers = [1, 2, 3, 4, 5, 6]
+        #kernel_centers = [3, 4]
+        gg_kernel_func = lambda s_i, C_i: np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
+        # Note that we need to use a keyword style argument passing to ensure that
+        # each lambda function gets its own value of C.
+        K = [lambda s, C=cent: gg_kernel_func(s, C)
+             for cent in kernel_centers]
+        # It could be worth pre-computing all of the feature vectors for a small
+        # grid...
+        infer_mdp.addKernels(K)
+        infer_mdp.precomputePhiAtState()
 
-    # Solve for approximated observed policy.
-    # Use a new mdp to model created/loaded one and a @ref GridGraph object to record, and seach for shortest paths
-    # between two grid-cells.
-    infer_mdp = MDP(init=initial_state, action_list=action_list,
-                   states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
-                   gamma=0.9, AP=atom_prop, L=labels)
-    infer_mdp.init_set = infer_mdp.states
-    graph = GridGraph(shortest_paths)
-    graph.setStateTransitionsFromActions(state_transition_actions)
-    infer_mdp.graph = graph
-    # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
-    # Learning, Sugiyama, 2015.
-    ggk_sig = 1.0;
-    kernel_centers = [1, 2, 3, 4, 5, 6]
-    gg_kernel_func = lambda s_i, C_i: np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
-    # Note that we need to use a keyword style argument passing to ensure that
-    # each lambda function gets its own value of C.
-    K = [lambda s, C=cent: gg_kernel_func(s, C)
-         for cent in kernel_centers]
-    # It could be worth pre-computing all of the feature vectors for a small
-    # grid...
-    infer_mdp.addKernels(K)
-
+        import pdb; pdb.set_trace()
+        # Infer the policy from the recorded data.
+        infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True)
+        infered_mdp_file = getOutFile(os.path.basename(history_file) + '_Policy', infered_mdps_path)
+        with open(infered_mdp_file, 'w+') as _file:
+            print "Pickling Infered Policy to {}.".format(infered_mdp_file)
+            pickle.dump(infer_mdp, _file)
+    else:
+        # Manually choose data to load here:
+        infered_mdp_file = os.path.join(infered_mdps_path,
+            'EM_MDP_UTC171204_1548_HIST_100eps10steps_UTC171204_1700__Policy_UTC171206_1908')
+        print "Loading infered policy data file {}.".format(infered_mdp_file)
+        with open(infered_mdp_file) as _file:
+            infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
     import pdb; pdb.set_trace()
-    # Infer the policy from the recorded data.
-    infer_mdp.inferPolicy(histories=run_histories)
+
+    # Create plots for comparison.
+
 
