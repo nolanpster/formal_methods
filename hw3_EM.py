@@ -307,7 +307,6 @@ if __name__=='__main__':
         infer_mdp.addKernels(K)
         infer_mdp.precomputePhiAtState()
 
-        import pdb; pdb.set_trace()
         # Infer the policy from the recorded data.
         infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True)
         infered_mdp_file = getOutFile(os.path.basename(history_file) + '_Policy', infered_mdps_path)

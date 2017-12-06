@@ -39,7 +39,7 @@ class PolicyInference(object):
         """
         # Probability of actions been chosen given theta and state.
         (num_episodes, num_steps) = self.histories.shape
-        grad_wrt_theta_log_pi = np.zeros(self.theta_size)
+        grad_wrt_theta = np.zeros(self.theta_size)
         # Pre-compute all possible values (for small environments).
         if use_precomputed_phi:
             exp_Q = {state: {act: np.exp(np.dot(theta, self.mdp.phi_at_state[state][act])) for act in
@@ -48,7 +48,7 @@ class PolicyInference(object):
             phi_weighted_exp_Q = {state: {act: self.mdp.phi_at_state[state][act]*exp_Q[state][act] for act in
                                           self.mdp.action_list} for state in self.mdp.state_vec}
             sum_weighted_exp_Q = {state: sum(phi_weighted_exp_Q[state].values()) for state in self.mdp.state_vec}
-            del_theta_log_total_Q = {state: sum_weighted_exp_Q[state]/sum_exp_Q[state] for state in self.mdp.state_vec}
+            del_theta_total_Q = {state: sum_weighted_exp_Q[state]/sum_exp_Q[state] for state in self.mdp.state_vec}
         else:
             raise NotImplementedError
         for episode in range(num_episodes):
@@ -56,9 +56,11 @@ class PolicyInference(object):
                 this_state = self.histories[episode, t_step-1]
                 next_state = self.histories[episode, t_step]
                 observed_action = self.mdp.graph.getObservedAction(this_state, next_state)
-                grad_wrt_theta_log_pi += self.mdp.phi(str(this_state), observed_action) \
-                                             - del_theta_log_total_Q[this_state]
-        return grad_wrt_theta_log_pi/num_episodes
+                del_beta_del_theta = (self.mdp.phi(str(this_state), observed_action) - del_theta_total_Q[this_state]) \
+                                      * (exp_Q[this_state][observed_action] / sum_exp_Q[this_state])
+                beta = exp_Q[this_state][observed_action]/sum_exp_Q[this_state]
+                grad_wrt_theta += (1/beta) * del_beta_del_theta
+        return grad_wrt_theta
 
     def gradientAscent(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False):
         """
@@ -68,12 +70,12 @@ class PolicyInference(object):
         self.histories = histories
         if theta_0 == None:
             test_phi = self.mdp.phi(str(1), 'East')
-            theta_0 = np.ones([test_phi.size, 1]).T
+            theta_0 = np.random.uniform(size=(test_phi.size, 1)).T
         self.mdp.theta = theta_0
         self.theta_size = [self.mdp.theta.size, 1]
 
         thresh = 0.05
-        eps = 1
+        eps = 0.01
         iter_count = 0
         delta_theta_norm = np.inf
         # Loop until convergence
@@ -88,6 +90,11 @@ class PolicyInference(object):
         if do_print:
             pprint('Found Theta:')
             pprint(self.mdp.theta)
+        exp_Q = {state: {act: np.exp(np.dot(self.mdp.theta, self.mdp.phi_at_state[state][act])) for act in
+                         self.mdp.action_list} for state in self.mdp.state_vec}
+        sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.mdp.state_vec}
+        self.mdp.policy = {state: {act: exp_Q[int(state)][act]/sum_exp_Q[int(state)] for act in self.mdp.action_list}
+                           for state in self.mdp.states}
 
     @staticmethod
     def evalGibbsPolicy(theta, phi, action, action_list):
