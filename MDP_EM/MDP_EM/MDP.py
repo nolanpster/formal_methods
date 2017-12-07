@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__author__ = 'Jie Fu, jfu2@wpi.edu'
+__author__ = 'Jie Fu, jfu2@wpi.edu, Nolan Poulin, nipoulin@wpi.edu'
 from NFA_DFA_Module.NFA import NFA
 from MDP_solvers import MDP_solvers
 from policy_inference import PolicyInference
