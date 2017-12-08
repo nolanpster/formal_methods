@@ -45,7 +45,7 @@ drawArrow = [arrowNorth, arrowSouth, arrowEast, arrowWest, drawStay]
 
 class SolutionVideo(object):
 
-    def __init___(self, video_name, grid_map, grid_num_func, action_list):
+    def __init__(self, video_name, grid_map, grid_num_func, action_list):
         self.grid_map = grid_map
         self.grid_num_func = grid_num_func
         self.action_list = action_list

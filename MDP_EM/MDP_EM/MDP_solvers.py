@@ -4,6 +4,7 @@ __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 import numpy as np
 from copy import deepcopy
 from pprint import pprint
+from solution_video import SolutionVideo
 
 class MDP_solvers(object):
     """
@@ -12,11 +13,15 @@ class MDP_solvers(object):
     @param mdp The mdp to solve.
     @param method a string matching the name of a method in @ref MDP_solvers.
     """
-    def __init__(self, mdp=None, method=None):
+    def __init__(self, mdp=None, method=None, write_video=False):
         if mdp is not None:
             self.mdp = mdp
         if method is not None:
             self.setMethod(method)
+        self.write_video = write_video
+        if self.write_video:
+            self.video_writer = SolutionVideo(method, self.mdp.grid_map, self.mdp.stateRowColToNum,
+                                              self.mdp.action_list)
 
     def solve(self, method=None, **kwargs):
         if method is not None and (not self.method == method):
@@ -72,6 +77,8 @@ class MDP_solvers(object):
                         values[s_idx] = this_value
                         policy[state] = empty_policy_dist.copy()
                         policy[state][act] = 1
+                    if self.write_video:
+                        self.video_writer.render(policy)
             delta_value_norm = np.linalg.norm(values - prev_values)
         self.mdp.values = {state: value for state, value in \
                                                   zip(self.mdp.states, values)}
@@ -97,6 +104,8 @@ class MDP_solvers(object):
                 MDP_solvers.e_step(self, S, R, P, self.mdp.gamma)
             MDP_solvers.m_step(self, beta)
             self.mdp.removeNaNValues()
+            if self.write_video:
+                self.video_writer.render(self.mdp.policy)
         if do_print:
             policy_out = deepcopy(self.mdp.policy)
             for state, act_dist in policy_out.items():

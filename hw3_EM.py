@@ -174,6 +174,8 @@ def makeGridMDPxDRA():
         co_safe_dra.toDot('visitGreensAndNoRed.dot')
         pprint(vars(co_safe_dra))
     VI_game_mdp = MDP.productMDP(grid_mdp, co_safe_dra)
+    VI_game_mdp.grid_map = grid_map
+    VI_game_mdp.precomputeStateProbMatRows()
     # Define the reward function for the VI_game_mdp. Get a reward when leaving
     # the winning state 'q3' to 'q5'.
     pos_reward = {
@@ -216,8 +218,8 @@ def makeGridMDPxDRA():
     EM_game_mdp.setInitialProbDist(EM_game_mdp.init_set)
 
     ##### SOLVE #####
-    EM_game_mdp.solve(do_print=True, method='expectationMaximization')
-    VI_game_mdp.solve(do_print=True, method='valueIteration')
+    EM_game_mdp.solve(do_print=True, method='expectationMaximization', write_video=True)
+    VI_game_mdp.solve(do_print=True, method='valueIteration', write_video=True)
 
     compare_to_decimals = 3
     VI_policy = deepcopy(VI_game_mdp.policy)

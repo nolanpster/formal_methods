@@ -449,20 +449,20 @@ class MDP:
             mdp.prob[act][mdp.states.index(state), mdp.states.index(next_state)]=p
         return mdp
 
-    def solve(self, method='valueIteration', **kwargs):
+    def solve(self, method='valueIteration', write_video=False, **kwargs):
         """
         @brief Solves a given MDP. Defaults to the Value Iteration method.
 
         @param an instance of @ref MDP.
         @param a string matching a method name in @ref MDP_solvers.py.
         """
-        MDP_solvers(self, method=method).solve(**kwargs)
+        MDP_solvers(self, method=method, write_video=write_video).solve(**kwargs)
 
-    def inferPolicy(self, method='gradientAscent', **kwargs):
+    def inferPolicy(self, method='gradientAscent', write_video=False, **kwargs):
         """
         @brief Infers the policy of a given MDP. Defaults to the Gradient Ascent method.
 
         @param an instance of @ref MDP.
         @param a string matching a method name in @ref policy_solvers.py.
         """
-        PolicyInference(self, method=method).infer(**kwargs)
+        PolicyInference(self, method=method, write_video=write_video).infer(**kwargs)

@@ -11,7 +11,7 @@ class PolicyInference(object):
 
     @pre Assumes the MDP instance has an instance variable .graph of type @ref GridGraph.
     """
-    def __init__(self, mdp=None, method=None):
+    def __init__(self, mdp=None, method=None, write_video=False):
         self.mdp = mdp
         self.setMethod(method)
 
