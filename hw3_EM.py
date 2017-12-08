@@ -58,31 +58,32 @@ prob_grid = {'North': np.array([[0.9, 0.1, 0.0, 0.0, 0.0, 0.0],
                                 )
              }
 
-shortest_paths = {frozenset([1, 2]): (1, 2),
-                  frozenset([1, 3]): (1, 2, 3),
+
+shortest_paths = {frozenset([0, 1]): (0, 1),
+                  frozenset([0, 2]): (0, 1, 2),
+                  frozenset([0, 3]): (0, 3),
+                  frozenset([0, 4]): (0, 1, 3),
+                  frozenset([0, 5]): (0, 1, 2, 5),
+                  frozenset([1, 2]): (1, 2),
+                  frozenset([1, 3]): (1, 0, 3),
                   frozenset([1, 4]): (1, 4),
-                  frozenset([1, 5]): (1, 2, 4),
-                  frozenset([1, 6]): (1, 2, 3, 6),
-                  frozenset([2, 3]): (2, 3),
+                  frozenset([1, 5]): (1, 2, 5),
+                  frozenset([2, 3]): (2, 1, 0, 3),
                   frozenset([2, 4]): (2, 1, 4),
                   frozenset([2, 5]): (2, 5),
-                  frozenset([2, 6]): (2, 3, 6),
-                  frozenset([3, 4]): (3, 2, 1, 4),
-                  frozenset([3, 5]): (3, 2, 5),
-                  frozenset([3, 6]): (3, 6),
-                  frozenset([4, 5]): (4, 5),
-                  frozenset([4, 6]): (4, 5, 6),
-                  frozenset([5, 6]): (5, 6)
+                  frozenset([3, 4]): (3, 4),
+                  frozenset([3, 5]): (3, 4, 5),
+                  frozenset([4, 5]): (4, 5)
                   }
 
 # (Initial_state, next_state): Action
 state_transition_actions = {
-    (1,1): 'Empty', (1,2): 'East',  (1,3): None,    (1,4): 'South', (1,5): None,    (1,6): None,
-    (2,1): 'West',  (2,2): 'Empty', (2,3): 'East',  (2,4): None,    (2,5): 'South', (2,6): None,
-    (3,1): None,    (3,2): 'West',  (3,3): 'Empty', (3,4): None,    (3,5): None,    (3,6): 'South',
-    (4,1): 'North', (4,2): None,    (4,3): None,    (4,4): 'Empty', (4,5): 'East',  (4,6): None,
-    (5,1): None,    (5,2): 'North', (5,3): None,    (5,4): 'West',  (5,5): 'Empty', (5,6): 'East',
-    (6,1): None,    (6,2): None,    (6,3): 'North', (6,4): None,    (6,5): 'West',  (6,6): 'Empty'
+    (0,0): 'Empty', (0,1): 'East',  (0,2): None,    (0,3): 'South', (0,4): None,    (0,5): None,
+    (1,0): 'West',  (1,1): 'Empty', (1,2): 'East',  (1,3): None,    (1,4): 'South', (1,5): None,
+    (2,0): None,    (2,1): 'West',  (2,2): 'Empty', (2,3): None,    (2,4): None,    (2,5): 'South',
+    (3,0): 'North', (3,1): None,    (3,2): None,    (3,3): 'Empty', (3,4): 'East',  (3,5): None,
+    (4,0): None,    (4,1): 'North', (4,2): None,    (4,3): 'West',  (4,4): 'Empty', (4,5): 'East',
+    (5,0): None,    (5,1): None,    (5,2): 'North', (5,3): None,    (5,4): 'West',  (5,5): 'Empty'
     }
 
 mdp_obj_path = os.path.abspath('pickled_mdps')
@@ -104,21 +105,21 @@ def getOutFile(name_prefix='EM_MDP', dir_path=mdp_obj_path):
     return full_file_path
 
 # Shared MDP Initialization Parameters.
-green3 = LTL_plus('green3')
-green6 = LTL_plus('green6')
+green2 = LTL_plus('green2')
+green5 = LTL_plus('green5')
 red = LTL_plus('red')
 empty = LTL_plus('E')
 # Where empty is the empty string/label/dfa-action.
-atom_prop = [green3, green6, red, empty]
+atom_prop = [green2, green5, red, empty]
 # Defined empty action for MDP incurrs a self loop.
 action_list = ['North', 'South', 'East', 'West', 'Empty']
-initial_state = '1'
-labels = {'1': empty,
-          '2': empty,
-          '3': green3,
-          '4': empty,
-          '5': red,
-          '6': green6
+initial_state = '0'
+labels = {'0': empty,
+          '1': empty,
+          '2': green2,
+          '3': empty,
+          '4': red,
+          '5': green5
           }
 
 def makeGridMDPxDRA():
@@ -130,14 +131,14 @@ def makeGridMDPxDRA():
     # Note that input gamma is overwritten in DRA/MDP product method, so we'll
     # need to set it again later.
     grid_mdp = MDP(init=initial_state, action_list=action_list,
-                   states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
+                   states=['0', '1', '2', '3', '4', '5'], prob=prob_grid,
                    gamma=0.9, AP=atom_prop, L=labels)
     grid_mdp.init_set = grid_mdp.states
 
     ##### Add DRA for co-safe spec #####
     # Define a Deterministic (finitie) Raban Automata to match the sketch on
     # slide 7 of lecture 8. Note that state 'q4' is is the red, 'sink' state.
-    co_safe_dra = DRA(initial_state='q0', alphabet=[green3, green6, red, empty],
+    co_safe_dra = DRA(initial_state='q0', alphabet=[green2, green5, red, empty],
                       rabin_acc=[({'q3'},{})])
     # Self-loops = Empty transitions
     co_safe_dra.add_transition(empty, 'q0', 'q0')
@@ -146,12 +147,12 @@ def makeGridMDPxDRA():
     co_safe_dra.add_transition(empty, 'q3', 'q3')
     co_safe_dra.add_transition(empty, 'q4', 'q4')
     # Labeled transitions
-    co_safe_dra.add_transition(green3, 'q0', 'q1')
-    co_safe_dra.add_transition(green3, 'q1', 'q1')
-    co_safe_dra.add_transition(green6, 'q1', 'q3')
-    co_safe_dra.add_transition(green6, 'q0', 'q2')
-    co_safe_dra.add_transition(green6, 'q2', 'q2')
-    co_safe_dra.add_transition(green3, 'q2', 'q3')
+    co_safe_dra.add_transition(green2, 'q0', 'q1')
+    co_safe_dra.add_transition(green2, 'q1', 'q1')
+    co_safe_dra.add_transition(green5, 'q1', 'q3')
+    co_safe_dra.add_transition(green5, 'q0', 'q2')
+    co_safe_dra.add_transition(green5, 'q2', 'q2')
+    co_safe_dra.add_transition(green2, 'q2', 'q3')
     co_safe_dra.add_transition(red, 'q0', 'q4')
     co_safe_dra.add_transition(red, 'q1', 'q4')
     co_safe_dra.add_transition(red, 'q2', 'q4')
@@ -190,11 +191,11 @@ def makeGridMDPxDRA():
                  }
     # Go through each state and if it is a winning state, assign it's reward
     # to be the positive reward dictionary. I have to remove the state
-    # ('5', 'q3') because there are conflicting actions due to the label of '5'
+    # ('5', 'q3') because there are conflicting actions due to the label of '4'
     # being 'red'.
     reward_dict = {}
     for state in VI_game_mdp.states:
-        if state in VI_game_mdp.acc[0][0] and '5' not in state:
+        if state in VI_game_mdp.acc[0][0] and '4' not in state:
             # Winning state
             reward_dict[state] = pos_reward
         else:
@@ -286,7 +287,7 @@ if __name__=='__main__':
         # Use a new mdp to model created/loaded one and a @ref GridGraph object to record, and seach for shortest paths
         # between two grid-cells.
         infer_mdp = MDP(init=initial_state, action_list=action_list,
-                       states=['1', '2', '3', '4', '5', '6'], prob=prob_grid,
+                       states=['0', '1', '2', '3', '4', '5'], prob=prob_grid,
                        gamma=0.9, AP=atom_prop, L=labels)
         infer_mdp.init_set = infer_mdp.states
         graph = GridGraph(shortest_paths)
@@ -295,7 +296,7 @@ if __name__=='__main__':
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
         # Learning, Sugiyama, 2015.
         ggk_sig = 1;
-        kernel_centers = [1, 2, 3, 4, 5, 6]
+        kernel_centers = [0, 1, 2, 3, 4, 5]
         #kernel_centers = [3, 4]
         gg_kernel_func = lambda s_i, C_i: np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
         # Note that we need to use a keyword style argument passing to ensure that
