@@ -10,7 +10,6 @@ import operator
 import cv2
 
 fourcc = cv2.VideoWriter_fourcc(*'MJPG') # Be sure to use the lower case
-arrow_color = (0, 0, 255)
 
 arrows = np.array(["\u2190","\u2191","\u2192","\u2193","o"])
 
@@ -52,6 +51,9 @@ class SolutionVideo(object):
         map_aspect = grid_map.shape/np.max(grid_map.shape)
         self.out = cv2.VideoWriter(video_name + '.avi', fourcc, 2.0, (512, 512))
         self.large = cv2.resize(map_aspect, (512,512), interpolation=cv2.INTER_NEAREST)
+        self.dra_state_list = ['q0', 'q1', 'q2', 'q3'] # Don't need to plot sink states
+        self.dra_color = {'q0':(0, 0, 255), 'q1':(255,0,0), 'q2':(0,255,0), 'q3':(128,128,128)}
+        self.dra_video_offset = {'q0': (30,0), 'q1': (30,112), 'q2': (30,208), 'q3':(30,304)}
 
     def render(self, policy):
         Qimg  = np.array((self.large)*255,dtype=np.uint8)
@@ -59,9 +61,14 @@ class SolutionVideo(object):
         for i,j, in product(range(self.grid_map.shape[0]),range(self.grid_map.shape[1])):
             grid_state = self.grid_num_func([i, j])
             # Only showing DRA-state q1 for now.
-            augmented_state = (str(grid_state), 'q1')
-            highest_prob_act = max(policy[augmented_state].iteritems(), key=operator.itemgetter(1))[0]
-            Qimg = drawArrow[self.action_list.index(highest_prob_act)](Qimg, (32*j+16, 32*i+16), 28, arrow_color)
+            for dra_state in self.dra_state_list:
+                augmented_state = (str(grid_state), dra_state)
+                highest_prob_act = max(policy[augmented_state].iteritems(), key=operator.itemgetter(1))[0]
+                row_offset = self.dra_video_offset[dra_state][0]
+                col_offset = self.dra_video_offset[dra_state][1]
+                Qimg = drawArrow[self.action_list.index(highest_prob_act)](Qimg,
+                                                                           (32*j+16+row_offset, 32*i+16+col_offset), 28,
+                                                                           self.dra_color[dra_state])
         Qimg = cv2.cvtColor(Qimg, cv2.COLOR_RGBA2BGRA)
         self.out.write(Qimg)
         #cv2.imshow("occupancy", self.large)
