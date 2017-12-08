@@ -25,7 +25,7 @@ class MDP:
         identified by an index between 0 -N.  L: the labeling
         function, implemented as a dictionary: state: a subset of AP."""
     def __init__(self, init=None, action_list=[], states=[], prob=dict([]),
-                 acc=None, gamma=.9, AP=set([]), L=dict([]), reward=dict([])):
+                 acc=None, gamma=.9, AP=set([]), L=dict([]), reward=dict([]), grid_map=None):
         self.init=init # Initial state
         self.action_list=action_list
         self.num_actions = len(self.action_list)
@@ -36,7 +36,9 @@ class MDP:
         self.acc=acc
         self.gamma=gamma
         self.reward=reward
+        self.grid_map=grid_map
         self.prob=prob
+        self.prob_mat_row_idx = dict.fromkeys(self.states)
         self.AP=AP # Atomic propositions
         self.L=L # Labels of states
         self.S = None # Initial probability distribution.
@@ -78,6 +80,56 @@ class MDP:
 
     def labeling(self, s, A):
         self.L[s]=A
+
+    def stateRowColToNum(self,state):
+        return self.grid_map[state[0], state[1]]
+
+
+    def getProbMatRow(self, state):
+        """
+        @brief Returns a row index of the Transition probability matrices corresponding to the current state.
+
+        @state an array [row,col]
+        """
+        grid_row, grid_col = np.where(self.grid_map==state)
+        prob_mat_row = 0
+        if grid_row == 0:
+            if grid_col == 0:
+                # North West corner
+                prob_mat_row = 6
+            elif grid_col == self.grid_map.shape[1]-1:
+                # North East corner
+                prob_mat_row = 5
+            else:
+                # On North Wall.
+                prob_mat_row = 1
+        elif grid_row == self.grid_map.shape[0]-1:
+            if grid_col == 0:
+                # South West corner
+                prob_mat_row = 8
+            elif grid_col == self.grid_map.shape[1]-1:
+                # South East corner
+                prob_mat_row = 7
+            else:
+                # On South Wall
+                prob_mat_row = 2
+        elif grid_col == 0:
+            # On West Wall
+            prob_mat_row = 4
+        elif grid_col == self.grid_map.shape[1]-1:
+            # On East wall
+            prob_mat_row = 3
+        else:
+            # In open space.
+            pass
+        return prob_mat_row
+
+    def precomputeStateProbMatRows(self):
+        """
+        @brief see title.
+        """
+        for state in self.prob_mat_row_idx.keys():
+            self.prob_mat_row_idx[state] = self.getProbMatRow(int(state))
 
     def sample(self, state, action, num=1):
         """

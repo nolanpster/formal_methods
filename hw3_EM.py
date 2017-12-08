@@ -58,6 +58,7 @@ prob_grid = {'North': np.array([[0.9, 0.1, 0.0, 0.0, 0.0, 0.0],
                                 )
              }
 
+grid_map = np.array(range(0,6)).reshape([2,3])
 
 shortest_paths = {frozenset([0, 1]): (0, 1),
                   frozenset([0, 2]): (0, 1, 2),
@@ -132,7 +133,7 @@ def makeGridMDPxDRA():
     # need to set it again later.
     grid_mdp = MDP(init=initial_state, action_list=action_list,
                    states=['0', '1', '2', '3', '4', '5'], prob=prob_grid,
-                   gamma=0.9, AP=atom_prop, L=labels)
+                   gamma=0.9, AP=atom_prop, L=labels, grid_map=grid_map)
     grid_mdp.init_set = grid_mdp.states
 
     ##### Add DRA for co-safe spec #####
