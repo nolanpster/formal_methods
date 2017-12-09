@@ -1,9 +1,17 @@
 #!/usr/bin/env python
 
 import astar
+import numpy as np
 
 class GridGraph(object):
-    # Doesnt' really look like a graph yet.
+
+    # Class variable - graph connectivity.
+    connect4 = 4
+    # [East, South, West, North]
+    acts = ['East', 'South', 'West', 'North']
+    # Motion primitive: row 0 is dX, row 1 is dy.
+    motion_prim = np.array([[1, 0, -1, 0],
+                            [0, 1, 0, -1]])
 
     def __init__(self, paths={}, grid_map=None, neighbor_dict=None):
         # Shortest Path dictionary structure = {{s_0, s_N}: (s_0, ... s_N)} Note these are hard-coded chosing arbitrary
@@ -12,17 +20,40 @@ class GridGraph(object):
         # right now ...
         self.paths = paths
         self.grid_map = grid_map
+        self.astar_map = np.zeros(self.grid_map.shape)
         self.neighbor_dict = neighbor_dict
         if self.grid_map is not None and self.neighbor_dict is not None:
             self.setStateTransitionsFromActions()
+            self.m, self.n = self.grid_map.shape
         else:
             self.state_transition_actions = {}
 
     def getShortestPath(self, s_0, s_N):
         # Return a path from a starting state, s_0, to a final state, s_N.
-        # @NOTE the path might be the wrong direction, but at this point only @ref shortestPathLength uses the path for 
-        # the path lenght.
-        path = self.paths.get(frozenset((s_0, s_N)))
+        #
+        # @todo Can save _partial_ paths too!
+
+        # Test if key is in dictionary
+        if (s_0, s_N) not in self.paths:
+            yA, xA = np.where(self.grid_map==s_0)
+            yB, xB = np.where(self.grid_map==s_N)
+            act_idx = astar.pathFind(self.astar_map, self.n, self.m, self.connect4, self.motion_prim[0],
+                                     self.motion_prim[1], xA[0], yA[0], xB[0], yB[0])
+            if act_idx:
+                self.paths[(s_0, s_N)] = self.actionListToStateNum(yA[0], xA[0], act_idx)
+            else:
+                self.paths[(s_0, s_N)] = None
+        return self.paths[(s_0, s_N)]
+
+    def actionListToStateNum(self, s_0_row, s_0_col, action_idx):
+        """
+        @brief Convert actions taken from state-0 to list of states.
+        """
+        path = [self.grid_map[s_0_row, s_0_col]]
+        map_col_row = np.array([s_0_col, s_0_row])
+        for act_idx in action_idx:
+            map_col_row += self.motion_prim[:,int(act_idx)]
+            path.append(self.grid_map[map_col_row[1], map_col_row[0]])
         return path
 
     def shortestPathLength(self, s_0, s_N):
