@@ -365,8 +365,12 @@ class MDP:
             for act, prob in action_dict.items():
                 if np.isnan(prob):
                     if state in self.sink_list and act==self.sink_act:
-                        self.policy[state][act] = 1
-                        this_total_prob += 1
+                        for zero_act in self.action_list:
+                            if not(zero_act==act):
+                                self.policy[state][zero_act] = 0
+                            else:
+                                self.policy[state][act] = 1
+                        this_total_prob = 1
                     else:
                         self.policy[state][act] = 0
                 else:
@@ -375,7 +379,9 @@ class MDP:
                 # Zero policy, just pick sink_action.
                 self.policy[state][self.sink_act] = 1
             elif this_total_prob > 1.0+sys.float_info.epsilon:
-                raise ValueError('Total probability greater than 1!')
+                pass
+                #import pdb; pdb.set_trace()
+                #raise ValueError('Total probability greater than 1!')
 
 
     @staticmethod
