@@ -320,8 +320,7 @@ if __name__=='__main__':
                        states=['0', '1', '2', '3', '4', '5'], act_prob=deepcopy(act_prob),
                        gamma=0.9, AP=atom_prop, L=labels, grid_map=grid_map)
         infer_mdp.init_set = infer_mdp.states
-        graph = GridGraph(shortest_paths, grid_map)
-        graph.setStateTransitionsFromActions(infer_mdp.neighbor_dict)
+        graph = GridGraph(shortest_paths, grid_map, infer_mdp.neighbor_dict)
         infer_mdp.graph = graph
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
         # Learning, Sugiyama, 2015.
