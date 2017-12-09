@@ -5,6 +5,7 @@ from MDP_solvers import MDP_solvers
 from policy_inference import PolicyInference
 
 from scipy import stats
+from copy import deepcopy
 import numpy as np
 import sys # For float_info.epsilon.
 
@@ -41,7 +42,9 @@ class MDP:
         self.precomputeStateActProbMatRows()
         self.neighbor_dict = None
         self.prob=prob
-        if not any(self.prob) and any(act_prob):
+        if any(prob):
+            self.prob=prob
+        elif any(act_prob):
             # Build it now Assume format of act_prob is {act: [rows(location-class) x cols(act_list_order)]}.
             self.act_prob = act_prob
             self.buildProbDict()
@@ -184,6 +187,7 @@ class MDP:
         """
         @brief Given a dictionary of action probabilities, create the true prob mat dictionary structure.
         """
+        self.prob = {}
         if self.neighbor_dict is None:
             self.buildNeighborDict()
         for act in self.action_list:
@@ -253,12 +257,9 @@ class MDP:
             trans_probs = self.T(state, act)
             for _j, kern in enumerate(self.kernels):
                 # Eq. 3.3 Sugiyama 2015
-                try:
-                    kern_weights = np.array(map(kern, self.state_vec))
-                    phi[_i+(_j)*self.num_actions] = \
-                        this_ind(action) * np.inner(trans_probs, kern_weights)
-                except:
-                    import pdb; pdb.set_trace()
+                kern_weights = np.array(map(kern, self.state_vec))
+                phi[_i+(_j)*self.num_actions] = \
+                    this_ind(action) * np.inner(trans_probs, kern_weights)
         return phi
 
     def precomputePhiAtState(self):
@@ -379,7 +380,7 @@ class MDP:
 
     @staticmethod
     def productMDP(mdp, dra):
-        pmdp=MDP()
+        pmdp=deepcopy(MDP())
         if mdp.init is not None:
             init=(mdp.init, dra.get_transition(mdp.L[mdp.init],
                                                dra.initial_state))

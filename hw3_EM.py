@@ -201,7 +201,7 @@ def makeGridMDPxDRA():
     if False:
         co_safe_dra.toDot('visitGreensAndNoRed.dot')
         pprint(vars(co_safe_dra))
-    VI_game_mdp = MDP.productMDP(deepcopy(grid_mdp), deepcopy(co_safe_dra))
+    VI_game_mdp = MDP.productMDP(grid_mdp, co_safe_dra)
     VI_game_mdp.grid_map = grid_map
     # Define the reward function for the VI_game_mdp. Get a reward when leaving
     # the winning state 'q3' to 'q5'.
