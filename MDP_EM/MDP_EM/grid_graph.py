@@ -11,7 +11,7 @@ class GridGraph(object):
     acts = ['East', 'South', 'West', 'North']
     # Motion primitive: row 0 is dX, row 1 is dy.
     motion_prim = np.array([[1, 0, -1, 0],
-                            [0, 1, 0, -1]])
+                            [0, 1, 0, -1]], dtype=np.int8)
 
     def __init__(self, paths={}, grid_map=None, neighbor_dict=None):
         # Shortest Path dictionary structure = {{s_0, s_N}: (s_0, ... s_N)} Note these are hard-coded chosing arbitrary
@@ -20,7 +20,7 @@ class GridGraph(object):
         # right now ...
         self.paths = paths
         self.grid_map = grid_map
-        self.astar_map = np.zeros(self.grid_map.shape)
+        self.astar_map = np.zeros(self.grid_map.shape, dtype=np.int8)
         self.neighbor_dict = neighbor_dict
         if self.grid_map is not None and self.neighbor_dict is not None:
             self.setStateTransitionsFromActions()
@@ -50,7 +50,7 @@ class GridGraph(object):
         @brief Convert actions taken from state-0 to list of states.
         """
         path = [self.grid_map[s_0_row, s_0_col]]
-        map_col_row = np.array([s_0_col, s_0_row])
+        map_col_row = np.array([s_0_col, s_0_row], dtype=np.int8)
         for act_idx in action_idx:
             map_col_row += self.motion_prim[:,int(act_idx)]
             path.append(self.grid_map[map_col_row[1], map_col_row[0]])
