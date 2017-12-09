@@ -160,5 +160,6 @@ class MDP_solvers(object):
                     (self.mdp.reward[state][act] +
                      np.inner(beta, self.mdp.prob[act][state_ind, :]))
                 norm_factor += self.mdp.policy[state][act]
-            for act in self.mdp.action_list:
-                self.mdp.policy[state][act] /= norm_factor
+            if norm_factor > 0:
+                for act in self.mdp.action_list:
+                    self.mdp.policy[state][act] /= norm_factor
