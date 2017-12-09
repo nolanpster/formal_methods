@@ -34,7 +34,7 @@ class MDP_solvers(object):
             self.method = method
             self.algorithm = getattr(MDP_solvers, method)
 
-    def valueIteration(self, do_print=False):
+    def valueIteration(self, do_print=False, policy_keys_to_print=None):
         """
         @brief returns a dictiionary describing the policy: keys are states,
                values are actions.
@@ -87,10 +87,14 @@ class MDP_solvers(object):
             print("Value iteration took {} iterations.".format(iter_count))
             pprint(self.mdp.values)
             print("Policy as a {state: action-distribution} dictionary.")
-            pprint(self.mdp.policy)
-        return
+            if policy_keys_to_print is not None:
+                policy_out  = {state: deepcopy(policy[state]) for state in policy_keys_to_print}
+                pprint(policy_out)
+            else:
+                pprint(self.mdp.policy)
+        return run_stats
 
-    def expectationMaximization(self, do_print=False):
+    def expectationMaximization(self, do_print=False, policy_keys_to_print=None):
         """
         @brief
         """
@@ -111,6 +115,9 @@ class MDP_solvers(object):
             for state, act_dist in policy_out.items():
                 for act, prob in act_dist.items():
                     policy_out[state][act] = round(prob,3)
+            print("EM did {0} iterations in {1:.3f} seconds.".format(num_iters, elapsed_time))
+            if policy_keys_to_print is not None:
+                policy_out  = {state: policy_out[state] for state in policy_keys_to_print}
             print("EM found the following policy: {}")
             pprint(policy_out)
             print("Prob. or reward = {0:.3f}, expectation of T given R = "

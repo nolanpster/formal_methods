@@ -172,7 +172,7 @@ labels = {state: empty for state in states}
 labels['5'] = red
 labels['0'] = green
 
-def makeGridMDPxDRA():
+def makeGridMDPxDRA(do_print=False):
     ##### Problem 2 - Configure MDP #####
     # For the simple 6-state gridworld, see slide 8 of Lecture 7, write the specification automata for the following:
     # visit all green cells and avoid the red cell.
@@ -249,14 +249,20 @@ def makeGridMDPxDRA():
     EM_game_mdp = deepcopy(VI_game_mdp)
     EM_game_mdp.setInitialProbDist(EM_game_mdp.init_set)
 
+    # Compare policy (action probabilities).
+    policy_keys_to_print = deepcopy([(state[0], VI_game_mdp.dra.get_transition(VI_game_mdp.L[state], state[1])) for
+                                     state in VI_game_mdp.states if 'q0' in state])
     ##### SOLVE #####
-    VI_game_mdp.solve(do_print=True, method='valueIteration', write_video=False)
-    EM_game_mdp.solve(do_print=True, method='expectationMaximization', write_video=False)
+    VI_game_mdp.solve(do_print=do_print, method='valueIteration', write_video=False,
+                      policy_keys_to_print=policy_keys_to_print)
+    EM_game_mdp.solve(do_print=do_print, method='expectationMaximization', write_video=False,
+                      policy_keys_to_print=policy_keys_to_print)
 
     compare_to_decimals = 3
-    VI_policy = deepcopy(VI_game_mdp.policy)
-    EM_policy = deepcopy(EM_game_mdp.policy)
-    policy_difference = deepcopy(EM_game_mdp.policy)
+    VI_policy  = {state: deepcopy(VI_game_mdp.policy[state]) for state in policy_keys_to_print}
+    EM_policy  = {state: deepcopy(EM_game_mdp.policy[state]) for state in policy_keys_to_print}
+    policy_difference = deepcopy(EM_policy)
+
     for state, action_dict in VI_policy.items():
         for act in action_dict.keys():
             VI_prob = round(VI_policy[state][act], compare_to_decimals)
@@ -265,10 +271,12 @@ def makeGridMDPxDRA():
             EM_policy[state][act] = EM_prob
             policy_difference[state][act] = round(abs(VI_prob - EM_prob),
                                                   compare_to_decimals)
-    print("Policy Difference:")
-    pprint(policy_difference)
+
+    if do_print:
+        print("Policy Difference:")
+        pprint(policy_difference)
     # Solved mdp.
-    return EM_game_mdp
+    return EM_game_mdp, policy_keys_to_print
 
 
 # Entry point when called from Command line.
@@ -276,10 +284,10 @@ if __name__=='__main__':
     # Program control flags.
     make_new_mdp = False
     gather_new_data = False
-    perform_new_inference = True
+    perform_new_inference = False
 
     if make_new_mdp:
-        mdp = makeGridMDPxDRA()
+        mdp, policy_keys_to_print = makeGridMDPxDRA(do_print=True)
         mdp_file = getOutFile()
         with open(mdp_file, 'w+') as _file:
             print "Pickling mdp to {}".format(mdp_file)
@@ -346,7 +354,8 @@ if __name__=='__main__':
         infer_mdp.precomputePhiAtState()
 
         # Infer the policy from the recorded data.
-        infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True)
+        infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True,
+                              policy_keys_to_print=policy_keys_to_print)
         infered_mdp_file = getOutFile(os.path.basename(history_file) + '_Policy', infered_mdps_path)
         with open(infered_mdp_file, 'w+') as _file:
             print "Pickling Infered Policy to {}.".format(infered_mdp_file)

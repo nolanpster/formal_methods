@@ -427,6 +427,7 @@ class MDP:
         pmdp.makeUniformPolicy()
         if pmdp.num_states > 0 and pmdp.init is not None:
             pmdp.setInitialProbDist(pmdp.init)
+        pmdp.dra = deepcopy(dra)
         return pmdp
 
 
