@@ -18,6 +18,23 @@ from pprint import pprint
 np.set_printoptions(linewidth=300)
 np.set_printoptions(precision=3)
 
+mdp_obj_path = os.path.abspath('pickled_mdps')
+data_path = os.path.abspath('pickled_episodes')
+infered_mdps_path = os.path.abspath('pickled_inference')
+
+def getOutFile(name_prefix='EM_MDP', dir_path=mdp_obj_path):
+    # Dev machine returns UTC.
+    current_datetime = datetime.datetime.now()
+    formatted_time = current_datetime.strftime('_UTC%y%m%d_%H%M')
+    # Filepath for mdp objects.
+    full_file_path = os.path.join(dir_path, name_prefix + formatted_time)
+    if not os.path.exists(os.path.dirname(full_file_path)):
+        try:
+            os.makedirs(os.path.dirname(full_file_path))
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+    return full_file_path
 
 # Transition probabilities for each action in each cell (gross, explodes with
 # the number of states).
@@ -138,52 +155,9 @@ infer_act_prob = {'North': np.array([[0.0, 1.0, 0.0, 0.0, 0.0],
                                     )
                  }
 
-grid_map = np.array(range(0,6), dtype=np.int8).reshape([2,3])
-
-shortest_paths = {frozenset([0, 1]): (0, 1),
-                  frozenset([0, 2]): (0, 1, 2),
-                  frozenset([0, 3]): (0, 3),
-                  frozenset([0, 4]): (0, 1, 3),
-                  frozenset([0, 5]): (0, 1, 2, 5),
-                  frozenset([1, 2]): (1, 2),
-                  frozenset([1, 3]): (1, 0, 3),
-                  frozenset([1, 4]): (1, 4),
-                  frozenset([1, 5]): (1, 2, 5),
-                  frozenset([2, 3]): (2, 1, 0, 3),
-                  frozenset([2, 4]): (2, 1, 4),
-                  frozenset([2, 5]): (2, 5),
-                  frozenset([3, 4]): (3, 4),
-                  frozenset([3, 5]): (3, 4, 5),
-                  frozenset([4, 5]): (4, 5)
-                  }
-
-# (Initial_state, next_state): Action
-state_transition_actions = {
-    (0,0): 'Empty', (0,1): 'East',                  (0,3): 'South',
-    (1,0): 'West',  (1,1): 'Empty', (1,2): 'East',                  (1,4): 'South',
-                    (2,1): 'West',  (2,2): 'Empty',                                 (2,5): 'South',
-    (3,0): 'North',                                 (3,3): 'Empty', (3,4): 'East',
-                    (4,1): 'North',                 (4,3): 'West',  (4,4): 'Empty', (4,5): 'East',
-                                    (5,2): 'North',                 (5,4): 'West',  (5,5): 'Empty'
-    }
-
-mdp_obj_path = os.path.abspath('pickled_mdps')
-data_path = os.path.abspath('pickled_episodes')
-infered_mdps_path = os.path.abspath('pickled_inference')
-
-def getOutFile(name_prefix='EM_MDP', dir_path=mdp_obj_path):
-    # Dev machine returns UTC.
-    current_datetime = datetime.datetime.now()
-    formatted_time = current_datetime.strftime('_UTC%y%m%d_%H%M')
-    # Filepath for mdp objects.
-    full_file_path = os.path.join(dir_path, name_prefix + formatted_time)
-    if not os.path.exists(os.path.dirname(full_file_path)):
-        try:
-            os.makedirs(os.path.dirname(full_file_path))
-        except OSError as exc: # Guard against race condition
-            if exc.errno != errno.EEXIST:
-                raise
-    return full_file_path
+grid_dim = [2,3] # [num-rows, num-cols]
+grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
+states = [str(state) for state in range(grid_map.size)]
 
 # Shared MDP Initialization Parameters.
 green2 = LTL_plus('green2')
@@ -211,9 +185,8 @@ def makeGridMDPxDRA():
     # Shared atomic propositions:
     # Note that input gamma is overwritten in DRA/MDP product method, so we'll
     # need to set it again later.
-    grid_mdp = MDP(init=initial_state, action_list=action_list,
-                   states=['0', '1', '2', '3', '4', '5'], act_prob=deepcopy(act_prob),
-                   gamma=0.9, AP=atom_prop, L=labels, grid_map=grid_map)
+    grid_mdp = MDP(init=initial_state, action_list=action_list, states=states, act_prob=deepcopy(act_prob), gamma=0.9,
+                   AP=atom_prop, L=labels, grid_map=grid_map)
     grid_mdp.init_set = grid_mdp.states
 
     ##### Add DRA for co-safe spec #####
@@ -323,7 +296,7 @@ if __name__=='__main__':
     # Program control flags.
     make_new_mdp = False
     gather_new_data = False
-    perform_new_inference = False
+    perform_new_inference = True
 
     if make_new_mdp:
         mdp = makeGridMDPxDRA()
@@ -370,9 +343,8 @@ if __name__=='__main__':
         # Solve for approximated observed policy.
         # Use a new mdp to model created/loaded one and a @ref GridGraph object to record, and seach for shortest paths
         # between two grid-cells.
-        infer_mdp = MDP(init=initial_state, action_list=action_list,
-                       states=['0', '1', '2', '3', '4', '5'], act_prob=deepcopy(act_prob),
-                       gamma=0.9, AP=atom_prop, L=labels, grid_map=grid_map)
+        infer_mdp = MDP(init=initial_state, action_list=action_list, states=states, act_prob=deepcopy(act_prob),
+                        grid_map=grid_map)
         infer_mdp.init_set = infer_mdp.states
         graph = GridGraph(grid_map=grid_map, neighbor_dict=infer_mdp.neighbor_dict)
         infer_mdp.graph = graph
