@@ -245,8 +245,8 @@ def makeGridMDPxDRA():
     EM_game_mdp.setInitialProbDist(EM_game_mdp.init_set)
 
     ##### SOLVE #####
-    EM_game_mdp.solve(do_print=True, method='expectationMaximization', write_video=True)
-    VI_game_mdp.solve(do_print=True, method='valueIteration', write_video=True)
+    VI_game_mdp.solve(do_print=True, method='valueIteration', write_video=False)
+    EM_game_mdp.solve(do_print=True, method='expectationMaximization', write_video=False)
 
     compare_to_decimals = 3
     VI_policy = deepcopy(VI_game_mdp.policy)
