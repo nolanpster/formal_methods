@@ -135,20 +135,20 @@ def getOutFile(name_prefix='EM_MDP', dir_path=mdp_obj_path):
 
 # Shared MDP Initialization Parameters.
 green2 = LTL_plus('green2')
-green5 = LTL_plus('green5')
+green3 = LTL_plus('green3')
 red = LTL_plus('red')
 empty = LTL_plus('E')
 # Where empty is the empty string/label/dfa-action.
-atom_prop = [green2, green5, red, empty]
+atom_prop = [green2, green3, red, empty]
 # Defined empty action for MDP incurrs a self loop.
 action_list = ['Empty', 'North', 'South', 'East', 'West']
 initial_state = '0'
 labels = {'0': empty,
           '1': empty,
           '2': green2,
-          '3': empty,
+          '3': green3,
           '4': red,
-          '5': green5
+          '5': empty
           }
 
 def makeGridMDPxDRA():
@@ -167,7 +167,7 @@ def makeGridMDPxDRA():
     ##### Add DRA for co-safe spec #####
     # Define a Deterministic (finitie) Raban Automata to match the sketch on
     # slide 7 of lecture 8. Note that state 'q4' is is the red, 'sink' state.
-    co_safe_dra = DRA(initial_state='q0', alphabet=[green2, green5, red, empty],
+    co_safe_dra = DRA(initial_state='q0', alphabet=[green2, green3, red, empty],
                       rabin_acc=[({'q3'},{})])
     # Self-loops = Empty transitions
     co_safe_dra.add_transition(empty, 'q0', 'q0')
@@ -178,9 +178,9 @@ def makeGridMDPxDRA():
     # Labeled transitions
     co_safe_dra.add_transition(green2, 'q0', 'q1')
     co_safe_dra.add_transition(green2, 'q1', 'q1')
-    co_safe_dra.add_transition(green5, 'q1', 'q3')
-    co_safe_dra.add_transition(green5, 'q0', 'q2')
-    co_safe_dra.add_transition(green5, 'q2', 'q2')
+    co_safe_dra.add_transition(green3, 'q1', 'q3')
+    co_safe_dra.add_transition(green3, 'q0', 'q2')
+    co_safe_dra.add_transition(green3, 'q2', 'q2')
     co_safe_dra.add_transition(green2, 'q2', 'q3')
     co_safe_dra.add_transition(red, 'q0', 'q4')
     co_safe_dra.add_transition(red, 'q1', 'q4')
