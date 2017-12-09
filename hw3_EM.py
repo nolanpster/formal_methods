@@ -303,7 +303,7 @@ if __name__=='__main__':
             pickle.dump(run_histories, _file)
     else:
         # Manually choose data to load here:
-        history_file = os.path.join(data_path, 'EM_MDP_UTC171207_0301_HIST_100eps10steps_UTC171207_0301')
+        history_file = os.path.join(data_path, 'EM_MDP_UTC171209_0401_HIST_100eps10steps_UTC171209_0401')
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
@@ -327,6 +327,7 @@ if __name__=='__main__':
         # Learning, Sugiyama, 2015.
         ggk_sig = 1;
         kernel_centers = [0, 1, 2, 3, 4, 5]
+        kernel_centers = [0, 2, 3, 5]
         #kernel_centers = [3, 4]
         # Note that this needs to be the same instance of `GridGraph` assigned to the MDP!
         gg_kernel_func = lambda s_i, C_i: np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
