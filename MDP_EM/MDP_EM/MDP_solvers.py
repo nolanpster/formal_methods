@@ -73,13 +73,17 @@ class MDP_solvers(object):
                              reward \
                              + self.mdp.gamma * np.dot(trans_prob, prev_values)
                     # Update value if new one is larger.
-                    if this_value >= values[s_idx]:
+                    if this_value > values[s_idx]:
                         values[s_idx] = this_value
                         policy[state] = empty_policy_dist.copy()
                         policy[state][act] = 1
                     if self.write_video:
                         self.video_writer.render(policy)
             delta_value_norm = np.linalg.norm(values - prev_values)
+        # Set zero-likly-hood states to take empty action.
+        for state in self.mdp.states:
+            if sum(policy[state].values()) == 0:
+                policy[state][self.mdp.sink_act] = 1
         self.mdp.values = {state: value for state, value in \
                                                   zip(self.mdp.states, values)}
         self.mdp.policy = policy
