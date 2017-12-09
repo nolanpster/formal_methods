@@ -34,57 +34,57 @@ np.set_printoptions(precision=3)
 # 8) Transition prob when in SW corner cell.
 #
 # Column values are probabilities of ['Empty', 'north', 'south', 'east', 'west'] actions.
-prob_grid = {'North': np.array([[0.0, 0.8, 0.0, 0.1, 0.1],
-                                [0.8, 0.0, 0.0, 0.1, 0.1],
-                                [0.0, 0.8, 0.0, 0.1, 0.1],
-                                [0.1, 0.8, 0.0, 0.0, 0.1],
-                                [0.1, 0.8, 0.0, 0.1, 0.0],
-                                [0.9, 0.0, 0.0, 0.0, 0.1],
-                                [0.9, 0.0, 0.0, 0.1, 0.0],
-                                [0.1, 0.8, 0.0, 0.0, 0.1],
-                                [0.1, 0.8, 0.0, 0.1, 0.0]]
-                                ),
-             'South': np.array([[0.0, 0.0, 0.8, 0.1, 0.1],
-                                [0.0, 0.0, 0.8, 0.1, 0.1],
-                                [0.8, 0.0, 0.0, 0.1, 0.1],
-                                [0.1, 0.0, 0.8, 0.0, 0.1],
-                                [0.1, 0.0, 0.8, 0.1, 0.0],
-                                [0.1, 0.0, 0.8, 0.0, 0.1],
-                                [0.1, 0.0, 0.8, 0.1, 0.0],
-                                [0.9, 0.0, 0.0, 0.0, 0.1],
-                                [0.9, 0.0, 0.0, 0.1, 0.0]]
-                                ),
-             'East': np.array([[0.0, 0.1, 0.1, 0.8, 0.0],
-                               [0.1, 0.0, 0.1, 0.8, 0.0],
-                               [0.1, 0.1, 0.0, 0.8, 0.0],
-                               [0.0, 0.1, 0.1, 0.8, 0.0],
-                               [0.8, 0.1, 0.1, 0.0, 0.0],
-                               [0.9, 0.0, 0.1, 0.0, 0.0],
-                               [0.1, 0.0, 0.1, 0.8, 0.0],
-                               [0.9, 0.1, 0.0, 0.0, 0.0],
-                               [0.1, 0.1, 0.0, 0.8, 0.0]]
+act_prob = {'North': np.array([[0.0, 0.8, 0.0, 0.1, 0.1],
+                               [0.8, 0.0, 0.0, 0.1, 0.1],
+                               [0.0, 0.8, 0.0, 0.1, 0.1],
+                               [0.1, 0.8, 0.0, 0.0, 0.1],
+                               [0.1, 0.8, 0.0, 0.1, 0.0],
+                               [0.9, 0.0, 0.0, 0.0, 0.1],
+                               [0.9, 0.0, 0.0, 0.1, 0.0],
+                               [0.1, 0.8, 0.0, 0.0, 0.1],
+                               [0.1, 0.8, 0.0, 0.1, 0.0]]
                                ),
-             'West': np.array([[0.0, 0.1, 0.1, 0.0, 0.8],
-                               [0.1, 0.0, 0.1, 0.0, 0.8],
-                               [0.1, 0.1, 0.0, 0.0, 0.8],
-                               [0.0, 0.1, 0.1, 0.0, 0.8],
-                               [0.8, 0.1, 0.1, 0.0, 0.0],
-                               [0.1, 0.0, 0.1, 0.0, 0.8],
-                               [0.9, 0.0, 0.1, 0.0, 0.0],
-                               [0.1, 0.1, 0.0, 0.0, 0.8],
-                               [0.9, 0.1, 0.0, 0.0, 0.0]]
+            'South': np.array([[0.0, 0.0, 0.8, 0.1, 0.1],
+                               [0.0, 0.0, 0.8, 0.1, 0.1],
+                               [0.8, 0.0, 0.0, 0.1, 0.1],
+                               [0.1, 0.0, 0.8, 0.0, 0.1],
+                               [0.1, 0.0, 0.8, 0.1, 0.0],
+                               [0.1, 0.0, 0.8, 0.0, 0.1],
+                               [0.1, 0.0, 0.8, 0.1, 0.0],
+                               [0.9, 0.0, 0.0, 0.0, 0.1],
+                               [0.9, 0.0, 0.0, 0.1, 0.0]]
                                ),
-             'Empty': np.array([[1.0, 0.0, 0.0, 0.0, 0.0],
-                                [1.0, 0.0, 0.0, 0.0, 0.0],
-                                [1.0, 0.0, 0.0, 0.0, 0.0],
-                                [1.0, 0.0, 0.0, 0.0, 0.0],
-                                [1.0, 0.0, 0.0, 0.0, 0.0],
-                                [1.0, 0.0, 0.0, 0.0, 0.0],
-                                [1.0, 0.0, 0.0, 0.0, 0.0],
-                                [1.0, 0.0, 0.0, 0.0, 0.0],
-                                [1.0, 0.0, 0.0, 0.0, 0.0]]
-                                )
-             }
+            'East': np.array([[0.0, 0.1, 0.1, 0.8, 0.0],
+                              [0.1, 0.0, 0.1, 0.8, 0.0],
+                              [0.1, 0.1, 0.0, 0.8, 0.0],
+                              [0.0, 0.1, 0.1, 0.8, 0.0],
+                              [0.8, 0.1, 0.1, 0.0, 0.0],
+                              [0.9, 0.0, 0.1, 0.0, 0.0],
+                              [0.1, 0.0, 0.1, 0.8, 0.0],
+                              [0.9, 0.1, 0.0, 0.0, 0.0],
+                              [0.1, 0.1, 0.0, 0.8, 0.0]]
+                              ),
+            'West': np.array([[0.0, 0.1, 0.1, 0.0, 0.8],
+                              [0.1, 0.0, 0.1, 0.0, 0.8],
+                              [0.1, 0.1, 0.0, 0.0, 0.8],
+                              [0.0, 0.1, 0.1, 0.0, 0.8],
+                              [0.8, 0.1, 0.1, 0.0, 0.0],
+                              [0.1, 0.0, 0.1, 0.0, 0.8],
+                              [0.9, 0.0, 0.1, 0.0, 0.0],
+                              [0.1, 0.1, 0.0, 0.0, 0.8],
+                              [0.9, 0.1, 0.0, 0.0, 0.0]]
+                              ),
+            'Empty': np.array([[1.0, 0.0, 0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0, 0.0, 0.0]]
+                               )
+            }
 
 grid_map = np.array(range(0,6)).reshape([2,3])
 
@@ -141,7 +141,7 @@ empty = LTL_plus('E')
 # Where empty is the empty string/label/dfa-action.
 atom_prop = [green2, green5, red, empty]
 # Defined empty action for MDP incurrs a self loop.
-action_list = ['North', 'South', 'East', 'West', 'Empty']
+action_list = ['Empty', 'North', 'South', 'East', 'West']
 initial_state = '0'
 labels = {'0': empty,
           '1': empty,
@@ -160,7 +160,7 @@ def makeGridMDPxDRA():
     # Note that input gamma is overwritten in DRA/MDP product method, so we'll
     # need to set it again later.
     grid_mdp = MDP(init=initial_state, action_list=action_list,
-                   states=['0', '1', '2', '3', '4', '5'], prob=prob_grid,
+                   states=['0', '1', '2', '3', '4', '5'], act_prob=deepcopy(act_prob),
                    gamma=0.9, AP=atom_prop, L=labels, grid_map=grid_map)
     grid_mdp.init_set = grid_mdp.states
 
@@ -201,9 +201,8 @@ def makeGridMDPxDRA():
     if False:
         co_safe_dra.toDot('visitGreensAndNoRed.dot')
         pprint(vars(co_safe_dra))
-    VI_game_mdp = MDP.productMDP(grid_mdp, co_safe_dra)
+    VI_game_mdp = MDP.productMDP(deepcopy(grid_mdp), deepcopy(co_safe_dra))
     VI_game_mdp.grid_map = grid_map
-    VI_game_mdp.precomputeStateProbMatRows()
     # Define the reward function for the VI_game_mdp. Get a reward when leaving
     # the winning state 'q3' to 'q5'.
     pos_reward = {
@@ -318,8 +317,8 @@ if __name__=='__main__':
         # Use a new mdp to model created/loaded one and a @ref GridGraph object to record, and seach for shortest paths
         # between two grid-cells.
         infer_mdp = MDP(init=initial_state, action_list=action_list,
-                       states=['0', '1', '2', '3', '4', '5'], prob=prob_grid,
-                       gamma=0.9, AP=atom_prop, L=labels)
+                       states=['0', '1', '2', '3', '4', '5'], act_prob=deepcopy(act_prob),
+                       gamma=0.9, AP=atom_prop, L=labels, grid_map=grid_map)
         infer_mdp.init_set = infer_mdp.states
         graph = GridGraph(shortest_paths)
         graph.setStateTransitionsFromActions(state_transition_actions)
