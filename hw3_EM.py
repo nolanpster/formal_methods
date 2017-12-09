@@ -320,7 +320,11 @@ def makeGridMDPxDRA():
 
 # Entry point when called from Command line.
 if __name__=='__main__':
-    make_new_mdp = True
+    # Program control flags.
+    make_new_mdp = False
+    gather_new_data = False
+    perform_new_inference = False
+
     if make_new_mdp:
         mdp = makeGridMDPxDRA()
         mdp_file = getOutFile()
@@ -334,7 +338,6 @@ if __name__=='__main__':
         with open(mdp_file) as _file:
             mdp = pickle.load(_file)
 
-    gather_new_data = False
     if gather_new_data:
         # Use policy to simulate and record results.
         #
@@ -363,7 +366,6 @@ if __name__=='__main__':
     # comparison).
     mdp = None
 
-    perform_new_inference = False
     if perform_new_inference:
         # Solve for approximated observed policy.
         # Use a new mdp to model created/loaded one and a @ref GridGraph object to record, and seach for shortest paths
