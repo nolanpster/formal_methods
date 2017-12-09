@@ -155,81 +155,61 @@ infer_act_prob = {'North': np.array([[0.0, 1.0, 0.0, 0.0, 0.0],
                                     )
                  }
 
-grid_dim = [2,3] # [num-rows, num-cols]
+grid_dim = [3,3] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
 states = [str(state) for state in range(grid_map.size)]
 
 # Shared MDP Initialization Parameters.
-green2 = LTL_plus('green2')
-green3 = LTL_plus('green3')
+green = LTL_plus('green')
 red = LTL_plus('red')
 empty = LTL_plus('E')
 # Where empty is the empty string/label/dfa-action.
-atom_prop = [green2, green3, red, empty]
+atom_prop = [green, red, empty]
 # Defined empty action for MDP incurrs a self loop.
 action_list = ['Empty', 'North', 'South', 'East', 'West']
 initial_state = '0'
-labels = {'0': empty,
-          '1': empty,
-          '2': green2,
-          '3': green3,
-          '4': red,
-          '5': empty
-          }
+labels = {state: empty for state in states}
+labels['5'] = red
+labels['0'] = green
 
 def makeGridMDPxDRA():
     ##### Problem 2 - Configure MDP #####
-    # For the simple 6-state gridworld, see slide 8 of Lecture 7, write the
-    # specification automata for the following: visit all green cells and avoid
-    # the red cell.
-    # Shared atomic propositions:
-    # Note that input gamma is overwritten in DRA/MDP product method, so we'll
-    # need to set it again later.
+    # For the simple 6-state gridworld, see slide 8 of Lecture 7, write the specification automata for the following:
+    # visit all green cells and avoid the red cell.
+    #
+    # Note shared atomic propositions:
+    # Note that input gamma is overwritten in DRA/MDP product method, so we'll need to set it again later.
     grid_mdp = MDP(init=initial_state, action_list=action_list, states=states, act_prob=deepcopy(act_prob), gamma=0.9,
                    AP=atom_prop, L=labels, grid_map=grid_map)
     grid_mdp.init_set = grid_mdp.states
 
     ##### Add DRA for co-safe spec #####
-    # Define a Deterministic (finitie) Raban Automata to match the sketch on
-    # slide 7 of lecture 8. Note that state 'q4' is is the red, 'sink' state.
-    co_safe_dra = DRA(initial_state='q0', alphabet=[green2, green3, red, empty],
-                      rabin_acc=[({'q3'},{})])
+    # Define a Deterministic (finitie) Raban Automata to match the sketch on slide 7 of lecture 8. Note that state 'q2'
+    # is is the red, 'sink' state.
+    co_safe_dra = DRA(initial_state='q0', alphabet=atom_prop, rabin_acc=[({'q1'},{})])
     # Self-loops = Empty transitions
-    co_safe_dra.add_transition(empty, 'q0', 'q0')
-    co_safe_dra.add_transition(empty, 'q1', 'q1')
-    co_safe_dra.add_transition(empty, 'q2', 'q2')
-    co_safe_dra.add_transition(empty, 'q3', 'q3')
-    co_safe_dra.add_transition(empty, 'q4', 'q4')
+    co_safe_dra.add_transition(empty, 'q0', 'q0') # Initial state
+    co_safe_dra.add_transition(empty, 'q2', 'q2') # Losing sink.
+    co_safe_dra.add_transition(empty, 'q3', 'q3') # Winning sink.
     # Labeled transitions
-    co_safe_dra.add_transition(green2, 'q0', 'q1')
-    co_safe_dra.add_transition(green2, 'q1', 'q1')
-    co_safe_dra.add_transition(green3, 'q1', 'q3')
-    co_safe_dra.add_transition(green3, 'q0', 'q2')
-    co_safe_dra.add_transition(green3, 'q2', 'q2')
-    co_safe_dra.add_transition(green2, 'q2', 'q3')
-    co_safe_dra.add_transition(red, 'q0', 'q4')
-    co_safe_dra.add_transition(red, 'q1', 'q4')
-    co_safe_dra.add_transition(red, 'q2', 'q4')
-    # If the DRA reaches state 'q3' we win. Therefore I do not define a
-    # transition from 'q3' to 'q4'. Note that 'q4' is a sink state due to the
-    # self loop.
+    co_safe_dra.add_transition(green, 'q0', 'q1')
+    co_safe_dra.add_transition(green, 'q1', 'q1')
+    co_safe_dra.add_transition(red, 'q0', 'q2')
+    # If the DRA reaches state 'q1' we win. Therefore I do not define a transition from 'q3' to 'q4'. Note that 'q4' is
+    # a sink state due to the self loop.
     #
-    # Also, I define a winning 'sink' state, 'q5'. I do this so that there is
-    # only one out-going transition from 'q3' and it's taken only under the
-    # empty action. This action, is the winning action. This is a little bit of
-    # a hack, but it was the way that I thought of to prevent the system from
-    # repeatedly taking actions that earned a reward.
-    co_safe_dra.add_transition(empty, 'q3', 'q5')
-    co_safe_dra.add_transition(empty, 'q5', 'q5')
-    # Not adding a transition from 'q3' to 'q4' under red for simplicity. If we
-    # get to 'q3' we win.
+    # Also, I define a winning 'sink' state, 'q3'. I do this so that there is only one out-going transition from 'q1'
+    # and it's taken only under the empty action. This action, is the winning action. This is a little bit of a hack,
+    # but it was the way that I thought of to prevent the system from repeatedly taking actions that earned a reward.
+    co_safe_dra.add_transition(empty, 'q1', 'q3')
+    # Not adding a transition from 'q3' to 'q2' under red for simplicity. If we get to 'q3' we win.
     if False:
         co_safe_dra.toDot('visitGreensAndNoRed.dot')
         pprint(vars(co_safe_dra))
     VI_game_mdp = MDP.productMDP(grid_mdp, co_safe_dra)
     VI_game_mdp.grid_map = grid_map
     # Define the reward function for the VI_game_mdp. Get a reward when leaving
-    # the winning state 'q3' to 'q5'.
+    # the winning state 'q1' to 'q3'.
     pos_reward = {
                  'North': 0.0,
                  'South': 0.0,
@@ -250,7 +230,7 @@ def makeGridMDPxDRA():
     # being 'red'.
     reward_dict = {}
     for state in VI_game_mdp.states:
-        if state in VI_game_mdp.acc[0][0] and '4' not in state:
+        if state in VI_game_mdp.acc[0][0] and not VI_game_mdp.L[state]==red:
             # Winning state
             reward_dict[state] = pos_reward
         else:
@@ -260,12 +240,12 @@ def makeGridMDPxDRA():
     # Then I set up all sink states so all transition probabilities from a sink
     # states take a self loop with probability 1.
     VI_game_mdp.sink_act = 'Empty'
-    VI_game_mdp.setSinks('q4')
+    VI_game_mdp.setSinks('q3')
     # If I uncomment the following line, all states at grid cell '5' no longer
     # build up any reward.
     #VI_game_mdp.setSinks('5')
-    VI_game_mdp.setSinks('q5')
-    # @TODO Prune the MDP. Eg, state ('1', 'q3') is not reachable.
+    VI_game_mdp.setSinks('q2')
+    # @TODO Prune unreachable states from MDP.
     EM_game_mdp = deepcopy(VI_game_mdp)
     EM_game_mdp.setInitialProbDist(EM_game_mdp.init_set)
 
