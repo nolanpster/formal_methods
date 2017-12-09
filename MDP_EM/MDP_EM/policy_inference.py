@@ -56,6 +56,8 @@ class PolicyInference(object):
                 this_state = self.histories[episode, t_step-1]
                 next_state = self.histories[episode, t_step]
                 observed_action = self.mdp.graph.getObservedAction(this_state, next_state)
+                if observed_action is None:
+                    raise ValueError('No valid action from {} to {}'.format(this_state, next_state))
                 del_beta_del_theta = (self.mdp.phi(str(this_state), observed_action) - del_theta_total_Q[this_state]) \
                                       * (exp_Q[this_state][observed_action] / sum_exp_Q[this_state])
                 beta = exp_Q[this_state][observed_action]/sum_exp_Q[this_state]

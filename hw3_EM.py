@@ -107,12 +107,12 @@ shortest_paths = {frozenset([0, 1]): (0, 1),
 
 # (Initial_state, next_state): Action
 state_transition_actions = {
-    (0,0): 'Empty', (0,1): 'East',  (0,2): None,    (0,3): 'South', (0,4): None,    (0,5): None,
-    (1,0): 'West',  (1,1): 'Empty', (1,2): 'East',  (1,3): None,    (1,4): 'South', (1,5): None,
-    (2,0): None,    (2,1): 'West',  (2,2): 'Empty', (2,3): None,    (2,4): None,    (2,5): 'South',
-    (3,0): 'North', (3,1): None,    (3,2): None,    (3,3): 'Empty', (3,4): 'East',  (3,5): None,
-    (4,0): None,    (4,1): 'North', (4,2): None,    (4,3): 'West',  (4,4): 'Empty', (4,5): 'East',
-    (5,0): None,    (5,1): None,    (5,2): 'North', (5,3): None,    (5,4): 'West',  (5,5): 'Empty'
+    (0,0): 'Empty', (0,1): 'East',                  (0,3): 'South',
+    (1,0): 'West',  (1,1): 'Empty', (1,2): 'East',                  (1,4): 'South',
+                    (2,1): 'West',  (2,2): 'Empty',                                 (2,5): 'South',
+    (3,0): 'North',                                 (3,3): 'Empty', (3,4): 'East',
+                    (4,1): 'North',                 (4,3): 'West',  (4,4): 'Empty', (4,5): 'East',
+                                    (5,2): 'North',                 (5,4): 'West',  (5,5): 'Empty'
     }
 
 mdp_obj_path = os.path.abspath('pickled_mdps')
@@ -320,14 +320,15 @@ if __name__=='__main__':
                        states=['0', '1', '2', '3', '4', '5'], act_prob=deepcopy(act_prob),
                        gamma=0.9, AP=atom_prop, L=labels, grid_map=grid_map)
         infer_mdp.init_set = infer_mdp.states
-        graph = GridGraph(shortest_paths)
-        graph.setStateTransitionsFromActions(state_transition_actions)
+        graph = GridGraph(shortest_paths, grid_map)
+        graph.setStateTransitionsFromActions(infer_mdp.neighbor_dict)
         infer_mdp.graph = graph
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
         # Learning, Sugiyama, 2015.
         ggk_sig = 1;
         kernel_centers = [0, 1, 2, 3, 4, 5]
         #kernel_centers = [3, 4]
+        # Note that this needs to be the same instance of `GridGraph` assigned to the MDP!
         gg_kernel_func = lambda s_i, C_i: np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
         # Note that we need to use a keyword style argument passing to ensure that
         # each lambda function gets its own value of C.
