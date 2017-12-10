@@ -140,7 +140,7 @@ class MDP_solvers(object):
         @param H Horizon length.
         """
         L = np.empty(2*H+1)
-        _a = S
+        _a = deepcopy(S)
         _b = R
         alpha = _a
         beta = gamma*_b
