@@ -97,6 +97,9 @@ class PolicyInference(object):
         sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.mdp.state_vec}
         self.mdp.policy = {state: {act: exp_Q[int(state)][act]/sum_exp_Q[int(state)] for act in self.mdp.action_list}
                            for state in self.mdp.states}
+        if do_print:
+            print("Infered-Policy as a {state: action-distribution} dictionary.")
+            pprint(self.mdp.policy)
 
     @staticmethod
     def evalGibbsPolicy(theta, phi, action, action_list):
