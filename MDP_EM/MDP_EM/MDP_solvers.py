@@ -6,7 +6,7 @@ from copy import deepcopy
 from pprint import pprint
 import time
 
-from solution_video import SolutionVideo
+#from solution_video import SolutionVideo
 
 class MDP_solvers(object):
     """
