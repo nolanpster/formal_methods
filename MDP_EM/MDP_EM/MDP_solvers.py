@@ -4,6 +4,8 @@ __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 import numpy as np
 from copy import deepcopy
 from pprint import pprint
+import time
+
 from solution_video import SolutionVideo
 
 class MDP_solvers(object):
@@ -39,6 +41,7 @@ class MDP_solvers(object):
         @brief returns a dictiionary describing the policy: keys are states,
                values are actions.
         """
+        start_time = time.time()
         # Follows procedure in section 7.4 of Jay Taylor's notes: 'Markov
         # Decision Processes: Lecture Notes for STP 425'.
         iter_count = 0 # Iteration counter
@@ -87,8 +90,12 @@ class MDP_solvers(object):
         self.mdp.values = {state: value for state, value in \
                                                   zip(self.mdp.states, values)}
         self.mdp.policy = policy
+
+        elapsed_time = time.time() - start_time
+        run_stats = {'run_time': elapsed_time, 'iterations': iter_count}
+
         if do_print:
-            print("Value iteration took {} iterations.".format(iter_count))
+            print("Value iteration did {0} iterations in {1:.3f} seconds.".format(iter_count, elapsed_time))
             pprint(self.mdp.values)
             print("Policy as a {state: action-distribution} dictionary.")
             if policy_keys_to_print is not None:
@@ -102,6 +109,7 @@ class MDP_solvers(object):
         """
         @brief
         """
+        start_time = time.time()
         num_iters = 100
         S = deepcopy(self.mdp.S) # Initial distribution.
         for _ in range(num_iters):
@@ -114,6 +122,8 @@ class MDP_solvers(object):
             self.mdp.removeNaNValues()
             if self.write_video:
                 self.video_writer.render(self.mdp.policy)
+        elapsed_time = time.time() - start_time
+        stats = {'run_time': elapsed_time, 'iterations': num_iters}
         if do_print:
             policy_out = deepcopy(self.mdp.policy)
             for state, act_dist in policy_out.items():
@@ -126,6 +136,7 @@ class MDP_solvers(object):
             pprint(policy_out)
             print("Prob. or reward = {0:.3f}, expectation of T given R = "
                   "{1:.3f}.".format(P_R, expect_T_given_R))
+        return stats
 
     def e_step(self, S, R, P, gamma, H=100):
         """
