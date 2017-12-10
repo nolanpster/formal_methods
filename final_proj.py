@@ -356,8 +356,7 @@ if __name__=='__main__':
         infer_mdp.precomputePhiAtState()
 
         # Infer the policy from the recorded data.
-        infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True,
-                              policy_keys_to_print=policy_keys_to_print)
+        infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True)
         infered_mdp_file = getOutFile(os.path.basename(history_file) + '_Policy', infered_mdps_path)
         with open(infered_mdp_file, 'w+') as _file:
             print "Pickling Infered Policy to {}.".format(infered_mdp_file)
