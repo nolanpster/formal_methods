@@ -55,9 +55,8 @@ class MDP_solvers(object):
         # Initial iteration check parameters.
         delta_value_norm = np.linalg.norm(values - prev_values)
         if self.mdp.gamma == 1.0:
-            # Override gamma to be a very conservative discount factor.
-            # This allows the solution to eventually converge if the problem is
-            # well defined.
+            # Override gamma to be a very conservative discount factor.  This allows the solution to eventually converge
+            # if the problem is well defined.
             gamma = 0.99999
         else:
             gamma = self.mdp.gamma
@@ -72,9 +71,7 @@ class MDP_solvers(object):
                     # Column of Transition matrix
                     trans_prob = self.mdp.T(state, act)
                     # Using the actual discount factor, comput the value.
-                    this_value = \
-                             reward \
-                             + self.mdp.gamma * np.dot(trans_prob, prev_values)
+                    this_value = reward + self.mdp.gamma * np.dot(trans_prob, prev_values)
                     # Update value if new one is larger.
                     if this_value > values[s_idx]:
                         values[s_idx] = this_value
@@ -87,8 +84,7 @@ class MDP_solvers(object):
         for state in self.mdp.states:
             if sum(policy[state].values()) == 0:
                 policy[state][self.mdp.sink_act] = 1
-        self.mdp.values = {state: value for state, value in \
-                                                  zip(self.mdp.states, values)}
+        self.mdp.values = {state: value for state, value in zip(self.mdp.states, values)}
         self.mdp.policy = policy
 
         elapsed_time = time.time() - start_time
@@ -116,8 +112,7 @@ class MDP_solvers(object):
             P = self.mdp.setProbMatGivenPolicy()
             R = [self.mdp.probRewardGivenX_T(state) for state in self.mdp.states]
             R = np.array(R)
-            alpha, beta, P_R, P_T_given_R, expect_T_given_R = \
-                MDP_solvers.e_step(self, S, R, P, self.mdp.gamma)
+            alpha, beta, P_R, P_T_given_R, expect_T_given_R = MDP_solvers.e_step(self, S, R, P, self.mdp.gamma)
             MDP_solvers.m_step(self, beta)
             self.mdp.removeNaNValues()
             if self.write_video:
@@ -172,8 +167,7 @@ class MDP_solvers(object):
             # Update policy and record value in normalization factor.
             for act in self.mdp.action_list:
                 self.mdp.policy[state][act] = self.mdp.policy[state][act] * \
-                    (self.mdp.reward[state][act] +
-                     np.inner(beta, self.mdp.prob[act][state_ind, :]))
+                    (self.mdp.reward[state][act] + np.inner(beta, self.mdp.prob[act][state_ind, :]))
                 norm_factor += self.mdp.policy[state][act]
             if norm_factor > 0:
                 for act in self.mdp.action_list:
