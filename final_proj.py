@@ -12,8 +12,12 @@ import datetime
 import pickle
 import dill # For pickling lambda functions.
 import numpy as np
+from numpy import ma
 from copy import deepcopy
 from pprint import pprint
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import pandas as pd
 
 np.set_printoptions(linewidth=300)
 np.set_printoptions(precision=3)
@@ -278,7 +282,7 @@ def makeGridMDPxDRA(do_print=False):
         print("Policy Difference:")
         pprint(policy_difference)
     # Solved mdp.
-    return EM_game_mdp, policy_keys_to_print
+    return EM_game_mdp, VI_game_mdp, policy_keys_to_print
 
 
 # Entry point when called from Command line.
@@ -289,17 +293,20 @@ if __name__=='__main__':
     perform_new_inference = False
 
     if make_new_mdp:
-        mdp, policy_keys_to_print = makeGridMDPxDRA(do_print=True)
+        EM_mdp, VI_mdp, policy_keys_to_print = makeGridMDPxDRA(do_print=True)
         mdp_file = getOutFile()
         with open(mdp_file, 'w+') as _file:
-            print "Pickling mdp to {}".format(mdp_file)
-            pickle.dump(mdp, _file)
+            print "Pickling EM_mdp to {}".format(mdp_file)
+            pickle.dump([EM_mdp, VI_mdp, policy_keys_to_print], _file)
     else:
         # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC171209_2042')
+        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC171209_2149')
         print "Loading file {}.".format(mdp_file)
         with open(mdp_file) as _file:
-            mdp = pickle.load(_file)
+            EM_mdp, VI_mdp, policy_keys_to_print = pickle.load(_file)
+
+    # Choose which policy to use for demonstration.
+    mdp = EM_mdp
 
     if gather_new_data:
         # Use policy to simulate and record results.
@@ -325,9 +332,6 @@ if __name__=='__main__':
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
-    # Make sure we don't do anything with the loaded mdp other than gather data with it (we'll load it later for
-    # comparison).
-    mdp = None
 
     if perform_new_inference:
         # Solve for approximated observed policy.
@@ -368,8 +372,52 @@ if __name__=='__main__':
         print "Loading infered policy data file {}.".format(infered_mdp_file)
         with open(infered_mdp_file) as _file:
             infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
-    import pdb; pdb.set_trace()
 
     # Create plots for comparison.
+    maze = np.zeros(np.array(grid_dim)+1)
+    for state, label in labels.iteritems():
+        if label==red:
+            grid_row, grid_col = np.where(grid_map==int(state))
+            maze[grid_row, grid_col] = 2
+        if label==green:
+            grid_row, grid_col = np.where(grid_map==int(state))
+            maze[grid_row, grid_col] = 1
+    center_offset = 0.5 # Shifts points into center of cell.
+    cmap = mcolors.ListedColormap(['w','green','red'])
+    x, y = np.meshgrid(np.arange(grid_dim[1]+1), np.arange(grid_dim[0]+1))
+    x_cent = x[:-1,:-1].ravel()+center_offset
+    y_cent = y[:-1,:-1].ravel()+center_offset
+    zero_mag = np.zeros(np.array(grid_dim))
+    quiv_angs = {'North': np.pi/2, 'South': -np.pi/2, 'East': 0, 'West': np.pi}
+    quiv_scale = 25
+    stay_scale = 250
+    plot_policies = [VI_mdp.policy, EM_mdp.policy, infer_mdp.policy]
+    only_use_print_keys = [True, True, False]
+    titles = ['Value Iteration', 'Expecation Maximization', 'Learned']
+    fig_list = []
+    for policy, use_print_keys, title in zip(plot_policies, only_use_print_keys, titles):
+        fig, ax = plt.subplots()
+        plt.title(title)
+        quadmesh = ax.pcolormesh(x, y, maze, edgecolor='k',cmap=cmap)
 
-
+        # Stay probabilies
+        if use_print_keys:
+            stay_probs = [policy[state]['Empty'] for state in policy_keys_to_print]
+        else:
+            stay_probs = [policy[state]['Empty'][0][0] for state in policy.keys()]
+        df_stay = pd.DataFrame({'Prob': np.round(stay_probs,3), 'x': x_cent, 'y': y_cent})
+        df_stay.plot(kind='scatter', x='x', y='y', s=df_stay['Prob']*stay_scale, c=df_stay['Prob'],ax=ax )
+        # Motion actions
+        act_mdp = VI_mdp
+        for act in action_list:
+            if act=='Empty':
+                continue
+            if use_print_keys:
+                act_probs = np.round([policy[state][act] for state in policy_keys_to_print], 3)
+            else:
+                act_probs = np.round([policy[state][act][0][0] for state in policy.keys()], 3)
+            U = np.cos(quiv_angs[act])*act_probs
+            V = np.sin(quiv_angs[act])*act_probs
+            Q = plt.quiver(x_cent, y_cent, U, V, scale=quiv_scale, units='width')
+        plt.gca().invert_yaxis()
+    plt.show()
