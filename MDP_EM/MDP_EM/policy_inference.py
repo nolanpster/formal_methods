@@ -72,12 +72,12 @@ class PolicyInference(object):
         self.histories = histories
         if theta_0 == None:
             test_phi = self.mdp.phi(str(1), 'East')
-            theta_0 = np.random.uniform(size=(test_phi.size, 1)).T
+            theta_0 = np.random.uniform(0,0.1,size=(test_phi.size, 1)).T
         self.mdp.theta = theta_0
         self.theta_size = [self.mdp.theta.size, 1]
 
         thresh = 0.05
-        eps = 0.01
+        eps = 0.001
         iter_count = 0
         delta_theta_norm = np.inf
         # Loop until convergence

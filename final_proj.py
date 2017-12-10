@@ -300,7 +300,7 @@ if __name__=='__main__':
             pickle.dump([EM_mdp, VI_mdp, policy_keys_to_print], _file)
     else:
         # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC171209_2149')
+        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC171210_1025')
         print "Loading file {}.".format(mdp_file)
         with open(mdp_file) as _file:
             EM_mdp, VI_mdp, policy_keys_to_print = pickle.load(_file)
@@ -312,8 +312,8 @@ if __name__=='__main__':
         # Use policy to simulate and record results.
         #
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
-        num_episodes = 100
-        steps_per_episode = 10
+        num_episodes = 400
+        steps_per_episode = 20
         run_histories = np.zeros([num_episodes, steps_per_episode], dtype=np.int8)
         for episode in range(num_episodes):
             # Create time-history for this episode.
@@ -328,7 +328,7 @@ if __name__=='__main__':
             pickle.dump(run_histories, _file)
     else:
         # Manually choose data to load here:
-        history_file = os.path.join(data_path, 'EM_MDP_UTC171209_2019_HIST_100eps10steps_UTC171209_2019')
+        history_file = os.path.join(data_path, 'EM_MDP_UTC171209_2149_HIST_200eps10steps_UTC171209_2258')
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
@@ -345,9 +345,8 @@ if __name__=='__main__':
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
         # Learning, Sugiyama, 2015.
         ggk_sig = 1;
-        kernel_centers = [0, 1, 2, 3, 4, 5]
         kernel_centers = [0, 4, 12, 20, 24]
-        #kernel_centers = [3, 4]
+        kernel_centers = range(0,25,2)
         # Note that this needs to be the same instance of `GridGraph` assigned to the MDP!
         gg_kernel_func = lambda s_i, C_i: np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
         # Note that we need to use a keyword style argument passing to ensure that
