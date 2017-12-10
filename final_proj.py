@@ -296,7 +296,7 @@ if __name__=='__main__':
             pickle.dump(mdp, _file)
     else:
         # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC171207_0301')
+        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC171209_2042')
         print "Loading file {}.".format(mdp_file)
         with open(mdp_file) as _file:
             mdp = pickle.load(_file)
@@ -321,7 +321,7 @@ if __name__=='__main__':
             pickle.dump(run_histories, _file)
     else:
         # Manually choose data to load here:
-        history_file = os.path.join(data_path, 'EM_MDP_UTC171209_0401_HIST_100eps10steps_UTC171209_0401')
+        history_file = os.path.join(data_path, 'EM_MDP_UTC171209_2019_HIST_100eps10steps_UTC171209_2019')
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
@@ -365,7 +365,7 @@ if __name__=='__main__':
     else:
         # Manually choose data to load here:
         infered_mdp_file = os.path.join(infered_mdps_path,
-            'EM_MDP_UTC171207_0301_HIST_100eps10steps_UTC171207_0301_Policy_UTC171207_0304')
+            'EM_MDP_UTC171209_2019_HIST_100eps10steps_UTC171209_2019_Policy_UTC171209_2022')
         print "Loading infered policy data file {}.".format(infered_mdp_file)
         with open(infered_mdp_file) as _file:
             infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
