@@ -106,7 +106,7 @@ class MDP_solvers(object):
         @brief
         """
         start_time = time.time()
-        num_iters = 100
+        num_iters = 35
         S = deepcopy(self.mdp.S) # Initial distribution.
         for _ in range(num_iters):
             P = self.mdp.setProbMatGivenPolicy()
@@ -133,7 +133,7 @@ class MDP_solvers(object):
                   "{1:.3f}.".format(P_R, expect_T_given_R))
         return stats
 
-    def e_step(self, S, R, P, gamma, H=100):
+    def e_step(self, S, R, P, gamma, H=25):
         """
         @brief Algorithm 1 from Toussaint and Storkey 2010.
 

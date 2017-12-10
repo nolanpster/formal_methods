@@ -155,7 +155,7 @@ infer_act_prob = {'North': np.array([[0.0, 1.0, 0.0, 0.0, 0.0],
                                     )
                  }
 
-grid_dim = [3,3] # [num-rows, num-cols]
+grid_dim = [5,5] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
 states = [str(state) for state in range(grid_map.size)]
 
@@ -169,7 +169,9 @@ atom_prop = [green, red, empty]
 action_list = ['Empty', 'North', 'South', 'East', 'West']
 initial_state = '0'
 labels = {state: empty for state in states}
-labels['5'] = red
+labels['12'] = red
+labels['13'] = red
+labels['14'] = red
 labels['0'] = green
 
 def makeGridMDPxDRA(do_print=False):
@@ -340,7 +342,7 @@ if __name__=='__main__':
         # Learning, Sugiyama, 2015.
         ggk_sig = 1;
         kernel_centers = [0, 1, 2, 3, 4, 5]
-        kernel_centers = [0, 2, 3, 5]
+        kernel_centers = [0, 4, 12, 20, 24]
         #kernel_centers = [3, 4]
         # Note that this needs to be the same instance of `GridGraph` assigned to the MDP!
         gg_kernel_func = lambda s_i, C_i: np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
