@@ -225,8 +225,13 @@ class MDP:
         for act in this_policy.keys():
             this_trans_prob += this_policy[act] \
                                * self.prob[act][self.states.index(self.current_state), :]
+        # Renormalize distribution - need to deal with this in a better way.
+        this_trans_prob /= this_trans_prob.sum()
         # Sample a new state given joint distribution of states and actions.
-        next_index= np.random.choice(self.num_states, 1, p=this_trans_prob)[0]
+        try:
+            next_index= np.random.choice(self.num_states, 1, p=this_trans_prob)[0]
+        except ValueError:
+            import pdb; pdb.set_trace()
         self.current_state = self.states[next_index]
         return int(self.current_state[0])
 
