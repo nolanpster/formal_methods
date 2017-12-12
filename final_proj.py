@@ -15,6 +15,7 @@ import numpy as np
 from numpy import ma
 from copy import deepcopy
 from pprint import pprint
+from collections import OrderedDict
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import pandas as pd
@@ -312,28 +313,48 @@ class PlotPolicy(PlotGrid):
         self.quiv_angs = {'North': np.pi/2, 'South': -np.pi/2, 'East': 0, 'West': np.pi}
         self.quiv_scale = 25
         self.stay_scale = 250
+        self.prob_disp_thresh = 0.09
 
-    def confiigurePlot(self, title, policy, action_list, use_print_key, policy_keys_to_print):
+    def confiigurePlot(self, title, policy, action_list, use_print_key, policy_keys_to_print, decimals):
         fig, ax = super(self.__class__, self).configurePlot(title)
         policy = deepcopy(policy)
-        # Stay probabilies
+        # Stay probabilies - plot with dots.
         if use_print_keys:
-            stay_probs = [policy[state]['Empty'] for state in policy_keys_to_print]
+            stay_probs = [np.round(policy[state]['Empty'], decimals) for state in policy_keys_to_print]
         else:
-            stay_probs = [policy[state]['Empty'][0][0] for state in policy.keys()]
-        df_stay = pd.DataFrame({'Prob': np.round(stay_probs,3), 'x': self.x_cent, 'y': self.y_cent})
-        df_stay.plot(kind='scatter', x='x', y='y', s=df_stay['Prob']*self.stay_scale, c=df_stay['Prob'], ax=ax )
-        # Motion actions
+            stay_probs = [np.round(policy[state]['Empty'][0][0], decimals) for state in policy.keys()]
+        # Deepcopy allows for each action not to plot cells when there is probability of the action rounds to zero.
+        this_x_cent = deepcopy(self.x_cent)
+        this_y_cent = deepcopy(self.y_cent)
+        this_x_cent = [x for idx,x in enumerate(this_x_cent) if stay_probs[idx] > self.prob_disp_thresh]
+        this_y_cent = [y for idx,y in enumerate(this_y_cent) if stay_probs[idx] > self.prob_disp_thresh]
+        try:
+            if type(stay_probs).__module__=='numpy':
+                stay_probs = stay_probs.tolist()
+        except SyntaxError:
+            pass
+        stay_probs = [p for p in stay_probs if  p > self.prob_disp_thresh]
+        df_stay = pd.DataFrame({'Prob': stay_probs, 'x': this_x_cent, 'y': this_y_cent})
+        df_stay.plot(kind='scatter', x='x', y='y', s=df_stay['Prob']*self.stay_scale, c=1-df_stay['Prob'], ax=ax,
+                     cmap='gray', legend=None)
+        # Motion actions - plot with arrows.
         for act in action_list:
             if act=='Empty':
-                continue
+                continue # Alraedy plotted
+            # Deepcopy allows for each action not to plot cells when there is probability of the action rounds to zero.
+            this_x_cent = deepcopy(self.x_cent)
+            this_y_cent = deepcopy(self.y_cent)
             if use_print_keys:
-                act_probs = np.round([policy[state][act] for state in policy_keys_to_print], 3)
+                act_probs = np.round([policy[state][act] for state in policy_keys_to_print], decimals)
             else:
-                act_probs = np.round([policy[state][act][0][0] for state in policy.keys()], 3)
+                act_probs = np.round([policy[state][act][0][0] for state in policy.keys()], decimals)
+            this_x_cent = [x for idx,x in enumerate(this_x_cent) if act_probs[idx] > self.prob_disp_thresh]
+            this_y_cent = [y for idx,y in enumerate(this_y_cent) if act_probs[idx] > self.prob_disp_thresh]
+            act_probs = [p for p in act_probs if  p > self.prob_disp_thresh]
+            act_probs = np.array(act_probs) # This is redundanct for everything except the value iteration policy.
             U = np.cos(self.quiv_angs[act])*act_probs
             V = np.sin(self.quiv_angs[act])*act_probs
-            Q = plt.quiver(self.x_cent, self.y_cent, U, V, scale=self.quiv_scale, units='width')
+            Q = plt.quiver(this_x_cent, this_y_cent, U, V, scale=self.quiv_scale, units='width')
         plt.gca().invert_yaxis()
         return fig
 
@@ -436,41 +457,22 @@ if __name__=='__main__':
         if label==green:
             grid_row, grid_col = np.where(grid_map==int(state))
             maze[grid_row, grid_col] = 1
-    center_offset = 0.5 # Shifts points into center of cell.
     cmap = mcolors.ListedColormap(['w','green','red'])
-    x, y = np.meshgrid(np.arange(grid_dim[1]+1), np.arange(grid_dim[0]+1))
-    x_cent = x[:-1,:-1].ravel()+center_offset
-    y_cent = y[:-1,:-1].ravel()+center_offset
-    zero_mag = np.zeros(np.array(grid_dim))
-    quiv_angs = {'North': np.pi/2, 'South': -np.pi/2, 'East': 0, 'West': np.pi}
-    quiv_scale = 25
-    stay_scale = 250
+    center_offset = 0.5 # Shifts points into center of cell.
+    base_policy_grid = PlotPolicy(maze, cmap, center_offset)
     plot_policies = [VI_mdp.policy, EM_mdp.policy, infer_mdp.policy]
     only_use_print_keys = [True, True, False]
     titles = ['Value Iteration', 'Expecation Maximization', 'Learned']
-    fig_list = []
     for policy, use_print_keys, title in zip(plot_policies, only_use_print_keys, titles):
-        fig, ax = plt.subplots()
-        plt.title(title)
-        quadmesh = ax.pcolormesh(x, y, maze, edgecolor='k',cmap=cmap)
-
-        # Stay probabilies
-        if use_print_keys:
-            stay_probs = [policy[state]['Empty'] for state in policy_keys_to_print]
-        else:
-            stay_probs = [policy[state]['Empty'][0][0] for state in policy.keys()]
-        df_stay = pd.DataFrame({'Prob': np.round(stay_probs,3), 'x': x_cent, 'y': y_cent})
-        df_stay.plot(kind='scatter', x='x', y='y', s=df_stay['Prob']*stay_scale, c=df_stay['Prob'],ax=ax )
-        # Motion actions
-        for act in action_list:
-            if act=='Empty':
-                continue
-            if use_print_keys:
-                act_probs = np.round([policy[state][act] for state in policy_keys_to_print], 3)
-            else:
-                act_probs = np.round([policy[state][act][0][0] for state in policy.keys()], 3)
-            U = np.cos(quiv_angs[act])*act_probs
-            V = np.sin(quiv_angs[act])*act_probs
-            Q = plt.quiver(x_cent, y_cent, U, V, scale=quiv_scale, units='width')
-        plt.gca().invert_yaxis()
+        # Reorder policy dict for plotting.
+        if use_print_keys: # VI and EM policies have DRA states in policy keys.
+            list_of_tuples = [(key, policy[key]) for key in policy_keys_to_print]
+        else: # Learned policy only has state numbers.
+            order_of_keys = [str(key) for key in range(grid_map.size)]
+            list_of_tuples = [(key, policy[key]) for key in order_of_keys]
+        policy = OrderedDict(list_of_tuples)
+        fig = base_policy_grid.confiigurePlot(title, policy, action_list, use_print_keys, policy_keys_to_print,
+                                              decimals=2)
+    print 'HEY! You! With the face! (computers don\'t have faces). Mazimize figure window to correctly show arrow/dot '\
+          'size ratio!'
     plt.show()
