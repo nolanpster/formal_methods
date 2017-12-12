@@ -106,7 +106,7 @@ class MDP_solvers(object):
         @brief
         """
         start_time = time.time()
-        num_iters = 35
+        num_iters = 25
         S = deepcopy(self.mdp.S) # Initial distribution.
         for _ in range(num_iters):
             P = self.mdp.setProbMatGivenPolicy()

@@ -76,7 +76,7 @@ class PolicyInference(object):
         self.mdp.theta = theta_0
         self.theta_size = [self.mdp.theta.size, 1]
 
-        thresh = 0.05
+        thresh = 0.03
         eps = 0.001
         iter_count = 0
         delta_theta_norm = np.inf
