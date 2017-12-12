@@ -284,6 +284,61 @@ def makeGridMDPxDRA(do_print=False):
     # Solved mdp.
     return EM_game_mdp, VI_game_mdp, policy_keys_to_print
 
+class PlotGrid(object):
+    def __init__(self, maze_cells, cmap):
+        # maze_cells - np.array - grid of ints, 0 is colored with cell_color[0], 1 is colored with cell_color[1], etc.
+        #              expectes one EXTRA row and column for formatting.
+        # cmap - color map providing color_cell list above (type mcolors.ListedColors())
+        self.maze_cells = maze_cells
+        self.grid_dim = maze_cells.shape
+        self.x, self.y = np.meshgrid(np.arange(grid_dim[1]+1), np.arange(grid_dim[0]+1))
+
+    def configurePlot(self, title):
+        fig, ax = plt.subplots()
+        self.quadmesh = ax.pcolormesh(self.x, self.y, self.maze_cells, edgecolor='k', cmap=self.cmap)
+        plt.title(title)
+        return fig, ax
+
+
+class PlotPolicy(PlotGrid):
+
+    def __init__(self, maze_cells, cmap, center_offset):
+        super(self.__class__, self).__init__(maze_cells, cmap)
+        self.x_cent = self.x[:-1,:-1].ravel()+center_offset
+        self.y_cent = self.y[:-1,:-1].ravel()+center_offset
+        self.zero_mag = np.zeros(np.array(self.grid_dim))
+        self.cmap = cmap
+        # Make these configurable eventually.
+        self.quiv_angs = {'North': np.pi/2, 'South': -np.pi/2, 'East': 0, 'West': np.pi}
+        self.quiv_scale = 25
+        self.stay_scale = 250
+
+    def confiigurePlot(self, title, policy, action_list, use_print_key, policy_keys_to_print):
+        fig, ax = super(self.__class__, self).configurePlot(title)
+        policy = deepcopy(policy)
+        # Stay probabilies
+        if use_print_keys:
+            stay_probs = [policy[state]['Empty'] for state in policy_keys_to_print]
+        else:
+            stay_probs = [policy[state]['Empty'][0][0] for state in policy.keys()]
+        df_stay = pd.DataFrame({'Prob': np.round(stay_probs,3), 'x': self.x_cent, 'y': self.y_cent})
+        df_stay.plot(kind='scatter', x='x', y='y', s=df_stay['Prob']*self.stay_scale, c=df_stay['Prob'], ax=ax )
+        # Motion actions
+        for act in action_list:
+            if act=='Empty':
+                continue
+            if use_print_keys:
+                act_probs = np.round([policy[state][act] for state in policy_keys_to_print], 3)
+            else:
+                act_probs = np.round([policy[state][act][0][0] for state in policy.keys()], 3)
+            U = np.cos(self.quiv_angs[act])*act_probs
+            V = np.sin(self.quiv_angs[act])*act_probs
+            Q = plt.quiver(self.x_cent, self.y_cent, U, V, scale=self.quiv_scale, units='width')
+        plt.gca().invert_yaxis()
+        return fig
+
+
+
 
 # Entry point when called from Command line.
 if __name__=='__main__':
@@ -407,7 +462,6 @@ if __name__=='__main__':
         df_stay = pd.DataFrame({'Prob': np.round(stay_probs,3), 'x': x_cent, 'y': y_cent})
         df_stay.plot(kind='scatter', x='x', y='y', s=df_stay['Prob']*stay_scale, c=df_stay['Prob'],ax=ax )
         # Motion actions
-        act_mdp = VI_mdp
         for act in action_list:
             if act=='Empty':
                 continue
