@@ -443,7 +443,7 @@ if __name__=='__main__':
     else:
         # Manually choose data to load here:
         infered_mdp_file = os.path.join(infered_mdps_path,
-            'EM_MDP_UTC171209_2019_HIST_100eps10steps_UTC171209_2019_Policy_UTC171209_2022')
+            'EM_MDP_UTC171209_2149_HIST_200eps10steps_UTC171209_2258_Policy_UTC171210_1511')
         print "Loading infered policy data file {}.".format(infered_mdp_file)
         with open(infered_mdp_file) as _file:
             infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
@@ -473,6 +473,7 @@ if __name__=='__main__':
         policy = OrderedDict(list_of_tuples)
         fig = base_policy_grid.confiigurePlot(title, policy, action_list, use_print_keys, policy_keys_to_print,
                                               decimals=2)
-    print 'HEY! You! With the face! (computers don\'t have faces). Mazimize figure window to correctly show arrow/dot '\
-          'size ratio!'
+
+    print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
+            'arrow/dot size ratio!\n'
     plt.show()
