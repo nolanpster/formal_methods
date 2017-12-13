@@ -179,7 +179,7 @@ initial_state = '0'
 labels = {state: empty for state in states}
 labels['6'] = red
 labels['7'] = red
-labels['8'] = red
+#labels['8'] = red
 labels['0'] = green
 
 def makeGridMDPxDRA(do_print=False):
@@ -398,7 +398,7 @@ if __name__=='__main__':
             pickle.dump([EM_mdp, VI_mdp, policy_keys_to_print,policy_difference], _file)
     else:
         # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC171212_1651')
+        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC171213_1301')
         print "Loading file {}.".format(mdp_file)
         with open(mdp_file) as _file:
             EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = pickle.load(_file)
@@ -429,8 +429,8 @@ if __name__=='__main__':
         # Use policy to simulate and record results.
         #
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
-        num_episodes = 300
-        steps_per_episode = 20
+        num_episodes = 100
+        steps_per_episode = 15
         run_histories = np.zeros([num_episodes, steps_per_episode], dtype=np.int8)
         for episode in range(num_episodes):
             # Create time-history for this episode.
@@ -462,8 +462,9 @@ if __name__=='__main__':
         infer_mdp.graph = graph
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
         # Learning, Sugiyama, 2015.
-        ggk_sig = 1;
+        ggk_sig = 7;
         kernel_centers = range(0,grid_map.size,2)
+        kernel_centers = [0, 2, 5, 7, 8, 10, 13, 15]
         print ' Performing inference with kernels at:'
         pprint(kernel_centers)
         # Note that this needs to be the same instance of `GridGraph` assigned to the MDP!
@@ -488,7 +489,7 @@ if __name__=='__main__':
     else:
         # Manually choose data to load here:
         infered_mdp_file = os.path.join(infered_mdps_path,
-            'EM_MDP_UTC171212_1344_HIST_300eps20steps_UTC171212_1505_Policy_UTC171212_1609')
+            'EM_MDP_UTC171213_1301_HIST_100eps15steps_UTC171213_1301_Policy_UTC171213_1304')
         print "Loading infered policy data file {}.".format(infered_mdp_file)
         with open(infered_mdp_file) as _file:
             infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
