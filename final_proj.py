@@ -20,6 +20,7 @@ from pprint import pprint
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 
 np.set_printoptions(linewidth=300)
@@ -308,10 +309,19 @@ class PlotKernel(PlotGrid):
     def __init__(self, maze_cells, cmap):
         super(self.__class__, self).__init__(maze_cells, cmap)
 
-    def configurePlot(self, title, cell, action, kernels):
+    def configurePlot(self, title, cell, action, phi_at_state):
         fig, ax = super(self.__class__, self).configurePlot(title)
-        this_kern_act_phi = np.array([kernels[cell](state, act) for state in range(grid_map.size)]).reshape(grid_dim)
+        this_kern_act_phi = np.array([phi_at_state[state][act][len(action_list)*(cell)+action_list.index(act)] for state
+                                      in range(grid_map.size)]).reshape(grid_dim)
+        # Append extra row and column to match xy mesh.
+        this_kern_act_phi = np.vstack((np.hstack((this_kern_act_phi,np.zeros([4,1]))),np.zeros([1,5])))
+        ax1 = fig.add_subplot(111, projection='3d')
 
+        zpos = np.zeros(25)
+        dx = np.ones(25)
+        dy = np.ones(25)
+
+        ax1.bar3d(self.x, self.y, zpos, dx, dy, this_kern_act_phi, color='#00ceaa')
 
 class PlotPolicy(PlotGrid):
 
@@ -374,17 +384,10 @@ class PlotPolicy(PlotGrid):
 if __name__=='__main__':
     # Program control flags.
     make_new_mdp = False
-    write_mdp_policy_csv = False
-    gather_new_data = False
-    perform_new_inference = True
-    plot_all_grids = True
-    plot_example_kernel = False
-    # Kernel plot config
-    make_new_mdp = False
-    write_mdp_policy_csv = False
+    write_mdp_policy_csv = True
     gather_new_data = False
     perform_new_inference = False
-    plot_all_grids = True
+    plot_all_grids = False
     plot_example_kernel = False
 
     if make_new_mdp:
@@ -410,12 +413,14 @@ if __name__=='__main__':
         #with open(mdp_file+'_EM_Policy.csv', 'w+') as csv_file:
         #    writer = csv.writer(csv_file)
         #    for key, value in EM_csv_dict.items():
-        #        writer.writerow([key, value])
+        #        for subkey, sub_value in value.items():
+        #            writer.writerow([key,subkey,sub_value])
         #VI_csv_dict = {key: VI_mdp.policy[key] for key in policy_keys_to_print}
         #with open(mdp_file+'_VI_policy.csv', 'w+') as csv_file:
         #    writer = csv.writer(csv_file)
         #    for key, value in VI_csv_dict.items():
-        #        writer.writerow([key, value])
+        #        for subkey, sub_value in value.items():
+        #            writer.writerow([key,subkey,sub_value])
 
     # Choose which policy to use for demonstration.
     mdp = EM_mdp
@@ -534,5 +539,5 @@ if __name__=='__main__':
         kern_cell = 0
         act = 'North'
         title='Kernel Centered at {} for action {}.'.format(kern_cell, act)
-        fig, ax =  kernel_grid.configurePlot(title, kern_cell, act, infer_mdp.kernels)
+        fig, ax =  kernel_grid.configurePlot(title, kern_cell, act, infer_mdp.phi_at_state)
         pass
