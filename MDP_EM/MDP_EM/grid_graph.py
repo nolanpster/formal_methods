@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
 import astar
+from NFA_DFA_Module.DFA import LTL_plus
 import numpy as np
 
+
 class GridGraph(object):
+
 
     # Class variable - graph connectivity.
     connect4 = 4
@@ -12,8 +15,10 @@ class GridGraph(object):
     # Motion primitive: row 0 is dX, row 1 is dy.
     motion_prim = np.array([[1, 0, -1, 0],
                             [0, 1, 0, -1]], dtype=np.int8)
+    # Label of obstacle
+    red = LTL_plus('red')
 
-    def __init__(self, paths={}, grid_map=None, neighbor_dict=None):
+    def __init__(self, paths={}, grid_map=None, neighbor_dict=None, label_dict=None):
         # Shortest Path dictionary structure = {{s_0, s_N}: (s_0, ... s_N)} Note these are hard-coded chosing arbitrary
         # paths when there are multiple.  Note, current implementation just reverses the sequence for going the reverse
         # direction, there are probably a million ways to make this whole structure more efficient; I can think of 3
@@ -21,6 +26,12 @@ class GridGraph(object):
         self.paths = paths
         self.grid_map = grid_map
         self.astar_map = np.zeros(self.grid_map.shape, dtype=np.int8)
+        # Fill in astar_map with ones for every obstacle.
+        if label_dict is not None:
+            for state, label in label_dict.iteritems():
+                if label==self.red:
+                    grid_row, grid_col = np.where(self.grid_map==int(state))
+                    self.astar_map[grid_row, grid_col] = 1
         self.neighbor_dict = neighbor_dict
         if self.grid_map is not None and self.neighbor_dict is not None:
             self.setStateTransitionsFromActions()

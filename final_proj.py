@@ -458,7 +458,7 @@ if __name__=='__main__':
         infer_mdp = MDP(init=initial_state, action_list=action_list, states=states, act_prob=deepcopy(act_prob),
                         grid_map=grid_map)
         infer_mdp.init_set = infer_mdp.states
-        graph = GridGraph(grid_map=grid_map, neighbor_dict=infer_mdp.neighbor_dict)
+        graph = GridGraph(grid_map=grid_map, neighbor_dict=infer_mdp.neighbor_dict, label_dict=labels)
         infer_mdp.graph = graph
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
         # Learning, Sugiyama, 2015.

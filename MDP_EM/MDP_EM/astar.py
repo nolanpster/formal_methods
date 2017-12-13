@@ -158,13 +158,14 @@ if __name__=='__main__':
         dx = [1, 1, 0, -1, -1, -1, 0, 1]
         dy = [0, 1, 1, 1, 0, -1, -1, -1]
 
-    n = 3 # horizontal size of the map
-    m = 2 # vertical size of the map
-    the_map = np.zeros([2,3])
+    n = 4 # horizontal size of the map
+    m = 4 # vertical size of the map
+    the_map = np.zeros([4,4])
 
     for xA, yA, in product(range(the_map.shape[0]),range(the_map.shape[1])):
         for xB, yB in product(range(the_map.shape[0]),range(the_map.shape[1])):
-            the_map = np.zeros([2,3])
+            the_map = np.zeros([4,4])
+            the_map[1,2] = the_map[1,3] = the_map[2,0] = 1
             print 'Map size (X,Y): ', n, m
             print 'Start: ', xA, yA
             print 'Finish: ', xB, yB
