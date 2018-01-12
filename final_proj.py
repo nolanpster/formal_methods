@@ -465,13 +465,13 @@ if __name__=='__main__':
         infer_mdp.graph = graph
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
         # Learning, Sugiyama, 2015.
-        ggk_sig = 7;
-        kernel_centers = range(0,grid_map.size,2)
-        kernel_centers = [0, 2, 5, 7, 8, 10, 13, 15]
+        infer_mdp.ggk_sig = 1.5
+        kernel_centers = [0, 2, 4, 6, 8]
         print ' Performing inference with kernels at:'
         pprint(kernel_centers)
         # Note that this needs to be the same instance of `GridGraph` assigned to the MDP!
-        infer_mdp.gg_kernel_func = lambda s_i, C_i: np.exp( -graph.shortestPathLength(s_i, C_i)**2 / (2*ggk_sig**2) )
+        infer_mdp.gg_kernel_func = lambda s_i, C_i: np.exp(-(float(infer_mdp.graph.shortestPathLength(s_i, C_i)))**2/
+                                                           (2*float(infer_mdp.ggk_sig)**2))
         # Note that we need to use a keyword style argument passing to ensure that
         # each lambda function gets its own value of C.
         K = [lambda s, C=cent: infer_mdp.gg_kernel_func(s, C)
