@@ -8,7 +8,8 @@ import numpy as np
 class GridGraph(object):
 
 
-    # Class variable - graph connectivity.
+    # Class variables
+    # graph connectivity.
     connect4 = 4
     # [East, South, West, North]
     acts = ['East', 'South', 'West', 'North']
@@ -17,21 +18,20 @@ class GridGraph(object):
                             [0, 1, 0, -1]], dtype=np.int8)
     # Label of obstacle
     red = LTL_plus('red')
+    OBSTACLE_VAL = 1
 
     def __init__(self, paths={}, grid_map=None, neighbor_dict=None, label_dict=None):
-        # Shortest Path dictionary structure = {{s_0, s_N}: (s_0, ... s_N)} Note these are hard-coded chosing arbitrary
-        # paths when there are multiple.  Note, current implementation just reverses the sequence for going the reverse
-        # direction, there are probably a million ways to make this whole structure more efficient; I can think of 3
-        # right now ...
+        # Shortest Path dictionary structure = {{s_0, s_N}: (s_0, ... s_N)}
         self.paths = paths
         self.grid_map = grid_map
         self.astar_map = np.zeros(self.grid_map.shape, dtype=np.int8)
+        self.astar_no_obstacle_map = np.zeros(self.grid_map.shape, dtype=np.int8)
         # Fill in astar_map with ones for every obstacle.
         if label_dict is not None:
             for state, label in label_dict.iteritems():
                 if label==self.red:
                     grid_row, grid_col = np.where(self.grid_map==int(state))
-                    self.astar_map[grid_row, grid_col] = 1
+                    self.astar_map[grid_row, grid_col] = GridGraph.OBSTACLE_VAL
         self.neighbor_dict = neighbor_dict
         if self.grid_map is not None and self.neighbor_dict is not None:
             self.setStateTransitionsFromActions()
@@ -40,20 +40,31 @@ class GridGraph(object):
             self.state_transition_actions = {}
 
     def getShortestPath(self, s_0, s_N):
-        # Return a path from a starting state, s_0, to a final state, s_N.
+        # Return a path from a starting state, s_0, to a final state, s_N. NOTE! As a huristic if s_0 is in an
+        # obstacle, then the path is set to np.inf. If s_N is in an obstacle, then paths are stil valid (i.e., it is
+        # still possible for a policy to be dependent on the position of an obstacle).
         #
         # @todo Can save _partial_ paths too!
 
         # Test if key is in dictionary
         if (s_0, s_N) not in self.paths:
-            yA, xA = np.where(self.grid_map==s_0)
-            yB, xB = np.where(self.grid_map==s_N)
-            act_idx = astar.pathFind(self.astar_map, self.n, self.m, self.connect4, self.motion_prim[0],
-                                     self.motion_prim[1], xA[0], yA[0], xB[0], yB[0])
-            if act_idx:
-                self.paths[(s_0, s_N)] = self.actionListToStateNum(yA[0], xA[0], act_idx)
+            if s_0 == s_N:
+                self.paths[(s_0, s_N)] = [s_N]
             else:
-                self.paths[(s_0, s_N)] = None
+                yA, xA = np.where(self.grid_map==s_0)
+                yB, xB = np.where(self.grid_map==s_N)
+                if self.astar_map[yB, xB] == GridGraph.OBSTACLE_VAL:
+                    # Goal state is in obstacle.
+                    act_idx = astar.pathFind(self.astar_no_obstacle_map, self.n, self.m, self.connect4,
+                                             self.motion_prim[0], self.motion_prim[1], xA[0], yA[0], xB[0], yB[0])
+                    self.paths[(s_0, s_N)] = self.actionListToStateNum(yA[0], xA[0], act_idx)
+                elif self.astar_map[yA, xA] == GridGraph.OBSTACLE_VAL:
+                    # Start state is in obstacle.
+                    self.paths[(s_0, s_N)] = None
+                else:
+                    act_idx = astar.pathFind(self.astar_map, self.n, self.m, self.connect4, self.motion_prim[0],
+                                             self.motion_prim[1], xA[0], yA[0], xB[0], yB[0])
+                    self.paths[(s_0, s_N)] = self.actionListToStateNum(yA[0], xA[0], act_idx)
         return self.paths[(s_0, s_N)]
 
     def actionListToStateNum(self, s_0_row, s_0_col, action_idx):
@@ -68,12 +79,16 @@ class GridGraph(object):
         return path
 
     def shortestPathLength(self, s_0, s_N):
+        """
+        @brief Returns the length of the shortest path from s_0 to s_N. If states are one move apart, the path includes
+        the start and end state, (length=2) so we must subtract one from it for the correct return value.
+        """
         path = self.getShortestPath(s_0, s_N)
-        return len(path) if path is not None else 0
+        return len(path)-1 if path is not None else np.inf
 
     def setStateTransitionsFromActions(self):
         """
-        @brief Placeholder method for an automated way to do this
+        @brief Creates a dictionary of actions between neighboring cells.
         """
         self.state_transition_actions = {}
         for start_state in range(self.grid_map.size):
@@ -82,7 +97,7 @@ class GridGraph(object):
 
     def getObservedAction(self, s_0, s_N):
         """
-        @brief dummy implementation. Should not be using hard-coded state-action pairs.
+        @brief Returns the action taken to go between two neighboring states from s_0 to s_N.
         """
         # Test if _key_ is in dictionary.
         if (s_0, s_N) in self.state_transition_actions:
