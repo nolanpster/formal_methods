@@ -4,6 +4,7 @@ __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 import numpy as np
 from copy import deepcopy
 from pprint import pprint
+import time
 
 class PolicyInference(object):
     """
@@ -82,13 +83,16 @@ class PolicyInference(object):
         delta_theta_norm = np.inf
         # Loop until convergence
         while delta_theta_norm > thresh:
+            if do_print:
+                tic = time.clock()
             iter_count += 1
             prev_theta = self.mdp.theta
             delJHat_wrt_theta = self.delHistDelThetaEst(self.mdp.theta, use_precomputed_phi)
             self.mdp.theta = self.mdp.theta + eps*delJHat_wrt_theta.T
             delta_theta_norm = np.linalg.norm(self.mdp.theta - prev_theta)
             if do_print:
-                pprint('Iter#: {}, delta: {}'.format(iter_count, delta_theta_norm), indent=4)
+                toc = time.clock() - tic
+                pprint('Iter#: {}, delta: {}, iter-time: {}sec.'.format(iter_count, delta_theta_norm, toc), indent=4)
         if do_print:
             pprint('Found Theta:')
             pprint(self.mdp.theta)
