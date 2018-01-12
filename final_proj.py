@@ -295,7 +295,7 @@ class PlotGrid(object):
         # cmap - color map providing color_cell list above (type mcolors.ListedColors())
         self.maze_cells = maze_cells
         self.grid_dim = maze_cells.shape
-        self.x, self.y = np.meshgrid(np.arange(grid_dim[1]+1), np.arange(grid_dim[0]+1))
+        self.x, self.y = np.meshgrid(np.arange(self.grid_dim[1]), np.arange(self.grid_dim[0]))
         self.cmap = cmap
 
     def configurePlot(self, title):
@@ -307,21 +307,24 @@ class PlotGrid(object):
 
 class PlotKernel(PlotGrid):
     def __init__(self, maze_cells, cmap):
-        super(self.__class__, self).__init__(maze_cells, cmap)
+        # Drop last row and column from maze_cells due to formatting decision for super class.
+        super(self.__class__, self).__init__(maze_cells[:-1, :-1], cmap)
 
     def configurePlot(self, title, cell, action, phi_at_state):
         fig, ax = super(self.__class__, self).configurePlot(title)
         this_kern_act_phi = np.array([phi_at_state[state][act][len(action_list)*(cell)+action_list.index(act)] for state
                                       in range(grid_map.size)]).reshape(grid_dim)
-        # Append extra row and column to match xy mesh.
-        this_kern_act_phi = np.vstack((np.hstack((this_kern_act_phi,np.zeros([4,1]))),np.zeros([1,5])))
+        pprint(this_kern_act_phi)
         ax1 = fig.add_subplot(111, projection='3d')
+        ax1.view_init(elev=56, azim=-31)
 
-        zpos = np.zeros(25)
-        dx = np.ones(25)
-        dy = np.ones(25)
+        num_cells = this_kern_act_phi.size
+        zpos = np.zeros(num_cells)
+        dx = np.ones(num_cells)
+        dy = np.ones(num_cells)
 
-        ax1.bar3d(self.x, self.y, zpos, dx, dy, this_kern_act_phi, color='#00ceaa')
+        ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, this_kern_act_phi.ravel(), color='#00ceaa')
+        return fig, ax1
 
 class PlotPolicy(PlotGrid):
 
@@ -502,7 +505,8 @@ if __name__=='__main__':
                     writer.writerow([key,subkey,sub_value])
 
     if plot_all_grids or plot_example_kernel:
-        # Create plots for comparison.
+        # Create plots for comparison. Note that the the `maze` array has one more row and column than the `grid` for
+        # plotting purposes.
         maze = np.zeros(np.array(grid_dim)+1)
         for state, label in labels.iteritems():
             if label==red:
@@ -532,13 +536,13 @@ if __name__=='__main__':
 
         print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
                 'arrow/dot size ratio!\n'
-        plt.show()
 
     if plot_example_kernel:
-        import pdb; pdb.set_trace()
         kernel_grid =PlotKernel(maze, cmap)
         kern_cell = 0
         act = 'North'
         title='Kernel Centered at {} for action {}.'.format(kern_cell, act)
         fig, ax =  kernel_grid.configurePlot(title, kern_cell, act, infer_mdp.phi_at_state)
-        pass
+
+    if plot_all_grids or plot_example_kernel:
+        plt.show()
