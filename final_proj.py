@@ -164,7 +164,7 @@ infer_act_prob = {'North': np.array([[0.0, 1.0, 0.0, 0.0, 0.0],
                                     )
                  }
 
-grid_dim = [4,4] # [num-rows, num-cols]
+grid_dim = [3,3] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
 states = [str(state) for state in range(grid_map.size)]
 
@@ -178,9 +178,8 @@ atom_prop = [green, red, empty]
 action_list = ['Empty', 'North', 'South', 'East', 'West']
 initial_state = '0'
 labels = {state: empty for state in states}
-labels['6'] = red
-labels['7'] = red
-#labels['8'] = red
+labels['4'] = red
+labels['5'] = red
 labels['0'] = green
 
 def makeGridMDPxDRA(do_print=False):
@@ -357,9 +356,9 @@ class PlotPolicy(PlotGrid):
         self.zero_mag = np.zeros(np.array(self.grid_dim))
         # Make these configurable eventually.
         self.quiv_angs = {'North': np.pi/2, 'South': -np.pi/2, 'East': 0, 'West': np.pi}
-        self.quiv_scale = 25
+        self.quiv_scale = 20
         self.stay_scale = 250
-        self.prob_disp_thresh = 0.09
+        self.prob_disp_thresh = 0.02
 
     def confiigurePlot(self, title, policy, action_list, use_print_key, policy_keys_to_print, decimals):
         fig, ax = super(self.__class__, self).configurePlot(title)
@@ -424,7 +423,7 @@ if __name__=='__main__':
             pickle.dump([EM_mdp, VI_mdp, policy_keys_to_print,policy_difference], _file)
     else:
         # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC171213_1301')
+        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180112_1643')
         print "Loading file {}.".format(mdp_file)
         with open(mdp_file) as _file:
             EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = pickle.load(_file)
@@ -456,7 +455,7 @@ if __name__=='__main__':
         #
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
         num_episodes = 100
-        steps_per_episode = 15
+        steps_per_episode = 20
         run_histories = np.zeros([num_episodes, steps_per_episode], dtype=np.int8)
         for episode in range(num_episodes):
             # Create time-history for this episode.
@@ -471,7 +470,7 @@ if __name__=='__main__':
             pickle.dump(run_histories, _file)
     else:
         # Manually choose data to load here:
-        history_file = os.path.join(data_path, 'EM_MDP_UTC171212_1344_HIST_300eps20steps_UTC171212_1505')
+        history_file = os.path.join(data_path, 'EM_MDP_UTC180112_1643_HIST_100eps20steps_UTC180112_1646')
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
@@ -488,7 +487,7 @@ if __name__=='__main__':
         infer_mdp.graph = graph
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
         # Learning, Sugiyama, 2015.
-        infer_mdp.ggk_sig = 1.5
+        infer_mdp.ggk_sig = 1.1
         kernel_centers = [0, 2, 4, 6, 8]
         print ' Performing inference with kernels at:'
         pprint(kernel_centers)
@@ -515,7 +514,7 @@ if __name__=='__main__':
     else:
         # Manually choose data to load here:
         infered_mdp_file = os.path.join(infered_mdps_path,
-            'EM_MDP_UTC171213_1301_HIST_100eps15steps_UTC171213_1301_Policy_UTC171213_1304')
+                'EM_MDP_UTC180112_1643_HIST_100eps20steps_UTC180112_1646_Policy_UTC180113_1839')
         print "Loading infered policy data file {}.".format(infered_mdp_file)
         with open(infered_mdp_file) as _file:
             infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
