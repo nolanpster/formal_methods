@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
+import warnings
 
 np.set_printoptions(linewidth=300)
 np.set_printoptions(precision=3)
@@ -306,24 +307,45 @@ class PlotGrid(object):
 
 
 class PlotKernel(PlotGrid):
+    """
+    @brief Can be used to plot a Kernel or the Phi values.
+    """
     def __init__(self, maze_cells, cmap):
         # Drop last row and column from maze_cells due to formatting decision for super class.
         super(self.__class__, self).__init__(maze_cells[:-1, :-1], cmap)
 
-    def configurePlot(self, title, cell, action, phi_at_state):
+    def configurePlot(self, title, cell, kernels=None, phi_at_state=None, act=None):
+        """
+        @param Title
+        @param cell The index of the kernel vector, or phi_at_state to print; e.g., if there are kernels at cells
+               [0, 2, 3] then cell=1 will access the kernel (or coresponding phi values) centered at grid-cell 2.
+        @param action Used for plotting phi values.
+        """
         fig, ax = super(self.__class__, self).configurePlot(title)
-        this_kern_act_phi = np.array([phi_at_state[state][act][len(action_list)*(cell)+action_list.index(act)] for state
-                                      in range(grid_map.size)]).reshape(grid_dim)
-        pprint(this_kern_act_phi)
+        if phi_at_state is not None:
+            try:
+                bar_height = np.array([phi_at_state[state][act][len(action_list)*(cell)+action_list.index(act)] for state
+                    in range(grid_map.size)]).reshape(grid_dim).T
+            except:
+                # Determine type of error to raise when cell is invalid.
+                import pdb; pdb.set_trace()
+        elif kernels is not None:
+            bar_height = np.array([kernels[cell](state) for state in range(grid_map.size)]).reshape(grid_dim).T
+        else:
+            raise ValueError('No input values to plot!')
+        print('Values of bars in {} plot.'.format('kernels' if kernels is not None else 'phi'))
+        pprint(bar_height.T)
         ax1 = fig.add_subplot(111, projection='3d')
         ax1.view_init(elev=56, azim=-31)
 
-        num_cells = this_kern_act_phi.size
+        num_cells = bar_height.size
         zpos = np.zeros(num_cells)
         dx = np.ones(num_cells)
         dy = np.ones(num_cells)
 
-        ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, this_kern_act_phi.ravel(), color='#00ceaa')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, bar_height.ravel(), color='#00ceaa')
         return fig, ax1
 
 class PlotPolicy(PlotGrid):
@@ -391,7 +413,8 @@ if __name__=='__main__':
     gather_new_data = False
     perform_new_inference = False
     plot_all_grids = False
-    plot_example_kernel = False
+    plot_example_phi = False
+    plot_example_kernel = True
 
     if make_new_mdp:
         EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = makeGridMDPxDRA(do_print=True)
@@ -504,7 +527,7 @@ if __name__=='__main__':
                 for subkey, sub_value in value.items():
                     writer.writerow([key,subkey,sub_value])
 
-    if plot_all_grids or plot_example_kernel:
+    if plot_all_grids or plot_example_phi or plot_example_kernel:
         # Create plots for comparison. Note that the the `maze` array has one more row and column than the `grid` for
         # plotting purposes.
         maze = np.zeros(np.array(grid_dim)+1)
@@ -540,9 +563,15 @@ if __name__=='__main__':
     if plot_example_kernel:
         kernel_grid =PlotKernel(maze, cmap)
         kern_cell = 0
-        act = 'North'
-        title='Kernel Centered at {} for action {}.'.format(kern_cell, act)
-        fig, ax =  kernel_grid.configurePlot(title, kern_cell, act, infer_mdp.phi_at_state)
+        title='Kernel Centered at {}.'.format(kern_cell)
+        fig, ax =  kernel_grid.configurePlot(title, kern_cell, kernels=infer_mdp.kernels)
 
-    if plot_all_grids or plot_example_kernel:
+    if plot_example_phi:
+        phi_grid =PlotKernel(maze, cmap)
+        phi_cell = 0
+        act = 'Empty'
+        title='Phi Values Centered at {} for action {}.'.format(phi_cell, act)
+        fig, ax =  phi_grid.configurePlot(title, phi_cell, phi_at_state=infer_mdp.phi_at_state, act=act)
+
+    if plot_all_grids or plot_example_phi or plot_example_kernel:
         plt.show()
