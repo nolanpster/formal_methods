@@ -86,7 +86,7 @@ class PolicyInference(object):
             if do_print:
                 tic = time.clock()
             iter_count += 1
-            prev_theta = self.mdp.theta
+            prev_theta = deepcopy(self.mdp.theta)
             delJHat_wrt_theta = self.delHistDelThetaEst(self.mdp.theta, use_precomputed_phi)
             self.mdp.theta = self.mdp.theta + eps*delJHat_wrt_theta.T
             delta_theta_norm = np.linalg.norm(self.mdp.theta - prev_theta)
