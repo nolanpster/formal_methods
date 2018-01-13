@@ -487,7 +487,7 @@ if __name__=='__main__':
         infer_mdp.graph = graph
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
         # Learning, Sugiyama, 2015.
-        infer_mdp.ggk_sig = 1.1
+        infer_mdp.ggk_sig = 1.2
         kernel_centers = [0, 2, 4, 6, 8]
         print ' Performing inference with kernels at:'
         pprint(kernel_centers)
@@ -514,7 +514,7 @@ if __name__=='__main__':
     else:
         # Manually choose data to load here:
         infered_mdp_file = os.path.join(infered_mdps_path,
-                'EM_MDP_UTC180112_1643_HIST_100eps20steps_UTC180112_1646_Policy_UTC180113_1839')
+                'EM_MDP_UTC180112_1643_HIST_100eps20steps_UTC180112_1646_Policy_UTC180113_1915')
         print "Loading infered policy data file {}.".format(infered_mdp_file)
         with open(infered_mdp_file) as _file:
             infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
