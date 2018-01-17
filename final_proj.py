@@ -181,6 +181,8 @@ labels = {state: empty for state in states}
 labels['4'] = red
 labels['5'] = red
 labels['0'] = green
+goal_state = 0 # Currently assumess only one goal.
+
 
 def makeGridMDPxDRA(do_print=False):
     ##### Problem 2 - Configure MDP #####
@@ -460,6 +462,29 @@ if __name__=='__main__':
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
+        num_episodes = run_histories.shape[0]
+        steps_per_episode = run_histories.shape[1]
+
+    # Determine which states are goals or obstacles.
+    normal_states = {state: True if label==empty else False for state, label in labels.items()}
+    unique, starting_counts = np.unique(run_histories[:,0], return_counts=True)
+    num_trials_from_state = {int(state):0 for state in states}
+    num_trials_from_state.update(dict(zip(unique, starting_counts)))
+    num_rewards_from_state = {int(state):0 for state in states}
+    for run_idx in range(num_episodes):
+        starting_state = run_histories[run_idx][0]
+        final_state = run_histories[run_idx][-1]
+        if final_state==goal_state:
+            num_rewards_from_state[starting_state] += 1
+    print("In this demonstration 'history' there are  {} episodes, each with {} moves.".format(num_episodes,
+          steps_per_episode))
+    for state in range(len(states)):
+        reward_likelihood = float(num_rewards_from_state[state]) / float(num_trials_from_state[state]) if \
+            num_trials_from_state[state] > 0 else np.nan
+        print("State {}: Num starts = {}, Num Rewards = {}, likelihood = {}.".format(state,
+                                                                                     num_trials_from_state[state],
+                                                                                     num_rewards_from_state[state],
+                                                                                     reward_likelihood))
 
     if perform_new_inference:
         tic = time.clock()
