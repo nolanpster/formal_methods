@@ -7,6 +7,7 @@ from policy_inference import PolicyInference
 from scipy import stats
 from copy import deepcopy
 import numpy as np
+from pprint import pprint
 import sys # For float_info.epsilon.
 
 
@@ -492,7 +493,6 @@ class MDP:
         submdp.acc = acc
         return submdp
 
-
     @staticmethod
     def read_from_file_MDP(fname):
         """
@@ -524,6 +524,39 @@ class MDP:
             p=float(trans_str[3])
             mdp.prob[act][mdp.states.index(state), mdp.states.index(next_state)]=p
         return mdp
+
+    @staticmethod
+    def comparePolicies(reference_policy, comparison_policy, policy_keys_to_print, compare_to_decimals=3,
+                        do_print=True, compare_policy_has_extra_keys=True):
+        # Use compare_policy_has_extra_keys=False for infered policy format.
+        copied_ref_policy  = {state: deepcopy(reference_policy[state]) for state in policy_keys_to_print}
+        if compare_policy_has_extra_keys:
+            copied_compare_policy  = {state: deepcopy(comparison_policy[state]) for state in policy_keys_to_print}
+        else:
+            copied_compare_policy = deepcopy(comparison_policy)
+        num_states = len(policy_keys_to_print)
+        # Create a copy of the dict whose values are to be overwritten by the differences.
+        policy_difference = deepcopy(copied_ref_policy)
+        cumulative_difference = 0.0
+        for state, action_dict in copied_ref_policy.items():
+            for act in action_dict.keys():
+                copied_ref_prob = round(copied_ref_policy[state][act], compare_to_decimals)
+                copied_ref_policy[state][act] = copied_ref_prob
+                if compare_policy_has_extra_keys:
+                    compare_state = state
+                else:
+                    compare_state = state[0]
+                copied_compare_prob = round(copied_compare_policy[compare_state][act], compare_to_decimals)
+                copied_compare_policy[compare_state][act] = copied_compare_prob
+                policy_difference[state][act] = round(abs(copied_ref_prob - copied_compare_prob),
+                                                      compare_to_decimals)
+                cumulative_difference += policy_difference[state][act]
+        if do_print:
+            print("Policy Difference:")
+            pprint(policy_difference)
+            print("Probability that comparison policy will take a different action than the reference policy is "
+                  "{:.03f}.".format(cumulative_difference / num_states))
+        return policy_difference
 
     def solve(self, method='valueIteration', write_video=False, **kwargs):
         """

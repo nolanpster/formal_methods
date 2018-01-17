@@ -268,22 +268,8 @@ def makeGridMDPxDRA(do_print=False):
     EM_game_mdp.solve(do_print=do_print, method='expectationMaximization', write_video=False,
                       policy_keys_to_print=policy_keys_to_print)
 
-    compare_to_decimals = 3
-    VI_policy  = {state: deepcopy(VI_game_mdp.policy[state]) for state in policy_keys_to_print}
-    EM_policy  = {state: deepcopy(EM_game_mdp.policy[state]) for state in policy_keys_to_print}
-    policy_difference = deepcopy(EM_policy)
-
-    for state, action_dict in VI_policy.items():
-        for act in action_dict.keys():
-            VI_prob = round(VI_policy[state][act], compare_to_decimals)
-            VI_policy[state][act] = VI_prob
-            EM_prob = round(EM_policy[state][act], compare_to_decimals)
-            EM_policy[state][act] = EM_prob
-            policy_difference[state][act] = round(abs(VI_prob - EM_prob),
-                                                  compare_to_decimals)
-    if do_print:
-        print("Policy Difference:")
-        pprint(policy_difference)
+    policy_difference = MDP.comparePolicies(VI_game_mdp.policy, EM_game_mdp.policy, policy_keys_to_print,
+                                            compare_to_decimals=3, do_print=do_print)
     # Solved mdp.
     return EM_game_mdp, VI_game_mdp, policy_keys_to_print, policy_difference
 
@@ -525,6 +511,10 @@ if __name__=='__main__':
             for key, value in infer_csv_dict.items():
                 for subkey, sub_value in value.items():
                     writer.writerow([key,subkey,sub_value])
+
+    # Remember that variable @ref mdp is used for demonstration.
+    infered_policy_difference = MDP.comparePolicies(mdp.policy, infer_mdp.policy, policy_keys_to_print,
+                                            compare_to_decimals=3, do_print=True, compare_policy_has_extra_keys=False)
 
     if plot_all_grids or plot_example_phi or plot_example_kernel:
         # Create plots for comparison. Note that the the `maze` array has one more row and column than the `grid` for
