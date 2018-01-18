@@ -314,16 +314,16 @@ class PlotKernel(PlotGrid):
         if phi_at_state is not None:
             try:
                 bar_height = np.array([phi_at_state[state][act][len(action_list)*(cell)+action_list.index(act)] for state
-                    in range(grid_map.size)]).reshape(grid_dim).T
+                    in range(grid_map.size)]).reshape(grid_dim)
             except:
                 # Determine type of error to raise when cell is invalid.
                 import pdb; pdb.set_trace()
         elif kernels is not None:
-            bar_height = np.array([kernels[cell](state) for state in range(grid_map.size)]).reshape(grid_dim).T
+            bar_height = np.array([kernels[cell](state) for state in range(grid_map.size)]).reshape(grid_dim)
         else:
             raise ValueError('No input values to plot!')
         print('Values of bars in {} plot.'.format('kernels' if kernels is not None else 'phi'))
-        pprint(bar_height.T)
+        pprint(bar_height)
         ax1 = fig.add_subplot(111, projection='3d')
         ax1.view_init(elev=56, azim=-31)
 
@@ -335,6 +335,8 @@ class PlotKernel(PlotGrid):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, bar_height.ravel(), color='#00ceaa')
+            # Invert y-axis because we're plotting this like an image with origin in upper left corner.
+            ax1.invert_yaxis()
         return fig, ax1
 
 class PlotPolicy(PlotGrid):
