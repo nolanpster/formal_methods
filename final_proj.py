@@ -164,7 +164,7 @@ infer_act_prob = {'North': np.array([[0.0, 1.0, 0.0, 0.0, 0.0],
                                     )
                  }
 
-grid_dim = [3,3] # [num-rows, num-cols]
+grid_dim = [16, 8] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
 states = [str(state) for state in range(grid_map.size)]
 
@@ -178,10 +178,12 @@ atom_prop = [green, red, empty]
 action_list = ['Empty', 'North', 'South', 'East', 'West']
 initial_state = '0'
 labels = {state: empty for state in states}
-labels['4'] = red
-labels['5'] = red
-labels['0'] = green
-goal_state = 0 # Currently assumess only one goal.
+labels['36'] = red
+labels['37'] = red
+labels['44'] = red
+labels['45'] = red
+labels['18'] = green
+goal_state = 18 # Currently assumess only one goal.
 
 
 def makeGridMDPxDRA(do_print=False):
@@ -411,7 +413,7 @@ if __name__=='__main__':
             pickle.dump([EM_mdp, VI_mdp, policy_keys_to_print,policy_difference], _file)
     else:
         # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180112_1643')
+        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180117_2135')
         print "Loading file {}.".format(mdp_file)
         with open(mdp_file) as _file:
             EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = pickle.load(_file)
@@ -442,8 +444,8 @@ if __name__=='__main__':
         # Use policy to simulate and record results.
         #
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
-        num_episodes = 100
-        steps_per_episode = 20
+        num_episodes = 500
+        steps_per_episode = 50
         run_histories = np.zeros([num_episodes, steps_per_episode], dtype=np.int8)
         for episode in range(num_episodes):
             # Create time-history for this episode.
@@ -458,7 +460,7 @@ if __name__=='__main__':
             pickle.dump(run_histories, _file)
     else:
         # Manually choose data to load here:
-        history_file = os.path.join(data_path, 'EM_MDP_UTC180112_1643_HIST_100eps20steps_UTC180112_1646')
+        history_file = os.path.join(data_path, 'EM_MDP_UTC180117_2135_HIST_500eps50steps_UTC180117_2154')
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
@@ -498,8 +500,8 @@ if __name__=='__main__':
         infer_mdp.graph = graph
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
         # Learning, Sugiyama, 2015.
-        infer_mdp.ggk_sig = 1.2
-        kernel_centers = [0, 2, 4, 6, 8]
+        infer_mdp.ggk_sig = 5.0
+        kernel_centers = [0, 7, 120, 127, 18, 21, 106, 109, 60]
         print ' Performing inference with kernels at:'
         pprint(kernel_centers)
         # Note that this needs to be the same instance of `GridGraph` assigned to the MDP!
