@@ -548,8 +548,13 @@ if __name__=='__main__':
                     writer.writerow([key,subkey,sub_value])
 
     # Remember that variable @ref mdp is used for demonstration.
-    infered_policy_difference = MDP.comparePolicies(mdp.policy, infer_mdp.policy, policy_keys_to_print,
-                                            compare_to_decimals=3, do_print=True, compare_policy_has_extra_keys=False)
+    if mdp.num_states == infer_mdp.num_states:
+        infered_policy_difference = MDP.comparePolicies(mdp.policy, infer_mdp.policy, policy_keys_to_print,
+                                                        compare_to_decimals=3, do_print=True,
+                                                        compare_policy_has_extra_keys=False)
+    else:
+        Warning('Demonstration MDP and inferred MDP do not have the same number of states. Perhaps one was loaded from '
+                'an old file? Not printing policy difference.')
 
     if plot_all_grids or plot_example_phi or plot_example_kernel:
         # Create plots for comparison. Note that the the `maze` array has one more row and column than the `grid` for
