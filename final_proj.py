@@ -585,6 +585,8 @@ if __name__=='__main__':
         cmap = mcolors.ListedColormap(['w','green','red'])
 
     plot_policies = []
+    only_use_print_keys = []
+    titles = []
     if plot_all_grids:
         plot_policies.append(VI_mdp.policy)
         plot_policies.append(EM_mdp.policy)
@@ -596,10 +598,10 @@ if __name__=='__main__':
         plot_policies.append(EM_mdp.policy)
         titles = ['Value Iteration', 'Expecation Maximization']
         only_use_print_keys = [True, True]
-    if plot_inferred_mdp_grids:
+    if plot_inferred_mdp_grids and not plot_all_grids:
         plot_policies.append(infer_mdp.policy)
-        titles = ['Learned']
-        only_use_print_keys = [False]
+        titles.append('Learned')
+        only_use_print_keys.append(False)
 
     if plot_all_grids or plot_initial_mdp_grids or plot_inferred_mdp_grids:
         center_offset = 0.5 # Shifts points into center of cell.
