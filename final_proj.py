@@ -281,7 +281,9 @@ def makeGridMDPxDRA(do_print=False):
                       policy_keys_to_print=policy_keys_to_print)
 
     policy_difference = MDP.comparePolicies(VI_game_mdp.policy, EM_game_mdp.policy, policy_keys_to_print,
-                                            compare_to_decimals=3, do_print=do_print)
+                                            compare_to_decimals=3, do_print=do_print, compute_kl_divergence=True,
+                                            reference_policy_has_augmented_states=True,
+                                            compare_policy_has_augmented_states=True)
     # Solved mdp.
     return EM_game_mdp, VI_game_mdp, policy_keys_to_print, policy_difference
 
@@ -579,7 +581,8 @@ if __name__=='__main__':
     if len(policy_keys_to_print) == infer_mdp.num_states:
         infered_policy_difference = MDP.comparePolicies(mdp.policy, infer_mdp.policy, policy_keys_to_print,
                                                         compare_to_decimals=3, do_print=True,
-                                                        compare_policy_has_extra_keys=False)
+                                                        compare_policy_has_extra_keys=False,
+                                                        compute_kl_divergence=True)
     else:
         warnings.warn('Demonstration MDP and inferred MDP do not have the same number of states. Perhaps one was '
                       'loaded from an old file? Not printing policy difference.')

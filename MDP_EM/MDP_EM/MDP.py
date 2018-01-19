@@ -527,17 +527,24 @@ class MDP:
 
     @staticmethod
     def comparePolicies(reference_policy, comparison_policy, policy_keys_to_print, compare_to_decimals=3,
-                        do_print=True, compare_policy_has_extra_keys=True):
+                        do_print=True, compare_policy_has_extra_keys=True, compute_kl_divergence=False,
+                        reference_policy_has_augmented_states=True, compare_policy_has_augmented_states=False):
         # Use compare_policy_has_extra_keys=False for infered policy format.
         copied_ref_policy  = {state: deepcopy(reference_policy[state]) for state in policy_keys_to_print}
         if compare_policy_has_extra_keys:
             copied_compare_policy  = {state: deepcopy(comparison_policy[state]) for state in policy_keys_to_print}
         else:
             copied_compare_policy = deepcopy(comparison_policy)
-        num_states = len(policy_keys_to_print)
+        # Compute KL Divergence before values in copied policies are rounded.
+        if compute_kl_divergence:
+            policy_kl_divergence = MDP.computePolicyKLDivergence(
+                    copied_ref_policy, copied_compare_policy,
+                    reference_policy_has_augmented_states=reference_policy_has_augmented_states,
+                    compare_policy_has_augmented_states=compare_policy_has_augmented_states)
+        else:
+            policy_kl_divergence = None
         # Create a copy of the dict whose values are to be overwritten by the differences.
         policy_difference = deepcopy(copied_ref_policy)
-        cumulative_difference = 0.0
         for state, action_dict in copied_ref_policy.items():
             for act in action_dict.keys():
                 copied_ref_prob = round(copied_ref_policy[state][act], compare_to_decimals)
@@ -550,13 +557,58 @@ class MDP:
                 copied_compare_policy[compare_state][act] = copied_compare_prob
                 policy_difference[state][act] = round(abs(copied_ref_prob - copied_compare_prob),
                                                       compare_to_decimals)
-                cumulative_difference += policy_difference[state][act]
         if do_print:
             print("Policy Difference:")
             pprint(policy_difference)
-            print("Probability that comparison policy will take a different action than the reference policy is "
-                  "{:.03f}.".format(cumulative_difference / num_states))
-        return policy_difference
+            print("KL-Divergence of the learned policy from that used for the demonstration =  "
+                  "{:.03f}.".format(policy_kl_divergence))
+        return policy_difference, policy_kl_divergence
+
+    @staticmethod
+    def computePolicyKLDivergence(reference_policy, comparison_policy, reference_policy_has_augmented_states=False,
+                                  compare_policy_has_augmented_states=False):
+        """
+        @brief Compute the KL Divergence between two policies, as expressed here:
+               http://web.engr.illinois.edu/~hanj/cs412/bk3/KL-divergence.pdf.
+
+        @param reference_policy The true distribution of the data.
+        @param comparison_policy The learned distribution of the data.
+        @param reference_policy_has_augmented_states A flag that should be `True` if the keys in the reference policy
+               are in the form `(<int>state, dra_state)`, False expectes the keys are a `state` integer.
+
+        @note Ensure that policies have not been rounded! KL-Divergence is undefined for zero likelihood actions.
+        """
+        reference_list = []
+        compare_list = []
+        for state, action_dict in reference_policy.items():
+            for act in action_dict.keys():
+                reference_list.append(reference_policy[state][act])
+                if not reference_policy_has_augmented_states or \
+                    (compare_policy_has_augmented_states and reference_policy_has_augmented_states):
+                    compare_state = state
+                else:
+                    compare_state = state[0]
+                compare_list.append(comparison_policy[compare_state][act])
+        reference_vec = np.squeeze(np.array(reference_list))
+        compare_vec = np.squeeze(np.array(compare_list)).T # Transpose to make both row vectors.
+        with np.errstate(divide='ignore'):
+            log_vec = np.log(reference_vec / compare_vec)
+        # Catch computation errors caused by zeros in the reference and comparison vectors. After the`log` computation,
+        # all values equal to `-np.inf` were the result of a zero-likelihood action in the reference policy. For
+        # elements where both of these statements are true, we can substitute 0=0*log(0), proven by convergence.
+        # Elements that are valued `np.nan` are the result of division by zero, and we can only substitute these values
+        # with zero if both the reference and comparison policy elements have zero likelihood. @todo Ensure that
+        # `np.nan` values are only located in un-reachable or sink states in the comparison policy (for EM-solved
+        # policy).
+        neg_inf_quotient = log_vec==-np.inf
+        ref_zero_likelihood_action = reference_vec==0
+        comp_zero_likelihood_action = compare_vec==0
+        log_vec[neg_inf_quotient & ref_zero_likelihood_action] = 0.
+        log_vec[ref_zero_likelihood_action & comp_zero_likelihood_action] = 0.
+
+        kl_divergence = np.sum(reference_vec * log_vec)
+        return kl_divergence
+
 
     def solve(self, method='valueIteration', write_video=False, **kwargs):
         """
