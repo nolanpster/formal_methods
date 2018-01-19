@@ -569,12 +569,26 @@ if __name__=='__main__':
                 maze[grid_row, grid_col] = 1
         cmap = mcolors.ListedColormap(['w','green','red'])
 
+    plot_policies = []
     if plot_all_grids:
+        plot_policies.append(VI_mdp.policy)
+        plot_policies.append(EM_mdp.policy)
+        plot_policies.append(infer_mdp.policy)
+        titles = ['Value Iteration', 'Expecation Maximization', 'Learned']
+        only_use_print_keys = [True, True, False]
+    elif plot_initial_mdp_grids:
+        plot_policies.append(VI_mdp.policy)
+        plot_policies.append(EM_mdp.policy)
+        titles = ['Value Iteration', 'Expecation Maximization']
+        only_use_print_keys = [True, True]
+    if plot_inferred_mdp_grids:
+        plot_policies.append(infer_mdp.policy)
+        titles = ['Learned']
+        only_use_print_keys = [False]
+
+    if plot_all_grids or plot_initial_mdp_grids or plot_inferred_mdp_grids:
         center_offset = 0.5 # Shifts points into center of cell.
         base_policy_grid = PlotPolicy(maze, cmap, center_offset)
-        plot_policies = [VI_mdp.policy, EM_mdp.policy, infer_mdp.policy]
-        only_use_print_keys = [True, True, False]
-        titles = ['Value Iteration', 'Expecation Maximization', 'Learned']
         for policy, use_print_keys, title in zip(plot_policies, only_use_print_keys, titles):
             # Reorder policy dict for plotting.
             if use_print_keys: # VI and EM policies have DRA states in policy keys.
