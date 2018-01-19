@@ -176,7 +176,11 @@ empty = LTL_plus('E')
 atom_prop = [green, red, empty]
 # Defined empty action for MDP incurrs a self loop.
 action_list = ['Empty', 'North', 'South', 'East', 'West']
-initial_state = '0'
+# Set `solve_with_uniform_distribution` to True to have the initial distribution for EM and the history/demonstration
+# generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
+# _False_ to have EM and the MDP always start from the `initial_state` below.
+solve_with_uniform_distribution = False
+initial_state = '127'
 labels = {state: empty for state in states}
 labels['36'] = red
 labels['37'] = red
@@ -195,7 +199,9 @@ def makeGridMDPxDRA(do_print=False):
     # Note that input gamma is overwritten in DRA/MDP product method, so we'll need to set it again later.
     grid_mdp = MDP(init=initial_state, action_list=action_list, states=states, act_prob=deepcopy(act_prob), gamma=0.9,
                    AP=atom_prop, L=labels, grid_map=grid_map)
-    grid_mdp.init_set = grid_mdp.states
+    if solve_with_uniform_distribution:
+        # Leave MDP.init_set unset (=None) if you want to solve the system from a single initial_state.
+        grid_mdp.init_set = grid_mdp.states
 
     ##### Add DRA for co-safe spec #####
     # Define a Deterministic (finitie) Raban Automata to match the sketch on slide 7 of lecture 8. Note that state 'q2'

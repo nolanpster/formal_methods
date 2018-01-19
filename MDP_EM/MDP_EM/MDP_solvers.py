@@ -106,13 +106,13 @@ class MDP_solvers(object):
         @brief
         """
         start_time = time.time()
-        num_iters = 50
+        num_iters = 100
         S = deepcopy(self.mdp.S) # Initial distribution.
         for _ in range(num_iters):
             P = self.mdp.setProbMatGivenPolicy()
             R = [self.mdp.probRewardGivenX_T(state) for state in self.mdp.states]
             R = np.array(R)
-            alpha, beta, P_R, P_T_given_R, expect_T_given_R = MDP_solvers.e_step(self, S, R, P, self.mdp.gamma, H=35)
+            alpha, beta, P_R, P_T_given_R, expect_T_given_R = MDP_solvers.e_step(self, S, R, P, self.mdp.gamma, H=100)
             MDP_solvers.m_step(self, beta)
             self.mdp.removeNaNValues()
             if self.write_video:
