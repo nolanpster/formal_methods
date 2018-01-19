@@ -563,7 +563,7 @@ if __name__=='__main__':
                     writer.writerow([key,subkey,sub_value])
 
     # Remember that variable @ref mdp is used for demonstration.
-    if mdp.num_states == infer_mdp.num_states:
+    if len(policy_keys_to_print) == infer_mdp.num_states:
         infered_policy_difference = MDP.comparePolicies(mdp.policy, infer_mdp.policy, policy_keys_to_print,
                                                         compare_to_decimals=3, do_print=True,
                                                         compare_policy_has_extra_keys=False)
