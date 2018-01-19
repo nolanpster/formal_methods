@@ -20,6 +20,8 @@ from pprint import pprint
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+from matplotlib.patches import Wedge
+from matplotlib.collections import PatchCollection
 from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 import warnings
@@ -358,7 +360,8 @@ class PlotPolicy(PlotGrid):
         self.stay_scale = 250
         self.prob_disp_thresh = 0.02
 
-    def confiigurePlot(self, title, policy, action_list, use_print_key, policy_keys_to_print, decimals):
+    def confiigurePlot(self, title, policy, action_list, use_print_key, policy_keys_to_print, decimals,
+                       kernel_locations=None):
         fig, ax = super(self.__class__, self).configurePlot(title)
         policy = deepcopy(policy)
         # Stay probabilies - plot with dots.
@@ -398,6 +401,16 @@ class PlotPolicy(PlotGrid):
             U = np.cos(self.quiv_angs[act])*act_probs
             V = np.sin(self.quiv_angs[act])*act_probs
             Q = plt.quiver(this_x_cent, this_y_cent, U, V, scale=self.quiv_scale, units='width')
+
+        if kernel_locations is not None:
+            # Add marker to cells at kernel centers.
+            circ_handles = []
+            radius = 0.5 # Relative to cell width.
+            for kern_cell in kernel_locations:
+                circ_handles += [Wedge((self.x_cent[kern_cell], self.y_cent[kern_cell]), radius, 0, 360, width=0.05)]
+            circle_collection = PatchCollection(circ_handles, alpha=0.4)
+            ax.add_collection(circle_collection)
+
         plt.gca().invert_yaxis()
         return fig
 
@@ -521,16 +534,16 @@ if __name__=='__main__':
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
         # Learning, Sugiyama, 2015.
         infer_mdp.ggk_sig = 5.0
-        kernel_centers = [0, 7, 120, 127, 18, 21, 106, 109, 60]
+        infer_mdp.kernel_centers = [0, 7, 120, 127, 18, 21, 106, 109, 60]
         print ' Performing inference with kernels at:'
-        pprint(kernel_centers)
+        pprint(infer_mdp.kernel_centers)
         # Note that this needs to be the same instance of `GridGraph` assigned to the MDP!
         infer_mdp.gg_kernel_func = lambda s_i, C_i: np.exp(-(float(infer_mdp.graph.shortestPathLength(s_i, C_i)))**2/
                                                            (2*float(infer_mdp.ggk_sig)**2))
         # Note that we need to use a keyword style argument passing to ensure that
         # each lambda function gets its own value of C.
         K = [lambda s, C=cent: infer_mdp.gg_kernel_func(s, C)
-             for cent in kernel_centers]
+             for cent in infer_mdp.kernel_centers]
         # It could be worth pre-computing all of the feature vectors for a small
         # grid...
         infer_mdp.addKernels(K)
@@ -593,20 +606,24 @@ if __name__=='__main__':
         plot_policies.append(infer_mdp.policy)
         titles = ['Value Iteration', 'Expecation Maximization', 'Learned']
         only_use_print_keys = [True, True, False]
+        kernel_locations = [None, None, infer_mdp.kernel_centers]
     elif plot_initial_mdp_grids:
         plot_policies.append(VI_mdp.policy)
         plot_policies.append(EM_mdp.policy)
         titles = ['Value Iteration', 'Expecation Maximization']
+        kernel_locations = [None, None]
         only_use_print_keys = [True, True]
     if plot_inferred_mdp_grids and not plot_all_grids:
         plot_policies.append(infer_mdp.policy)
         titles.append('Learned')
         only_use_print_keys.append(False)
+        kernel_locations.append(infer_mdp.kernel_centers)
 
     if plot_all_grids or plot_initial_mdp_grids or plot_inferred_mdp_grids:
         center_offset = 0.5 # Shifts points into center of cell.
         base_policy_grid = PlotPolicy(maze, cmap, center_offset)
-        for policy, use_print_keys, title in zip(plot_policies, only_use_print_keys, titles):
+        for policy, use_print_keys, title, kernel_loc in zip(plot_policies, only_use_print_keys, titles,
+                                                             kernel_locations):
             # Reorder policy dict for plotting.
             if use_print_keys: # VI and EM policies have DRA states in policy keys.
                 list_of_tuples = [(key, policy[key]) for key in policy_keys_to_print]
@@ -615,7 +632,7 @@ if __name__=='__main__':
                 list_of_tuples = [(key, policy[key]) for key in order_of_keys]
             policy = OrderedDict(list_of_tuples)
             fig = base_policy_grid.confiigurePlot(title, policy, action_list, use_print_keys, policy_keys_to_print,
-                                                  decimals=2)
+                                                  decimals=2, kernel_locations=kernel_loc)
 
         print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
                 'arrow/dot size ratio!\n'
