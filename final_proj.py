@@ -410,8 +410,20 @@ if __name__=='__main__':
     gather_new_data = False
     perform_new_inference = False
     plot_all_grids = False
-    plot_example_phi = False
-    plot_example_kernel = True
+    plot_initial_mdp_grids = True
+    plot_inferred_mdp_grids = False
+    plot_new_phi = False
+    plot_new_kernel = False
+    plot_loaded_phi = False
+    plot_loaded_kernel = False
+    plot_flags = [plot_all_grids, plot_initial_mdp_grids, plot_inferred_mdp_grids, plot_new_phi, plot_loaded_phi,
+                  plot_new_kernel, plot_loaded_kernel]
+    if plot_new_kernel and plot_loaded_kernel:
+        raise ValueError('Can not plot both new and loaded kernel in same call.')
+    if plot_new_kernel:
+        raise NotImplementedError('option: plot_new_kernel doesn\'t work yet. Sorry, but plot_new_phi works!')
+    if plot_new_phi and plot_loaded_phi:
+        raise ValueError('Can not plot both new and loaded phi in same call.')
 
     if make_new_mdp:
         EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = makeGridMDPxDRA(do_print=True)
@@ -496,7 +508,7 @@ if __name__=='__main__':
                                                                                      num_rewards_from_state[state],
                                                                                      reward_likelihood))
 
-    if perform_new_inference:
+    if plot_new_phi or  plot_new_kernel or perform_new_inference:
         tic = time.clock()
         # Solve for approximated observed policy.
         # Use a new mdp to model created/loaded one and a @ref GridGraph object to record, and seach for shortest paths
@@ -523,7 +535,10 @@ if __name__=='__main__':
         # grid...
         infer_mdp.addKernels(K)
         infer_mdp.precomputePhiAtState()
-
+        if not perform_new_inference and (plot_new_phi or plot_new_kernel):
+            # Deepcopy the infer_mdp to another variable because and old inference will be loaded into `infer_mdp`.
+            new_infer_mdp = deepcopy(infer_mdp)
+    if perform_new_inference:
         # Infer the policy from the recorded data.
         infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True)
         toc = time.clock() -tic
@@ -556,7 +571,7 @@ if __name__=='__main__':
         Warning('Demonstration MDP and inferred MDP do not have the same number of states. Perhaps one was loaded from '
                 'an old file? Not printing policy difference.')
 
-    if plot_all_grids or plot_example_phi or plot_example_kernel:
+    if any(plot_flags):
         # Create plots for comparison. Note that the the `maze` array has one more row and column than the `grid` for
         # plotting purposes.
         maze = np.zeros(np.array(grid_dim)+1)
@@ -603,18 +618,26 @@ if __name__=='__main__':
         print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
                 'arrow/dot size ratio!\n'
 
-    if plot_example_kernel:
+    if plot_loaded_kernel or plot_new_kernel:
+        if not perform_new_inference:
+            kernels = new_infer_mdp.kernels
+        else:
+            kernels = infer_mdp.kernels
         kernel_grid =PlotKernel(maze, cmap)
-        kern_cell = 0
-        title='Kernel Centered at {}.'.format(kern_cell)
-        fig, ax =  kernel_grid.configurePlot(title, kern_cell, kernels=infer_mdp.kernels)
+        kern_idx = 0
+        title='Kernel Centered at {}.'.format(kern_idx)
+        fig, ax =  kernel_grid.configurePlot(title, kern_idx, kernels=kernels)
 
-    if plot_example_phi:
+    if plot_loaded_phi or plot_new_phi:
+        if not perform_new_inference:
+            phi_at_state = new_infer_mdp.phi_at_state
+        else:
+            phi_at_state = infer_mdp.phi_at_state
         phi_grid =PlotKernel(maze, cmap)
-        phi_cell = 0
+        phi_idx = 0
         act = 'Empty'
-        title='Phi Values Centered at {} for action {}.'.format(phi_cell, act)
-        fig, ax =  phi_grid.configurePlot(title, phi_cell, phi_at_state=infer_mdp.phi_at_state, act=act)
+        title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
+        fig, ax =  phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
 
-    if plot_all_grids or plot_example_phi or plot_example_kernel:
+    if any(plot_flags):
         plt.show()
