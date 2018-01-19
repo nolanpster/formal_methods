@@ -568,8 +568,8 @@ if __name__=='__main__':
                                                         compare_to_decimals=3, do_print=True,
                                                         compare_policy_has_extra_keys=False)
     else:
-        Warning('Demonstration MDP and inferred MDP do not have the same number of states. Perhaps one was loaded from '
-                'an old file? Not printing policy difference.')
+        warnings.warn('Demonstration MDP and inferred MDP do not have the same number of states. Perhaps one was '
+                      'loaded from an old file? Not printing policy difference.')
 
     if any(plot_flags):
         # Create plots for comparison. Note that the the `maze` array has one more row and column than the `grid` for
