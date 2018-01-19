@@ -449,7 +449,7 @@ if __name__=='__main__':
             pickle.dump([EM_mdp, VI_mdp, policy_keys_to_print,policy_difference], _file)
     else:
         # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180117_2135')
+        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180202_1120')
         print "Loading file {}.".format(mdp_file)
         with open(mdp_file) as _file:
             EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = pickle.load(_file)
@@ -496,7 +496,7 @@ if __name__=='__main__':
             pickle.dump(run_histories, _file)
     else:
         # Manually choose data to load here:
-        history_file = os.path.join(data_path, 'EM_MDP_UTC180117_2135_HIST_500eps50steps_UTC180117_2154')
+        history_file = os.path.join(data_path, 'EM_MDP_UTC180202_1120_HIST_500eps12steps_UTC180202_1203')
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
@@ -570,7 +570,7 @@ if __name__=='__main__':
     else:
         # Manually choose data to load here:
         infered_mdp_file = os.path.join(infered_mdps_path,
-                'EM_MDP_UTC180112_1643_HIST_100eps20steps_UTC180112_1646_Policy_UTC180113_1915')
+                'EM_MDP_UTC180131_2021_HIST_300eps25steps_UTC180131_2021_Policy_UTC180131_2027')
         print "Loading infered policy data file {}.".format(infered_mdp_file)
         with open(infered_mdp_file) as _file:
             infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
