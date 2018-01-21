@@ -27,6 +27,7 @@ import pandas as pd
 import warnings
 
 np.set_printoptions(linewidth=300)
+np.set_printoptions(threshold=np.inf)
 np.set_printoptions(precision=3)
 
 mdp_obj_path = os.path.abspath('pickled_mdps')
