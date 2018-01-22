@@ -167,7 +167,7 @@ infer_act_prob = {'North': np.array([[0.0, 1.0, 0.0, 0.0, 0.0],
                                     )
                  }
 
-grid_dim = [16, 8] # [num-rows, num-cols]
+grid_dim = [6, 6] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
 states = [str(state) for state in range(grid_map.size)]
 
@@ -182,15 +182,12 @@ action_list = ['Empty', 'North', 'South', 'East', 'West']
 # Set `solve_with_uniform_distribution` to True to have the initial distribution for EM and the history/demonstration
 # generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
 # _False_ to have EM and the MDP always start from the `initial_state` below.
-solve_with_uniform_distribution = False
-initial_state = '127'
+solve_with_uniform_distribution = True
+initial_state = '35'
 labels = {state: empty for state in states}
-labels['36'] = red
-labels['37'] = red
-labels['44'] = red
-labels['45'] = red
-labels['18'] = green
-goal_state = 18 # Currently assumess only one goal.
+labels['10'] = red
+labels['6'] = green
+goal_state = 6 # Currently assumess only one goal.
 
 
 def makeGridMDPxDRA(do_print=False):
@@ -420,14 +417,13 @@ class PlotPolicy(PlotGrid):
 
 # Entry point when called from Command line.
 if __name__=='__main__':
-    # Program control flags.
     make_new_mdp = False
-    write_mdp_policy_csv = True
+    write_mdp_policy_csv = False
     gather_new_data = False
     perform_new_inference = True
     inference_method='default' # Default chooses gradient ascent. Other options: 'MLE'
-    batch_size_for_kernel_set = None
-    plot_all_grids = False
+    batch_size_for_kernel_set = 4
+    plot_all_grids = True
     plot_initial_mdp_grids = False
     plot_inferred_mdp_grids = False
     plot_new_phi = False
@@ -451,7 +447,7 @@ if __name__=='__main__':
             pickle.dump([EM_mdp, VI_mdp, policy_keys_to_print,policy_difference], _file)
     else:
         # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180202_1120')
+        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180203_1525')
         print "Loading file {}.".format(mdp_file)
         with open(mdp_file) as _file:
             EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = pickle.load(_file)
@@ -482,8 +478,8 @@ if __name__=='__main__':
         # Use policy to simulate and record results.
         #
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
-        num_episodes = 500
-        steps_per_episode = 50
+        num_episodes = 1000
+        steps_per_episode = 20
         if mdp.num_states < np.iinfo(np.uint8).max:
             hist_dtype = np.uint8
         elif mdp.num_states < np.iinfo(np.uint16).max:
@@ -509,7 +505,7 @@ if __name__=='__main__':
             pickle.dump(run_histories, _file)
     else:
         # Manually choose data to load here:
-        history_file = os.path.join(data_path, 'EM_MDP_UTC180202_1120_HIST_500eps12steps_UTC180202_1203')
+        history_file = os.path.join(data_path, 'EM_MDP_UTC180203_1525_HIST_1000eps20steps_UTC180203_1525')
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
@@ -548,9 +544,10 @@ if __name__=='__main__':
         graph = GridGraph(grid_map=grid_map, neighbor_dict=infer_mdp.neighbor_dict, label_dict=labels)
         infer_mdp.graph = graph
         # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
-        # Learning, Sugiyama, 2015.
-        infer_mdp.ggk_sig = 5.0
-        infer_mdp.kernel_centers = [0, 7, 120, 127, 18, 21, 106, 109, 60]
+        infer_mdp.ggk_sig = 1.5
+        infer_mdp.kernel_centers = frozenset([6, 10])
+        infer_mdp.kernel_centers |= frozenset(np.random.choice(36,6,replace=False))
+        infer_mdp.kernel_centers = frozenset(infer_mdp.state_vec)
         print ' Performing inference with kernels at:'
         pprint(infer_mdp.kernel_centers)
         # Note that this needs to be the same instance of `GridGraph` assigned to the MDP!
@@ -711,7 +708,7 @@ if __name__=='__main__':
             phi_at_state = infer_mdp.phi_at_state
         phi_grid =PlotKernel(maze, cmap)
         phi_idx = 0
-        act = 'Empty'
+        act = 'West'
         title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
         fig, ax =  phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
 

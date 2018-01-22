@@ -128,11 +128,11 @@ class PolicyInference(object):
         # the difference between the new average @theta and the previous @theta. If the Euclidian norm of the difference
         # is less than @c thresh, the iteration exits.
         thresh = 0.05
-        eps = 0.005
+        eps = 0.25
         inverse_temp_start = np.float16(1.0)
         # Larger value of inverse_temp_rate causes the temperature to cool faster, reduces oscilation. Set to 0 to
         # remove effect of temperature cooling.
-        inverse_temp_rate =  np.float16(1.0)
+        inverse_temp_rate =  np.float16(0.25)
 
         # Initialize arrays for intermediate computations.
         phis = np.zeros([self.mdp.num_states, self.mdp.num_actions, theta_size], dtype=dtype)
