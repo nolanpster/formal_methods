@@ -641,7 +641,7 @@ if __name__=='__main__':
                 'arrow/dot size ratio!\n'
 
     if plot_loaded_kernel or plot_new_kernel:
-        if not perform_new_inference:
+        if not perform_new_inference and plot_new_kernel:
             kernels = new_infer_mdp.kernels
         else:
             kernels = infer_mdp.kernels
