@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt2
 import time
 from collections import deque
 import random
+import warnings
+import sys
 
 class PolicyInference(object):
     """
@@ -169,6 +171,56 @@ class PolicyInference(object):
                 plt2.plot(range(iter_count),[vals2plot[o][0][u] for o in range(len(vals2plot))])
                 plt2.ylabel('Theta '+str(int(u/6))+'_'+str(u%6))
                 plt2.show()
+
+    def historyMLE(self, histories, do_print=False):
+        """
+        @brief Given the set of demonstrated histories, use Maximum Likelihood Estimation to compute a tabular policy
+               for each state.
+
+        The Maximum Likelihood Estimator of the policy for each state is
+            @c pi(state, act) = c(state, act) / [sum(c(state, act)) for all act in actions]
+        Where c(state, act) is the numer of times `act` was observed in the input @ref histories. If an action is never
+        taken, the resulting zero likelihood in the policy is replaced by @ref sys.float_info.min.
+
+        @param histories A numpy array with a column listing the interger-valued state index at each time-step and a row
+               for each desmonstation episode.
+        @note If a state is not visited in the history, it will be given a policy of zeros.
+        """
+        self.histories = histories
+        states_in_history = set(self.histories.ravel())
+        if states_in_history != set(self.mdp.state_vec):
+            warnings.warn('The following states were not visited in the history: {}. Their policies will be `nan` for '
+                          'all actions.'.format(set(self.mdp.state_vec) - states_in_history))
+
+        # Initialize decision of each state to take first action in MDP's @c action_list.
+        empty_policy_dist = {act:0 for act in self.mdp.action_list}
+        self.mdp.policy = {state: deepcopy(empty_policy_dist) for state in self.mdp.states}
+
+        # For every state-action pair in the history, increment each observed action.
+        (num_episodes, num_steps) = self.histories.shape
+        for episode in xrange(num_episodes):
+            for t_step in xrange(1, num_steps):
+                this_state = self.histories[episode, t_step-1]
+                next_state = self.histories[episode, t_step]
+                observed_action = self.mdp.graph.getObservedAction(this_state, next_state)
+                self.mdp.policy[str(this_state)][observed_action] += 1
+
+        # Weight each action by the number of times the state was visited.
+        for state in self.mdp.policy.keys():
+            total_state_visits = float(np.sum(self.mdp.policy[state].values()))
+            if total_state_visits > 0:
+                for action in self.mdp.policy[state].keys():
+                    if self.mdp.policy[state][action]==0:
+                        # If the state was not visited, we need to give it the smalles non-zero float value so we can
+                        # compute the KL-Divergence later. @todo - determine if this makes sense.
+                        self.mdp.policy[state][action] = sys.float_info.min
+                    else:
+                        self.mdp.policy[state][action] /= total_state_visits
+
+        if do_print:
+            print("Infered-Policy as a {state: action-distribution} dictionary.")
+            pprint(self.mdp.policy)
+
 
     @staticmethod
     def evalGibbsPolicy(theta, phi, action, action_list):

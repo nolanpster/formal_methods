@@ -423,7 +423,8 @@ if __name__=='__main__':
     make_new_mdp = False
     write_mdp_policy_csv = True
     gather_new_data = False
-    perform_new_inference = False
+    perform_new_inference = True
+    inference_method='default' # Default chooses gradient ascent. Other options: 'MLE'
     plot_all_grids = False
     plot_initial_mdp_grids = True
     plot_inferred_mdp_grids = False
@@ -555,7 +556,11 @@ if __name__=='__main__':
             new_infer_mdp = deepcopy(infer_mdp)
     if perform_new_inference:
         # Infer the policy from the recorded data.
-        infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True)
+
+        if inference_method == 'MLE':
+            infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=True)
+        else:
+            infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True)
         toc = time.clock() -tic
         print 'Total time to infer policy: {} sec, or {} min.'.format(toc, toc/60.0)
         infered_mdp_file = getOutFile(os.path.basename(history_file) + '_Policy', infered_mdps_path)
