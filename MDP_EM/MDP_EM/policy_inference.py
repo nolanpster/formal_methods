@@ -193,7 +193,7 @@ class PolicyInference(object):
                           'all actions.'.format(set(self.mdp.state_vec) - states_in_history))
 
         # Initialize decision of each state to take first action in MDP's @c action_list.
-        empty_policy_dist = {act:0 for act in self.mdp.action_list}
+        empty_policy_dist = {act:np.array([[0.]]) for act in self.mdp.action_list}
         self.mdp.policy = {state: deepcopy(empty_policy_dist) for state in self.mdp.states}
 
         # For every state-action pair in the history, increment each observed action.
@@ -203,19 +203,19 @@ class PolicyInference(object):
                 this_state = self.histories[episode, t_step-1]
                 next_state = self.histories[episode, t_step]
                 observed_action = self.mdp.graph.getObservedAction(this_state, next_state)
-                self.mdp.policy[str(this_state)][observed_action] += 1
+                self.mdp.policy[str(this_state)][observed_action][0][0] += 1
 
         # Weight each action by the number of times the state was visited.
         for state in self.mdp.policy.keys():
             total_state_visits = float(np.sum(self.mdp.policy[state].values()))
             if total_state_visits > 0:
                 for action in self.mdp.policy[state].keys():
-                    if self.mdp.policy[state][action]==0:
+                    if self.mdp.policy[state][action][0][0]==0:
                         # If the state was not visited, we need to give it the smalles non-zero float value so we can
                         # compute the KL-Divergence later. @todo - determine if this makes sense.
-                        self.mdp.policy[state][action] = sys.float_info.min
+                        self.mdp.policy[state][action][0][0] = sys.float_info.min
                     else:
-                        self.mdp.policy[state][action] /= total_state_visits
+                        self.mdp.policy[state][action][0][0] /= total_state_visits
 
         if do_print:
             print("Infered-Policy as a {state: action-distribution} dictionary.")
