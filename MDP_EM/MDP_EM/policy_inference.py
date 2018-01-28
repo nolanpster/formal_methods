@@ -61,7 +61,11 @@ class PolicyInference(object):
         # Initialize Weight vector, theta.
         if theta_0 == None:
             test_phi = self.mdp.phi(str(1), 'East')
-            theta_0 = np.random.uniform(-1, 1, size=(test_phi.size, 1)).T
+            theta_0 = np.empty([test_phi.size, 1]).T
+            for kern_idx in xrange(self.mdp.num_kern):
+                for act_idx, act in enumerate(self.mdp.action_list):
+                        theta_0[0][kern_idx*self.mdp.num_actions+act_idx]= 1.0 / (theta_0.size)
+
         self.mdp.theta = theta_0
         theta_avg = deepcopy(theta_0)
         theta_size = self.mdp.theta.size
