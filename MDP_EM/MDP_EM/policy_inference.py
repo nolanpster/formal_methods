@@ -48,7 +48,6 @@ class PolicyInference(object):
         # Process input arguments
         do_plot=False
         self.histories = histories
-        states_in_history = set(self.histories.ravel())
         (num_episodes, num_steps) = self.histories.shape
         # Precompute observed actions for all episodes.
         observed_actions = dict.fromkeys(xrange(num_episodes), {})
@@ -114,11 +113,12 @@ class PolicyInference(object):
                     # Pre-compute all possible values (for small environments).
                     exp_Q = np.exp(np.sum(phis * theta[0], axis=2))
                     sum_exp_Q = np.sum(exp_Q, axis=1)
-                    for i in range(phis.shape[0]):
-                        for j in xrange(phis.shape[1]):
-                            phi_weighted_exp_Q[i,j] = phis[i,j]*exp_Q[i,j]
+                    for state in xrange(self.mdp.num_states):
+                        for act_idx in xrange(self.mdp.num_actions):
+                            phi_weighted_exp_Q[state, act_idx] = phis[state, act_idx] * exp_Q[state, act_idx]
                     sum_weighted_exp_Q = np.sum(phi_weighted_exp_Q, axis=1).T
                     del_theta_total_Q = (sum_weighted_exp_Q/sum_exp_Q).T
+
                 else:
                     raise NotImplementedError
 
