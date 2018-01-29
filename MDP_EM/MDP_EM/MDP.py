@@ -595,7 +595,7 @@ class MDP:
         if do_print:
             print("Policy Difference:")
             pprint(policy_difference)
-            print("KL-Divergence of the learned policy from that used for the demonstration =  "
+            print("KL-Divergence of the comparison policy from the reference policy =  "
                   "{:.03f}.".format(policy_kl_divergence))
         return policy_difference, policy_kl_divergence
 
