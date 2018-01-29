@@ -390,6 +390,40 @@ class MDP:
                 #import pdb; pdb.set_trace()
                 #raise ValueError('Total probability greater than 1!')
 
+    def computeKLDivergenceOfPolicyFromHistories(self, histories):
+        """
+        @brief Computes the KL-Divergence of a policy that should generate trajectories given the set of trajectories.
+
+        Provided a set of histories that has a row for every trajectory, this computes the likelihood of each
+        trajectory p(tau|D), given that it is known to be part of the history-set, and the probability of the trajectory
+        given the policy of the MDP, p(tau|theta). It returns the KL-Divergence of p(tau|theta) from p(tau|D) summed
+        over all trajectories.
+
+        @pre The policy must be inferred/solved for.
+        """
+        (num_episodes, num_steps) = histories.shape
+
+        # Compute the likelihood of a trajectory in the history data-set.
+        # From https://stackoverflow.com/questions/27000092/count-how-many-times-each-row-is-present-in-numpy-array
+        histories_data_type = np.dtype((np.void, histories.dtype.itemsize * histories.shape[1]))
+        contiguous_histories = np.ascontiguousarray(histories).view(histories_data_type)
+        unique_episodes, episode_count = np.unique(contiguous_histories, return_counts=True)
+        unique_episodes = unique_episodes.view(histories.dtype).reshape(-1, histories.shape[1])
+        num_unique_episodes = len(episode_count)
+        episode_freq = episode_count / float(num_episodes)
+
+
+        # Start probability of traj_given_policy as probability of state_0, initial distribution `S`.
+        prob_of_traj_given_policy = deepcopy(self.S[[unique_episodes[:,0]]])
+        for episode in xrange(num_unique_episodes):
+            for t_step in xrange(2, num_steps):
+                this_state = unique_episodes[episode, t_step-1]
+                next_state = unique_episodes[episode, t_step]
+                observed_action = self.graph.getObservedAction(this_state, next_state)
+                prob_of_traj_given_policy[episode] *= self.P(str(this_state), observed_action, str(next_state))
+                prob_of_traj_given_policy[episode] *= self.policy[str(this_state)][observed_action]
+        return np.sum(np.multiply(episode_freq, np.log(np.divide(episode_freq, prob_of_traj_given_policy))))
+
 
     @staticmethod
     def productMDP(mdp, dra):

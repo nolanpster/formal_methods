@@ -588,6 +588,9 @@ if __name__=='__main__':
                                                         compare_to_decimals=3, do_print=True,
                                                         compare_policy_has_extra_keys=False,
                                                         compute_kl_divergence=True)
+
+        kl_divergence_from_demonstration = infer_mdp.computeKLDivergenceOfPolicyFromHistories(run_histories)
+        print('The KL-Divergence from the demonstration set is: {0:.3f}.'.format(kl_divergence_from_demonstration))
     else:
         warnings.warn('Demonstration MDP and inferred MDP do not have the same number of states. Perhaps one was '
                       'loaded from an old file? Not printing policy difference.')
