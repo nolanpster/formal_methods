@@ -128,14 +128,7 @@ class PolicyInference(object):
                     this_state = self.histories[episode, t_step-1]
                     this_act_idx = acts_lst.index(observed_actions[episode][t_step])
 
-                    del_beta_del_theta = phis[this_state, this_act_idx]
-                    del_beta_del_theta -= del_theta_total_Q[this_state]
-                    del_beta_del_theta *= exp_Q[this_state, this_act_idx]
-                    del_beta_del_theta /= sum_exp_Q[this_state]
-
-                    reciprocal_beta = sum_exp_Q[this_state]
-                    reciprocal_beta /= exp_Q[this_state, this_act_idx]
-                    grad_wrt_theta += reciprocal_beta * del_beta_del_theta
+                    grad_wrt_theta += (phis[this_state, this_act_idx] - del_theta_total_Q[this_state])
 
                 self.mdp.theta += eps*grad_wrt_theta.T
 
