@@ -606,7 +606,12 @@ if __name__=='__main__':
             if label==green:
                 grid_row, grid_col = np.where(grid_map==int(state))
                 maze[grid_row, grid_col] = 1
-        cmap = mcolors.ListedColormap(['w','green','red'])
+        if red in labels.values():
+            # Maximum value in maze corresponds to red.
+            cmap = mcolors.ListedColormap(['white','green','red'])
+        else:
+            # Maximum value in maze corresponds to green.
+            cmap = mcolors.ListedColormap(['white','green'])
 
     plot_policies = []
     only_use_print_keys = []
