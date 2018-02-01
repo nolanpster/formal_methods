@@ -38,6 +38,16 @@ class PolicyInference(object):
             else:
                 self.algorithm = None
 
+    def buildPolicy(self):
+        """
+        @brief Method to build the policy during/after policy inference.
+        """
+        if self.method is 'gradientAscent':
+            exp_Q = {state: {act: np.exp(np.dot(self.mdp.theta, self.mdp.phi_at_state[state][act])) for act in
+                             self.mdp.action_list} for state in self.mdp.state_vec}
+            sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.mdp.state_vec}
+            self.mdp.policy = {state: {act: exp_Q[int(state)][act]/sum_exp_Q[int(state)] for act in self.mdp.action_list}
+                               for state in self.mdp.states}
 
     def gradientAscent(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False):
         """
@@ -150,12 +160,7 @@ class PolicyInference(object):
             pprint('Found Theta:')
             pprint(self.mdp.theta)
 
-        exp_Q = {state: {act: np.exp(np.dot(self.mdp.theta, self.mdp.phi_at_state[state][act])) for act in
-                         self.mdp.action_list} for state in self.mdp.state_vec}
-        sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.mdp.state_vec}
-        self.mdp.policy = {state: {act: exp_Q[int(state)][act]/sum_exp_Q[int(state)] for act in self.mdp.action_list}
-                           for state in self.mdp.states}
-        print(self.mdp.theta)
+        self.buildPolicy()
         if do_print:
             print("Infered-Policy as a {state: action-distribution} dictionary.")
             pprint(self.mdp.policy)
