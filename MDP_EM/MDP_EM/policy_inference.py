@@ -118,6 +118,7 @@ class PolicyInference(object):
                 for kern_idx in xrange(theta_size):
                     phis[state, act_idx, kern_idx] = self.mdp.phi_at_state[state][act][kern_idx]
         phi_weighted_exp_Q = np.zeros(phis.shape)
+        sum_weighted_exp_Q = np.empty([num_states, theta_size])
 
         # Loop until convergence
         while delta_theta_norm > thresh:
@@ -138,10 +139,8 @@ class PolicyInference(object):
                     exp_Q = np.exp(np.sum(phis * theta[0], axis=2))
                     sum_exp_Q = np.sum(exp_Q, axis=1)
                     for state in xrange(num_states):
-                        for act_idx in xrange(num_acts):
-                            phi_weighted_exp_Q[state, act_idx] = phis[state, act_idx] * exp_Q[state, act_idx]
-                    sum_weighted_exp_Q = np.sum(phi_weighted_exp_Q, axis=1).T
-                    del_theta_total_Q = (sum_weighted_exp_Q/sum_exp_Q).T
+                        sum_weighted_exp_Q[state] = np.dot(exp_Q[state],phis[state, :, :])
+                    del_theta_total_Q = (sum_weighted_exp_Q.T/sum_exp_Q).T
 
                 else:
                     raise NotImplementedError
