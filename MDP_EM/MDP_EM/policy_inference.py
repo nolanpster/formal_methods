@@ -60,12 +60,13 @@ class PolicyInference(object):
         self.histories = histories
         (num_episodes, num_steps) = self.histories.shape
         # Precompute observed actions for all episodes.
-        observed_actions = dict.fromkeys(xrange(num_episodes), {})
+        observed_action_indeces = np.empty([num_episodes, num_steps], dtype=int)
         for episode in xrange(num_episodes):
             for t_step in xrange(1, num_steps):
                 this_state = self.histories[episode, t_step-1]
                 next_state = self.histories[episode, t_step]
-                observed_actions[episode][t_step] = self.mdp.graph.getObservedAction(this_state, next_state)
+                observed_action = self.mdp.graph.getObservedAction(this_state, next_state)
+                observed_action_indeces[episode, t_step] = acts_list.index(observed_action)
 
         # Initialize Weight vector, theta.
         if theta_0 == None:
@@ -135,10 +136,9 @@ class PolicyInference(object):
                 grad_wrt_theta = np.zeros(theta_size)
                 # Note: This code does in-place operations for speed, apologies for decreasing the readability.
                 for t_step in xrange(1, num_steps):
-                    this_state = self.histories[episode, t_step-1]
-                    this_act_idx = acts_lst.index(observed_actions[episode][t_step])
-
-                    grad_wrt_theta += (phis[this_state, this_act_idx] - del_theta_total_Q[this_state])
+                    this_state = histories[episode, t_step-1]
+                    grad_wrt_theta += (phis[this_state, observed_action_indeces[episode, t_step]]
+                                       - del_theta_total_Q[this_state])
 
                 self.mdp.theta += eps*grad_wrt_theta.T
 
