@@ -57,8 +57,12 @@ class PolicyInference(object):
 
         # Process input arguments
         do_plot=False
+        acts_list = self.mdp.action_list
+        num_acts = self.mdp.num_actions
+        num_states = self.mdp.num_states
         self.histories = histories
         (num_episodes, num_steps) = self.histories.shape
+        traj_samples = range(num_episodes) # Will be shuffled every iteration.
         # Precompute observed actions for all episodes.
         observed_action_indeces = np.empty([num_episodes, num_steps], dtype=int)
         for episode in xrange(num_episodes):
@@ -105,12 +109,12 @@ class PolicyInference(object):
         # remove effect of temperature cooling.
         inverse_temp_rate =  1.0
         delta_theta_norm = np.inf
+        theta = self.mdp.theta # Use a local reference to theta for look-up speed.
 
         # Initialize arrays for intermediate computations.
-        acts_lst = self.mdp.action_list
         phis = np.zeros([self.mdp.num_states, self.mdp.num_actions, theta_size])
         for state in self.mdp.state_vec:
-            for act_idx, act in enumerate(self.mdp.action_list):
+            for act_idx, act in enumerate(acts_list):
                 for kern_idx in xrange(theta_size):
                     phis[state, act_idx, kern_idx] = self.mdp.phi_at_state[state][act][kern_idx]
         phi_weighted_exp_Q = np.zeros(phis.shape)
@@ -120,23 +124,21 @@ class PolicyInference(object):
             if do_print:
                 tic = time.clock()
             iter_count += 1
-            prev_theta = deepcopy(self.mdp.theta)
-            traj_samples = range(num_episodes)
             inverse_temp += inverse_temp_rate
             temp = 1.0 / inverse_temp
+            prev_theta = deepcopy(theta)
             random.shuffle(traj_samples)
             traj_queue = deque(traj_samples)
 
             while len(traj_queue)>0:
                 episode = traj_queue.pop()
-                theta = self.mdp.theta
 
                 if use_precomputed_phi:
                     # Pre-compute all possible values (for small environments).
                     exp_Q = np.exp(np.sum(phis * theta[0], axis=2))
                     sum_exp_Q = np.sum(exp_Q, axis=1)
-                    for state in xrange(self.mdp.num_states):
-                        for act_idx in xrange(self.mdp.num_actions):
+                    for state in xrange(num_states):
+                        for act_idx in xrange(num_acts):
                             phi_weighted_exp_Q[state, act_idx] = phis[state, act_idx] * exp_Q[state, act_idx]
                     sum_weighted_exp_Q = np.sum(phi_weighted_exp_Q, axis=1).T
                     del_theta_total_Q = (sum_weighted_exp_Q/sum_exp_Q).T
@@ -159,7 +161,7 @@ class PolicyInference(object):
             # Update moving average value of theta vector, then decrease the learning rate, @c eps.
             theta_avg_old = deepcopy(theta_avg)
             theta_avg -= theta_avg / iter_count;
-            theta_avg += self.mdp.theta / iter_count;
+            theta_avg += theta / iter_count;
             delta_theta_norm = np.linalg.norm(theta_avg_old - theta_avg)
 
             if do_plot:
