@@ -75,10 +75,15 @@ class PolicyInference(object):
             for kern_idx in xrange(self.mdp.num_kern):
                 for act_idx, act in enumerate(self.mdp.action_list):
                         theta_0[0][kern_idx*self.mdp.num_actions+act_idx]= 1.0 / (theta_0.size)
-
         self.mdp.theta = theta_0
         theta_avg = deepcopy(theta_0)
         theta_size = self.mdp.theta.size
+
+        # Velocity vector can be thought of as the momentum of the gradient descent. It is used to carry the theta
+        # estimate through local minimums. https://wiseodd.github.io/techblog/2016/06/22/nn-optimization/.
+        velocity = np.zeros([theta_size])
+        velocity_memory = 0.9
+
 
         # Configure printing and plotting options.
         vals2plot=[]
@@ -140,7 +145,9 @@ class PolicyInference(object):
                     grad_wrt_theta += (phis[this_state, observed_action_indeces[episode, t_step]]
                                        - del_theta_total_Q[this_state])
 
-                self.mdp.theta += eps*grad_wrt_theta.T
+                velocity *= velocity_memory
+                velocity += eps*grad_wrt_theta.T
+                theta += velocity
 
             # Update moving average value of theta vector, then decrease the learning rate, @c eps.
             theta_avg_old = deepcopy(theta_avg)
