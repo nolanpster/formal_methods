@@ -100,6 +100,10 @@ class PolicyInference(object):
         thresh = 0.05
         eps = 0.005
         iter_count = 0
+        inverse_temp = 1.0
+        # Larger value of inverse_temp_rate causes the temperature to cool faster, reduces oscilation. Set to 0 to
+        # remove effect of temperature cooling.
+        inverse_temp_rate =  1.0
         delta_theta_norm = np.inf
 
         # Initialize arrays for intermediate computations.
@@ -118,6 +122,8 @@ class PolicyInference(object):
             iter_count += 1
             prev_theta = deepcopy(self.mdp.theta)
             traj_samples = range(num_episodes)
+            inverse_temp += inverse_temp_rate
+            temp = 1.0 / inverse_temp
             random.shuffle(traj_samples)
             traj_queue = deque(traj_samples)
 
@@ -143,7 +149,8 @@ class PolicyInference(object):
                 for t_step in xrange(1, num_steps):
                     this_state = histories[episode, t_step-1]
                     grad_wrt_theta += (phis[this_state, observed_action_indeces[episode, t_step]]
-                                       - del_theta_total_Q[this_state])
+                                       - del_theta_total_Q[this_state]) \
+                                      * temp
 
                 velocity *= velocity_memory
                 velocity += eps*grad_wrt_theta.T
@@ -154,7 +161,6 @@ class PolicyInference(object):
             theta_avg -= theta_avg / iter_count;
             theta_avg += self.mdp.theta / iter_count;
             delta_theta_norm = np.linalg.norm(theta_avg_old - theta_avg)
-            eps *= 0.995
 
             if do_plot:
                 vals2plot.append(self.mdp.theta.tolist())
