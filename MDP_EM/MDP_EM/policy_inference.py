@@ -4,6 +4,7 @@ __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 import numpy as np
 from numpy.core.umath_tests import inner1d
 from copy import deepcopy
+from copy import copy
 from pprint import pprint
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt2
@@ -132,7 +133,7 @@ class PolicyInference(object):
             iter_count += 1
             inverse_temp += inverse_temp_rate
             temp = np.float16(1.0) / inverse_temp
-            prev_theta = deepcopy(theta)
+            prev_theta = copy(theta)
             random.shuffle(traj_samples)
             traj_queue = deque(traj_samples)
 
@@ -176,7 +177,7 @@ class PolicyInference(object):
                 theta += velocity
 
             # Update moving average value of theta vector, then decrease the learning rate, @c eps.
-            theta_avg_old = deepcopy(theta_avg)
+            theta_avg_old = copy(theta_avg)
             theta_avg -= np.divide(theta_avg, iter_count);
             theta_avg += np.divide(theta, iter_count);
             vector_diff = np.subtract(theta_avg_old, theta_avg)
