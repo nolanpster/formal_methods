@@ -424,6 +424,24 @@ class MDP:
                 prob_of_traj_given_policy[episode] *= self.policy[str(this_state)][observed_action]
         return np.sum(np.multiply(episode_freq, np.log(np.divide(episode_freq, prob_of_traj_given_policy))))
 
+    def getPolicyAsVec(self, policy_keys_to_use=None):
+        """
+        @brief returns a numpy array representing the policy  with actions listed in the same order as self.action_list.
+
+        @param policy_keys_to_use If supplied, policy vector will include only the states listed. Additionally, this
+               assumes that the state structure is that of the MDPxDRA, ('grid_stat_num', 'qX'), and it will extract the
+               first element of the tuple into the intermediate dictionary.
+        """
+        if policy_keys_to_use is not None:
+            policy_vec = np.empty(len(policy_keys_to_use) * self.num_actions)
+            policy_dict  = {state[0]: deepcopy(self.policy[state]) for state in policy_keys_to_use}
+        else:
+            policy_vec = np.empty(self.num_states * self.num_actions)
+            policy_dict = self.policy
+        for state in xrange(len(policy_vec) / self.num_actions):
+            for act_idx, act in enumerate(self.action_list):
+                policy_vec[state * self.num_actions+act_idx] = policy_dict[str(state)][act]
+        return policy_vec
 
     @staticmethod
     def productMDP(mdp, dra):
@@ -661,4 +679,4 @@ class MDP:
         @param an instance of @ref MDP.
         @param a string matching a method name in @ref policy_solvers.py.
         """
-        PolicyInference(self, method=method, write_video=write_video).infer(**kwargs)
+        return PolicyInference(self, method=method, write_video=write_video).infer(**kwargs)

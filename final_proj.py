@@ -426,8 +426,9 @@ if __name__=='__main__':
     gather_new_data = False
     perform_new_inference = True
     inference_method='default' # Default chooses gradient ascent. Other options: 'MLE'
+    batch_size_for_kernel_set = None
     plot_all_grids = False
-    plot_initial_mdp_grids = True
+    plot_initial_mdp_grids = False
     plot_inferred_mdp_grids = False
     plot_new_phi = False
     plot_new_kernel = False
@@ -572,7 +573,38 @@ if __name__=='__main__':
         if inference_method == 'MLE':
             infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=True)
         else:
-            infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True, dtype=np.float32)
+            if batch_size_for_kernel_set is not None:
+
+                # Precompute observed actions for all episodes. Should do this in a "history" class.
+                if len(action_list) < np.iinfo(np.uint8).max:
+                    observation_dtype = np.uint8
+                elif len(action_lists) < np.iinfo(np.uint16).max:
+                    observation_dtype  = np.uint16
+                elif len(action_lists) < np.iinfo(np.uint32).max:
+                    observation_dtype  = np.uint32
+                elif len(action_lists) < np.iinfo(np.uint64).max:
+                    observation_dtype  = np.uint64
+                else:
+                    raise ValueError('This MDP has {} actions, that\'s not currently supported, I\'m surprised your '
+                                     'code made it this far...'.format(np.iinfo(np.uint64).max))
+                observed_action_indeces = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
+                for episode in xrange(num_episodes):
+                    for t_step in xrange(1, steps_per_episode):
+                        this_state = run_histories[episode, t_step-1]
+                        next_state = run_histories[episode, t_step]
+                        observed_action = infer_mdp.graph.getObservedAction(this_state, next_state)
+                        observed_action_indeces[episode, t_step] = action_list.index(observed_action)
+
+                # Peform the inference batch.
+                batch_L1_norm, batch_infer_time = \
+                    infer_mdp.inferPolicy(histories=run_histories, do_print=False, use_precomputed_phi=True,
+                                          dtype=np.float32, monte_carlo_size=batch_size_for_kernel_set,
+                                          reference_policy_vec=mdp.getPolicyAsVec(policy_keys_to_print),
+                                          precomputed_observed_action_indeces=observed_action_indeces)
+
+            else:
+                infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True,
+                                      dtype=np.float32)
         toc = time.clock() -tic
         print 'Total time to infer policy: {} sec, or {} min.'.format(toc, toc/60.0)
         infered_mdp_file = getOutFile(os.path.basename(history_file) + '_Policy', infered_mdps_path)
