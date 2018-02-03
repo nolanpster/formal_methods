@@ -2,6 +2,7 @@
 __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 
 import numpy as np
+from numpy.core.umath_tests import inner1d
 from copy import deepcopy
 from pprint import pprint
 import matplotlib.pyplot as plt
@@ -117,10 +118,14 @@ class PolicyInference(object):
             for act_idx, act in enumerate(acts_list):
                 for kern_idx in xrange(theta_size):
                     phis[state, act_idx, kern_idx] = self.mdp.phi_at_state[state][act][kern_idx]
-        phi_weighted_exp_Q = np.zeros(phis.shape)
-        sum_weighted_exp_Q = np.empty([num_states, theta_size])
 
-        # Loop until convergence
+        # For any calculations with numpy.einsum, unless otherwise noted:
+        # - d : time-step axis
+        # - h : garbage (length 1) axis
+        # - i : state-axis
+        # - j : action-axis
+        # - k : theta/phi vector axis
+        # - l : a policy represented as a vector
         while delta_theta_norm > thresh:
             if do_print:
                 tic = time.clock()
@@ -136,39 +141,53 @@ class PolicyInference(object):
 
                 if use_precomputed_phi:
                     # Pre-compute all possible values (for small environments).
-                    exp_Q = np.exp(np.sum(phis * theta[0], axis=2))
-                    sum_exp_Q = np.sum(exp_Q, axis=1)
-                    for state in xrange(num_states):
-                        sum_weighted_exp_Q[state] = np.dot(exp_Q[state],phis[state, :, :])
-                    del_theta_total_Q = (sum_weighted_exp_Q.T/sum_exp_Q).T
+                    # Using Numpy.einsum where possible. The code below is equivalent to:
+                    #   exp_Q = np.exp(np.sum(np.multiply(phis,theta[0]), axis=2))
+                    #   sum_exp_Q = np.sum(exp_Q, axis=1)
+                    #   for state in xrange(num_states):
+                    #       sum_weighted_exp_Q[state] = np.dot(exp_Q[state], phis[state, :, :])
+                    #   del_theta_total_Q = np.divide(sum_weighted_exp_Q.T, sum_exp_Q).T
+                    exp_Q = np.exp(np.einsum('ijk,hk->ij', phis, theta))
+                    reciprocal_sum_exp_Q = np.reciprocal(np.einsum('ij->i', exp_Q))
+                    sum_weighted_exp_Q = np.einsum('ij,ijk->ki', exp_Q, phis)
+                    # For this calc only because einsum uses a pedantic alphabetic convention:
+                    # - i : phi axis
+                    # - j : state axis
+                    del_theta_total_Q = np.einsum('ij,j->ji', sum_weighted_exp_Q, reciprocal_sum_exp_Q)
 
                 else:
                     raise NotImplementedError
 
+                # Using Numpy.einsum, equivalent code is:
                 grad_wrt_theta = np.zeros(theta_size)
-                # Note: This code does in-place operations for speed, apologies for decreasing the readability.
-                for t_step in xrange(1, num_steps):
-                    this_state = histories[episode, t_step-1]
-                    grad_wrt_theta += (phis[this_state, observed_action_indeces[episode, t_step]]
-                                       - del_theta_total_Q[this_state]) \
-                                      * temp
+                #   for t_step in xrange(1, num_steps):
+                #       this_state = histories[episode, t_step-1]
+                #       grad_wrt_theta += \
+                #           np.multiply(np.subtract(phis[this_state, observed_action_indeces[episode, t_step]],
+                #                                   del_theta_total_Q[this_state]), temp)
+                grad_wrt_theta = \
+                    np.multiply(np.einsum('dk->k',
+                                np.subtract(phis[histories[episode,:-1], observed_action_indeces[episode,1:]],
+                                            del_theta_total_Q[histories[episode,:-1]])),
+                                temp)
 
                 velocity *= velocity_memory
-                velocity += eps*grad_wrt_theta.T
+                velocity += np.multiply(eps, grad_wrt_theta.T)
                 theta += velocity
 
             # Update moving average value of theta vector, then decrease the learning rate, @c eps.
             theta_avg_old = deepcopy(theta_avg)
-            theta_avg -= theta_avg / iter_count;
-            theta_avg += theta / iter_count;
-            delta_theta_norm = np.linalg.norm(theta_avg_old - theta_avg)
+            theta_avg -= np.divide(theta_avg, iter_count);
+            theta_avg += np.divide(theta, iter_count);
+            vector_diff = np.subtract(theta_avg_old, theta_avg)
+            delta_theta_norm = np.sqrt(inner1d(vector_diff, vector_diff))
 
             if do_plot:
                 vals2plot.append(self.mdp.theta.tolist())
                 del2print.append(delta_theta_norm)
             if do_print:
                 toc = time.clock() - tic
-                pprint('Iter#: {}, delta: {}, iter-time: {}sec.'.format(iter_count, delta_theta_norm, toc), indent=4)
+                pprint('Iter#: {}, delta: {}, iter-time: {}sec.'.format(iter_count, delta_theta_norm[0], toc), indent=4)
 
         if do_print:
             pprint('Found Theta:')
