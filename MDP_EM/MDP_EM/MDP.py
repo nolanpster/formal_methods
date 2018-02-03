@@ -394,9 +394,11 @@ class MDP:
         """
         @brief Computes the KL-Divergence of a policy that should generate trajectories given the set of trajectories.
 
+        @note Depricated. Not a good comparison method. If p(tau|D) < q(tau|theta) then the KL divergence is negative.
+
         Provided a set of histories that has a row for every trajectory, this computes the likelihood of each
         trajectory p(tau|D), given that it is known to be part of the history-set, and the probability of the trajectory
-        given the policy of the MDP, p(tau|theta). It returns the KL-Divergence of p(tau|theta) from p(tau|D) summed
+        given the policy of the MDP, q(tau|theta). It returns the KL-Divergence of q(tau|theta) from p(tau|D) summed
         over all trajectories.
 
         @pre The policy must be inferred/solved for.
