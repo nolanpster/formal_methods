@@ -483,7 +483,18 @@ if __name__=='__main__':
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
         num_episodes = 500
         steps_per_episode = 50
-        run_histories = np.zeros([num_episodes, steps_per_episode], dtype=np.int8)
+        if mdp.num_states < np.iinfo(np.uint8).max:
+            hist_dtype = np.uint8
+        elif mdp.num_states < np.iinfo(np.uint16).max:
+            hist_dtype = np.uint16
+        elif mdp.num_states < np.iinfo(np.uint32).max:
+            hist_dtype = np.uint32
+        elif mdp.num_states < np.iinfo(np.uint64).max:
+            hist_dtype = np.uint64
+        else:
+            raise ValueError('This MDP has {} states, that\'s not currently supported, I\'m surprised your code made '
+                             'it this far...'.format(np.iinfo(np.uint64).max))
+        run_histories = np.zeros([num_episodes, steps_per_episode], dtype=hist_dtype)
         for episode in range(num_episodes):
             # Create time-history for this episode.
             run_histories[episode, 0] = mdp.resetState()
@@ -561,7 +572,7 @@ if __name__=='__main__':
         if inference_method == 'MLE':
             infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=True)
         else:
-            infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True)
+            infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True, dtype=np.float32)
         toc = time.clock() -tic
         print 'Total time to infer policy: {} sec, or {} min.'.format(toc, toc/60.0)
         infered_mdp_file = getOutFile(os.path.basename(history_file) + '_Policy', infered_mdps_path)
