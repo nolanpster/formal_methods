@@ -5,7 +5,7 @@ __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 from NFA_DFA_Module.DFA import DRA
 from NFA_DFA_Module.DFA import LTL_plus
 from MDP_EM.MDP_EM.MDP import MDP
-from MDP_EM.MDP_EM.grid_graph import GridGraph
+from MDP_EM.MDP_EM.inference_mdp import InferenceMDP
 
 import os
 import datetime
@@ -533,34 +533,24 @@ if __name__=='__main__':
                                                                                      num_rewards_from_state[state],
                                                                                      reward_likelihood))
 
+    ######################### MOVE TO LOOP ########################
+
+    kernel_centers = dict([])
+    #infer_mdp.kernel_centers |= frozenset(np.random.choice(36,6,replace=False))
+    kernel_centers[0] = frozenset(xrange(len(states)))
+    kernel_set_idx = 0
+    kernel_sigma = 1.5
+    ###############################################################
     if plot_new_phi or  plot_new_kernel or perform_new_inference:
         tic = time.clock()
         # Solve for approximated observed policy.
         # Use a new mdp to model created/loaded one and a @ref GridGraph object to record, and seach for shortest paths
         # between two grid-cells.
-        infer_mdp = MDP(init=initial_state, action_list=action_list, states=states, act_prob=deepcopy(act_prob),
-                        grid_map=grid_map)
-        infer_mdp.init_set = infer_mdp.states
-        graph = GridGraph(grid_map=grid_map, neighbor_dict=infer_mdp.neighbor_dict, label_dict=labels)
-        infer_mdp.graph = graph
-        # Geodesic Gaussian Kernels, defined as Eq. 3.2 in Statistical Reinforcement
-        infer_mdp.ggk_sig = 1.5
-        infer_mdp.kernel_centers = frozenset([6, 10])
-        infer_mdp.kernel_centers |= frozenset(np.random.choice(36,6,replace=False))
-        infer_mdp.kernel_centers = frozenset(infer_mdp.state_vec)
+        infer_mdp = InferenceMDP(init=initial_state, action_list=action_list, states=states,
+                                 act_prob=deepcopy(act_prob), grid_map=grid_map, L=labels, kernel_type='GGK',
+                                 kernel_sigma=kernel_sigma, kernel_centers=kernel_centers[kernel_set_idx])
         print ' Performing inference with kernels at:'
-        pprint(infer_mdp.kernel_centers)
-        # Note that this needs to be the same instance of `GridGraph` assigned to the MDP!
-        infer_mdp.gg_kernel_func = lambda s_i, C_i: np.exp(-(float(infer_mdp.graph.shortestPathLength(s_i, C_i)))**2/
-                                                           (2*float(infer_mdp.ggk_sig)**2))
-        # Note that we need to use a keyword style argument passing to ensure that
-        # each lambda function gets its own value of C.
-        K = [lambda s, C=cent: infer_mdp.gg_kernel_func(s, C)
-             for cent in infer_mdp.kernel_centers]
-        # It could be worth pre-computing all of the feature vectors for a small
-        # grid...
-        infer_mdp.addKernels(K)
-        infer_mdp.precomputePhiAtState()
+        print(kernel_centers[kernel_set_idx])
         if not perform_new_inference and (plot_new_phi or plot_new_kernel):
             # Deepcopy the infer_mdp to another variable because and old inference will be loaded into `infer_mdp`.
             new_infer_mdp = deepcopy(infer_mdp)

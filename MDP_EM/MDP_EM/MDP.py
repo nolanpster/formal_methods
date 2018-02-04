@@ -11,7 +11,7 @@ from pprint import pprint
 import sys # For float_info.epsilon.
 
 
-class MDP:
+class MDP(object):
     """A Markov Decision Process, defined by an initial state,
         transition model --- the probability transition matrix, np.array
         prob[a][0,1] -- the probability of going from 0 to 1 with action a.
@@ -246,32 +246,6 @@ class MDP:
         elif self.init is not None:
             self.current_state = self.init
         return int(self.current_state[0])
-
-    def addKernels(self, kernels):
-        self.kernels = kernels
-        self.num_kern = len(self.kernels)
-
-    def phi(self, state, action):
-        # Create vector of basis functions, phi. All kernels are multiplied an
-        # action indicator function. A feature vector will have @c m*p
-        # elements, where @c m is the number of actions, and @c p is the number
-        # of kernels. This function takes arguments (<str>state, <str>action).
-        phi = np.zeros([self.num_actions*self.num_kern, 1]) # Column vector
-        i_state = int(state)
-        for _i, act in enumerate(self.action_list):
-            this_ind = lambda a_in, a_i=act: self.act_ind(a_in, a_i)
-            if this_ind(action):
-                trans_probs = self.T(state, act)
-                for _j, kern in enumerate(self.kernels):
-                    # Eq. 3.3 Sugiyama 2015
-                    kern_weights = np.array(map(kern, self.state_vec))
-                    phi[_i+(_j)*self.num_actions] = \
-                        this_ind(action) * np.inner(trans_probs, kern_weights)
-        return phi
-
-    def precomputePhiAtState(self):
-        self.phi_at_state = {state: {act: self.phi(str(state), act) for act in self.action_list} for state in
-                             self.state_vec}
 
     def timePrior(self, _t):
         """
