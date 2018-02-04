@@ -267,12 +267,17 @@ def makeGridMDPxDRA(do_print=False):
     #VI_game_mdp.setSinks('5')
     VI_game_mdp.setSinks('q2')
     # @TODO Prune unreachable states from MDP.
-    EM_game_mdp = deepcopy(VI_game_mdp)
-    EM_game_mdp.setInitialProbDist(EM_game_mdp.init_set)
 
-    # Compare policy (action probabilities).
+    # Reachable states for printing.
     policy_keys_to_print = deepcopy([(state[0], VI_game_mdp.dra.get_transition(VI_game_mdp.L[state], state[1])) for
                                      state in VI_game_mdp.states if 'q0' in state])
+    EM_game_mdp = deepcopy(VI_game_mdp)
+    if solve_with_uniform_distribution:
+        initial_set = policy_keys_to_print
+    else:
+        initial_set = initial_state
+    EM_game_mdp.setInitialProbDist(initial_set)
+    VI_game_mdp.setInitialProbDist(initial_set)
     ##### SOLVE #####
     VI_game_mdp.solve(do_print=do_print, method='valueIteration', write_video=False,
                       policy_keys_to_print=policy_keys_to_print)
