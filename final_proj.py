@@ -686,6 +686,7 @@ if __name__=='__main__':
     plot_policies = []
     only_use_print_keys = []
     titles = []
+    kernel_locations = []
     if plot_all_grids:
         plot_policies.append(VI_mdp.policy)
         plot_policies.append(EM_mdp.policy)
@@ -728,21 +729,21 @@ if __name__=='__main__':
             kernels = new_infer_mdp.kernels
         else:
             kernels = infer_mdp.kernels
-        kernel_grid =PlotKernel(maze, cmap)
+        kernel_grid = PlotKernel(maze, cmap)
         kern_idx = 0
         title='Kernel Centered at {}.'.format(kern_idx)
         fig, ax =  kernel_grid.configurePlot(title, kern_idx, kernels=kernels)
 
     if plot_loaded_phi or plot_new_phi:
-        if not perform_new_inference:
+        if not perform_new_inference and plot_new_phi:
             phi_at_state = new_infer_mdp.phi_at_state
         else:
             phi_at_state = infer_mdp.phi_at_state
-        phi_grid =PlotKernel(maze, cmap)
+        phi_grid = PlotKernel(maze, cmap)
         phi_idx = 0
-        act = 'West'
-        title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
-        fig, ax =  phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
+        for act in action_list:
+            title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
+            fig, ax = phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
 
     if any(plot_flags):
         plt.show()
