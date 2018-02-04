@@ -143,3 +143,23 @@ class PlotPolicy(PlotGrid):
 
         plt.gca().invert_yaxis()
         return fig
+
+
+def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set, title):
+    """
+    @param kernel_set_L1_err A [NxM] numpy array where N is the number of kernel sets used and M is the number of
+           trials at for each set.
+    @param number_of_kernels_in_set A numpy array of how many kernels are in each set, length N.
+    """
+    fig = plt.figure()
+    means = kernel_set_L1_err.mean(axis=1)
+    stds = kernel_set_L1_err.std(axis=1)
+    mins = kernel_set_L1_err.min(axis=1)
+    maxes = kernel_set_L1_err.max(axis=1)
+    plt.errorbar(x=number_of_kernels_in_set, y=means, yerr=stds, fmt='ok', lw=3)
+    plt.errorbar(x=number_of_kernels_in_set, y=means, yerr= [means - mins, maxes - means], fmt='.k', ecolor='gray',
+                 lw=1)
+    plt.title(title)
+    plt.ylabel('L1-Norm Error')
+    plt.xlabel('Kernel Count')
+    return fig

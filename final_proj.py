@@ -302,6 +302,7 @@ if __name__=='__main__':
     kernel_count_end = 0
     kernel_count_increment_per_set = -4
     batch_size_for_kernel_set = 4
+    plot_inference_statistics = True
     plot_all_grids = True
     plot_initial_mdp_grids = False
     plot_inferred_mdp_grids = False
@@ -310,7 +311,7 @@ if __name__=='__main__':
     plot_loaded_phi = False
     plot_loaded_kernel = False
     plot_flags = [plot_all_grids, plot_initial_mdp_grids, plot_inferred_mdp_grids, plot_new_phi, plot_loaded_phi,
-                  plot_new_kernel, plot_loaded_kernel]
+                  plot_new_kernel, plot_loaded_kernel, plot_inference_statistics]
     if plot_new_kernel and plot_loaded_kernel:
         raise ValueError('Can not plot both new and loaded kernel in same call.')
     if plot_new_kernel:
@@ -603,6 +604,9 @@ if __name__=='__main__':
         act = 'West'
         title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
         fig, ax = phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
+
+    if plot_inference_statistics:
+        plotHelp.plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, num_kernels_in_set, 'Policy Error')
 
     if any(plot_flags):
         plt.show()
