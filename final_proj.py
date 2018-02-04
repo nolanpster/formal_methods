@@ -719,17 +719,17 @@ if __name__=='__main__':
             kernels = new_infer_mdp.kernels
         else:
             kernels = infer_mdp.kernels
-        kernel_grid =PlotKernel(maze, cmap)
+        kernel_grid = PlotKernel(maze, cmap)
         kern_idx = 0
         title='Kernel Centered at {}.'.format(kern_idx)
         fig, ax =  kernel_grid.configurePlot(title, kern_idx, kernels=kernels)
 
     if plot_loaded_phi or plot_new_phi:
-        if not perform_new_inference:
+        if not perform_new_inference and plot_new_phi:
             phi_at_state = new_infer_mdp.phi_at_state
         else:
             phi_at_state = infer_mdp.phi_at_state
-        phi_grid =PlotKernel(maze, cmap)
+        phi_grid = PlotKernel(maze, cmap)
         phi_idx = 0
         act = 'West'
         title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
