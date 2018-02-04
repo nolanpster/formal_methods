@@ -145,3 +145,34 @@ class PlotPolicy(PlotGrid):
 
         plt.gca().invert_yaxis()
         return fig
+
+
+def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set, title, mle_L1_norm=None):
+    """
+    @param kernel_set_L1_err A [NxM] numpy array where N is the number of kernel sets used and M is the number of
+           trials at for each set.
+    @param number_of_kernels_in_set A numpy array of how many kernels are in each set, length N.
+
+    @note X-limits are automatically set and assume a constant interval between the number of kernels in each set.
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    kernel_count_min = number_of_kernels_in_set.min()
+    kernel_count_max = number_of_kernels_in_set.max()
+    kernel_count_incr = (kernel_count_max - kernel_count_min) / len(number_of_kernels_in_set)
+    plt.xlim((kernel_count_min - kernel_count_incr, kernel_count_max + kernel_count_incr))
+    means = kernel_set_L1_err.mean(axis=1)
+    stds = kernel_set_L1_err.std(axis=1)
+    mins = kernel_set_L1_err.min(axis=1)
+    maxes = kernel_set_L1_err.max(axis=1)
+    plt.errorbar(x=number_of_kernels_in_set, y=means, yerr=stds, fmt='ok', lw=3)
+    plt.errorbar(x=number_of_kernels_in_set, y=means, yerr= [means - mins, maxes - means], fmt='.k', ecolor='gray',
+                 lw=1)
+    plt.title(title)
+    plt.ylabel('L1-Norm Error')
+    plt.xlabel('Kernel Count')
+    ax.set_xticks(number_of_kernels_in_set)
+    if mle_L1_norm is not None:
+        ax.axhline(y=mle_L1_norm, color='navy', linestyle='--', linewidth=3)
+
+    return fig, ax

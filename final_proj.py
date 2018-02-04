@@ -294,16 +294,16 @@ if __name__=='__main__':
     make_new_mdp = False
     write_mdp_policy_csv = False
     gather_new_data = False
-    perform_new_inference = True
-    load_inference_statistics = False
+    perform_new_inference = False
+    load_inference_statistics = (not perform_new_inference) & True
     inference_method='default' # Default chooses gradient ascent. Other options: 'MLE'
     kernel_sigma = 1.5
     kernel_count_start = 36
     kernel_count_end = 0
     kernel_count_increment_per_set = -4
     kernel_set_sample_count = 25
-    batch_size_for_kernel_set = 1
-    plot_inference_statistics = False
+    batch_size_for_kernel_set = 4
+    plot_inference_statistics = True
     plot_all_grids = True
     plot_initial_mdp_grids = False
     plot_inferred_mdp_grids = False
@@ -312,7 +312,7 @@ if __name__=='__main__':
     plot_loaded_phi = False
     plot_loaded_kernel = False
     plot_flags = [plot_all_grids, plot_initial_mdp_grids, plot_inferred_mdp_grids, plot_new_phi, plot_loaded_phi,
-                  plot_new_kernel, plot_loaded_kernel]
+                  plot_new_kernel, plot_loaded_kernel, plot_inference_statistics]
     if plot_new_kernel and plot_loaded_kernel:
         raise ValueError('Can not plot both new and loaded kernel in same call.')
     if plot_new_kernel:
@@ -615,6 +615,13 @@ if __name__=='__main__':
         for act in action_list:
             title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
             fig, ax = phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
+
+    if plot_inference_statistics:
+        infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=False)
+        mle_L1_norm = MDP.getPolicyL1Norm(reference_policy_vec, infer_mdp.getPolicyAsVec())
+        print 'MLE L1 error is  {0:.3f}.'.format(mle_L1_norm)
+        title = '' # Set to empty to format title in external program.
+        plotHelp.plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, num_kernels_in_set, title, mle_L1_norm)
 
     if any(plot_flags):
         plt.show()
