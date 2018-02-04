@@ -214,7 +214,7 @@ class PolicyInference(object):
                 theta_avg -= np.divide(theta_avg, iter_count);
                 theta_avg += np.divide(theta, iter_count);
                 vector_diff = np.subtract(theta_avg_old, theta_avg)
-                delta_theta_norm = np.sqrt(inner1d(vector_diff, vector_diff))
+                delta_theta_norm = np.einsum('ij->', np.absolute(vector_diff))
 
                 if do_plot:
                     vals2plot.append(self.mdp.theta.tolist())
