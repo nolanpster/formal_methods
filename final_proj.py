@@ -645,10 +645,8 @@ if __name__=='__main__':
 
     # Remember that variable @ref mdp is used for demonstration.
     if len(policy_keys_to_print) == infer_mdp.num_states:
-        infered_policy_difference = MDP.comparePolicies(mdp.policy, infer_mdp.policy, policy_keys_to_print,
-                                                        compare_to_decimals=3, do_print=True,
-                                                        compare_policy_has_extra_keys=False,
-                                                        compute_kl_divergence=True)
+        infered_policy_L1_norm_error = MDP.getPolicyL1Norm(reference_policy_vec, infer_mdp.getPolicyAsVec())
+        print('L1-norm between reference and inferred policy: {}.'.format(infered_policy_L1_norm_error))
     else:
         warnings.warn('Demonstration MDP and inferred MDP do not have the same number of states. Perhaps one was '
                       'loaded from an old file? Not printing policy difference.')
