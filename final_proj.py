@@ -301,7 +301,9 @@ if __name__=='__main__':
     kernel_count_start = 36
     kernel_count_end = 0
     kernel_count_increment_per_set = -4
-    batch_size_for_kernel_set = 4
+    kernel_set_sample_count = 25
+    batch_size_for_kernel_set = 1
+    plot_inference_statistics = False
     plot_all_grids = True
     plot_initial_mdp_grids = False
     plot_inferred_mdp_grids = False
@@ -334,7 +336,7 @@ if __name__=='__main__':
             pickle.dump([EM_mdp, VI_mdp, policy_keys_to_print,policy_difference], _file)
     else:
         # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180203_1525')
+        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180204_1446')
         print "Loading file {}.".format(mdp_file)
         with open(mdp_file) as _file:
             EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = pickle.load(_file)
@@ -359,15 +361,15 @@ if __name__=='__main__':
         #            writer.writerow([key,subkey,sub_value])
 
     # Choose which policy to use for demonstration.
-    mdp = EM_mdp
+    mdp = VI_mdp
     reference_policy_vec = mdp.getPolicyAsVec(policy_keys_to_print)
 
     if gather_new_data:
         # Use policy to simulate and record results.
         #
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
-        num_episodes = 1000
-        steps_per_episode = 20
+        num_episodes = 500
+        steps_per_episode = 15
         if mdp.num_states < np.iinfo(np.uint8).max:
             hist_dtype = np.uint8
         elif mdp.num_states < np.iinfo(np.uint16).max:
@@ -393,7 +395,7 @@ if __name__=='__main__':
             pickle.dump(run_histories, _file)
     else:
         # Manually choose data to load here:
-        history_file = os.path.join(data_path, 'EM_MDP_UTC180203_1525_HIST_1000eps20steps_UTC180203_1525')
+        history_file = os.path.join(data_path, 'EM_MDP_UTC180204_1446_HIST_500eps15steps_UTC180204_2227')
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
@@ -506,7 +508,7 @@ if __name__=='__main__':
     else:
         # Manually choose data to load here:
         infered_mdp_file = os.path.join(infered_mdps_path,
-                'EM_MDP_UTC180131_2021_HIST_300eps25steps_UTC180131_2021_Policy_UTC180131_2027')
+                'EM_MDP_UTC180204_1446_HIST_500eps15steps_UTC180204_2227_Policy_UTC180205_0935')
         print "Loading infered policy data file {}.".format(infered_mdp_file)
         with open(infered_mdp_file) as _file:
             infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
@@ -520,7 +522,8 @@ if __name__=='__main__':
 
     if load_inference_statistics:
         # Manually choose data to load here:
-        infered_stats_file = os.path.join(infered_statistics_path, '')
+        infered_stats_file = os.path.join(infered_statistics_path,
+            'EM_MDP_UTC180204_1446_HIST_500eps15steps_UTC180204_2227_Inference_Stats_UTC180204_2318')
         print "Loading inference statistics data file {}.".format(infered_stats_file)
         with open(infered_stats_file) as _file:
            kernel_set_L1_err, kernel_set_infer_time = pickle.load(_file)
