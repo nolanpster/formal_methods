@@ -33,6 +33,7 @@ np.set_printoptions(precision=3)
 mdp_obj_path = os.path.abspath('pickled_mdps')
 data_path = os.path.abspath('pickled_episodes')
 infered_mdps_path = os.path.abspath('pickled_inference')
+infered_statistics_path = os.path.abspath('pickled_inference_set_stats')
 
 def getOutFile(name_prefix='EM_MDP', dir_path=mdp_obj_path):
     # Dev machine returns UTC.
@@ -421,7 +422,12 @@ if __name__=='__main__':
     write_mdp_policy_csv = False
     gather_new_data = False
     perform_new_inference = True
+    load_inference_statistics = False
     inference_method='default' # Default chooses gradient ascent. Other options: 'MLE'
+    kernel_sigma = 1.5
+    kernel_count_start = 36
+    kernel_count_end = 0
+    kernel_count_increment_per_set = -4
     batch_size_for_kernel_set = 4
     plot_all_grids = True
     plot_initial_mdp_grids = False
@@ -438,6 +444,14 @@ if __name__=='__main__':
         raise NotImplementedError('option: plot_new_kernel doesn\'t work yet. Sorry, but plot_new_phi works!')
     if plot_new_phi and plot_loaded_phi:
         raise ValueError('Can not plot both new and loaded phi in same call.')
+
+    # Configure kernel set iterations.
+    num_kernels_in_set = np.arange(kernel_count_start, kernel_count_end, kernel_count_increment_per_set)
+    num_kernel_sets = len(num_kernels_in_set)
+    kernel_centers = {set_idx: frozenset(np.random.choice(len(states), num_kernels_in_set[set_idx] , replace=False)) for
+                      set_idx in range(num_kernel_sets)}
+    kernel_set_L1_err = np.empty([num_kernel_sets, batch_size_for_kernel_set])
+    kernel_set_infer_time = np.empty([len(num_kernels_in_set), batch_size_for_kernel_set])
 
     if make_new_mdp:
         EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = makeGridMDPxDRA(do_print=True)
@@ -473,6 +487,7 @@ if __name__=='__main__':
 
     # Choose which policy to use for demonstration.
     mdp = EM_mdp
+    reference_policy_vec = mdp.getPolicyAsVec(policy_keys_to_print)
 
     if gather_new_data:
         # Use policy to simulate and record results.
@@ -533,14 +548,6 @@ if __name__=='__main__':
                                                                                      num_rewards_from_state[state],
                                                                                      reward_likelihood))
 
-    ######################### MOVE TO LOOP ########################
-
-    kernel_centers = dict([])
-    #infer_mdp.kernel_centers |= frozenset(np.random.choice(36,6,replace=False))
-    kernel_centers[0] = frozenset(xrange(len(states)))
-    kernel_set_idx = 0
-    kernel_sigma = 1.5
-    ###############################################################
     if plot_new_phi or  plot_new_kernel or perform_new_inference:
         tic = time.clock()
         # Solve for approximated observed policy.
@@ -548,56 +555,72 @@ if __name__=='__main__':
         # between two grid-cells.
         infer_mdp = InferenceMDP(init=initial_state, action_list=action_list, states=states,
                                  act_prob=deepcopy(act_prob), grid_map=grid_map, L=labels, kernel_type='GGK',
-                                 kernel_sigma=kernel_sigma, kernel_centers=kernel_centers[kernel_set_idx])
-        print ' Performing inference with kernels at:'
-        print(kernel_centers[kernel_set_idx])
+                                 kernel_sigma=kernel_sigma, kernel_centers=kernel_centers[0])
+        print 'Built InferenceMDP with kernel set:'
+        print(kernel_centers[0])
         if not perform_new_inference and (plot_new_phi or plot_new_kernel):
             # Deepcopy the infer_mdp to another variable because and old inference will be loaded into `infer_mdp`.
             new_infer_mdp = deepcopy(infer_mdp)
     if perform_new_inference:
         # Infer the policy from the recorded data.
 
+        # Precompute observed actions for all episodes. Should do this in a "history" class.
+        if len(action_list) < np.iinfo(np.uint8).max:
+            observation_dtype = np.uint8
+        elif len(action_lists) < np.iinfo(np.uint16).max:
+            observation_dtype  = np.uint16
+        elif len(action_lists) < np.iinfo(np.uint32).max:
+            observation_dtype  = np.uint32
+        elif len(action_lists) < np.iinfo(np.uint64).max:
+            observation_dtype  = np.uint64
+        else:
+            raise ValueError('This MDP has {} actions, that\'s not currently supported, I\'m surprised your '
+                             'code made it this far...'.format(np.iinfo(np.uint64).max))
+        observed_action_indeces = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
+        for episode in xrange(num_episodes):
+            for t_step in xrange(1, steps_per_episode):
+                this_state = run_histories[episode, t_step-1]
+                next_state = run_histories[episode, t_step]
+                observed_action = infer_mdp.graph.getObservedAction(this_state, next_state)
+                observed_action_indeces[episode, t_step] = action_list.index(observed_action)
+
         if inference_method == 'MLE':
             infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=True)
         else:
             if batch_size_for_kernel_set is not None:
-
-                # Precompute observed actions for all episodes. Should do this in a "history" class.
-                if len(action_list) < np.iinfo(np.uint8).max:
-                    observation_dtype = np.uint8
-                elif len(action_lists) < np.iinfo(np.uint16).max:
-                    observation_dtype  = np.uint16
-                elif len(action_lists) < np.iinfo(np.uint32).max:
-                    observation_dtype  = np.uint32
-                elif len(action_lists) < np.iinfo(np.uint64).max:
-                    observation_dtype  = np.uint64
-                else:
-                    raise ValueError('This MDP has {} actions, that\'s not currently supported, I\'m surprised your '
-                                     'code made it this far...'.format(np.iinfo(np.uint64).max))
-                observed_action_indeces = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
-                for episode in xrange(num_episodes):
-                    for t_step in xrange(1, steps_per_episode):
-                        this_state = run_histories[episode, t_step-1]
-                        next_state = run_histories[episode, t_step]
-                        observed_action = infer_mdp.graph.getObservedAction(this_state, next_state)
-                        observed_action_indeces[episode, t_step] = action_list.index(observed_action)
-
-                # Peform the inference batch.
-                batch_L1_norm, batch_infer_time = \
-                    infer_mdp.inferPolicy(histories=run_histories, do_print=False, use_precomputed_phi=True,
-                                          dtype=np.float32, monte_carlo_size=batch_size_for_kernel_set,
-                                          reference_policy_vec=mdp.getPolicyAsVec(policy_keys_to_print),
-                                          precomputed_observed_action_indeces=observed_action_indeces)
-
+                print_inference_iterations = False
             else:
-                infer_mdp.inferPolicy(histories=run_histories, do_print=True, use_precomputed_phi=True,
-                                      dtype=np.float32)
+                print_inference_iterations = True
+
+            # Peform the inference batch.
+            for kernel_set_idx in xrange(num_kernel_sets):
+                print ' Performing inference with kernels at:'
+                print('Set {}:{}'.format(kernel_set_idx, kernel_centers[kernel_set_idx]))
+                infer_mdp.buildGGKs(kernel_centers[kernel_set_idx])
+
+                kernel_set_L1_err[kernel_set_idx], kernel_set_infer_time[kernel_set_idx] = \
+                    infer_mdp.inferPolicy(histories=run_histories,
+                                          do_print=print_inference_iterations,
+                                          use_precomputed_phi=True,
+                                          dtype=np.float32,
+                                          monte_carlo_size=batch_size_for_kernel_set,
+                                          reference_policy_vec=reference_policy_vec,
+                                          precomputed_observed_action_indeces=observed_action_indeces)
         toc = time.clock() -tic
-        print 'Total time to infer policy: {} sec, or {} min.'.format(toc, toc/60.0)
+        print 'Total time to infer policy{}: {} sec, or {} min.'.format(' set' if num_kernel_sets > 1 else '', toc,
+                                                                        toc/60.0)
         infered_mdp_file = getOutFile(os.path.basename(history_file) + '_Policy', infered_mdps_path)
         with open(infered_mdp_file, 'w+') as _file:
             print "Pickling Infered Policy to {}.".format(infered_mdp_file)
             pickle.dump(infer_mdp, _file)
+        if num_kernel_sets > 1:
+            # Save data for inference sets
+            infered_stats_file = getOutFile(os.path.basename(history_file) + '_Inference_Stats',
+                                            infered_statistics_path)
+            with open(infered_stats_file, 'w+') as _file:
+                print "Pickling Inference Statistics to {}.".format(infered_stats_file)
+                pickle.dump([kernel_set_L1_err, kernel_set_infer_time], _file)
+
     else:
         # Manually choose data to load here:
         infered_mdp_file = os.path.join(infered_mdps_path,
@@ -612,6 +635,13 @@ if __name__=='__main__':
             for key, value in infer_csv_dict.items():
                 for subkey, sub_value in value.items():
                     writer.writerow([key,subkey,sub_value])
+
+    if load_inference_statistics:
+        # Manually choose data to load here:
+        infered_stats_file = os.path.join(infered_statistics_path, '')
+        print "Loading inference statistics data file {}.".format(infered_stats_file)
+        with open(infered_stats_file) as _file:
+           kernel_set_L1_err, kernel_set_infer_time = pickle.load(_file)
 
     # Remember that variable @ref mdp is used for demonstration.
     if len(policy_keys_to_print) == infer_mdp.num_states:
