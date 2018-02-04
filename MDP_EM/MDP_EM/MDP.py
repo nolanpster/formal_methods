@@ -555,6 +555,10 @@ class MDP(object):
         return mdp
 
     @staticmethod
+    def getPolicyL1Norm(reference_policy_vec, comparison_policy_vec):
+        return np.einsum('i->', np.absolute(np.subtract(reference_policy_vec, comparison_policy_vec)))
+
+    @staticmethod
     def comparePolicies(reference_policy, comparison_policy, policy_keys_to_print, compare_to_decimals=3,
                         do_print=True, compare_policy_has_extra_keys=True, compute_kl_divergence=False,
                         reference_policy_has_augmented_states=True, compare_policy_has_augmented_states=False):
