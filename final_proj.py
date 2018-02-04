@@ -6,6 +6,7 @@ from NFA_DFA_Module.DFA import DRA
 from NFA_DFA_Module.DFA import LTL_plus
 from MDP_EM.MDP_EM.MDP import MDP
 from MDP_EM.MDP_EM.inference_mdp import InferenceMDP
+import MDP_EM.MDP_EM.plot_helper as plotHelp
 
 import os
 import datetime
@@ -18,13 +19,9 @@ from numpy import ma
 from copy import deepcopy
 from pprint import pprint
 from collections import OrderedDict
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from matplotlib.patches import Wedge
-from matplotlib.collections import PatchCollection
-from mpl_toolkits.mplot3d import Axes3D
-import pandas as pd
 import warnings
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 
 np.set_printoptions(linewidth=300)
 np.set_printoptions(threshold=np.inf)
@@ -290,135 +287,6 @@ def makeGridMDPxDRA(do_print=False):
                                             compare_policy_has_augmented_states=True)
     # Solved mdp.
     return EM_game_mdp, VI_game_mdp, policy_keys_to_print, policy_difference
-
-
-class PlotGrid(object):
-    def __init__(self, maze_cells, cmap):
-        # maze_cells - np.array - grid of ints, 0 is colored with cell_color[0], 1 is colored with cell_color[1], etc.
-        #              expectes one EXTRA row and column for formatting.
-        # cmap - color map providing color_cell list above (type mcolors.ListedColors())
-        self.maze_cells = maze_cells
-        self.grid_dim = maze_cells.shape
-        self.x, self.y = np.meshgrid(np.arange(self.grid_dim[1]), np.arange(self.grid_dim[0]))
-        self.cmap = cmap
-
-    def configurePlot(self, title):
-        fig, ax = plt.subplots()
-        self.quadmesh = ax.pcolormesh(self.x, self.y, self.maze_cells, edgecolor='k', cmap=self.cmap)
-        plt.title(title)
-        return fig, ax
-
-
-class PlotKernel(PlotGrid):
-    """
-    @brief Can be used to plot a Kernel or the Phi values.
-    """
-    def __init__(self, maze_cells, cmap):
-        # Drop last row and column from maze_cells due to formatting decision for super class.
-        super(self.__class__, self).__init__(maze_cells[:-1, :-1], cmap)
-
-    def configurePlot(self, title, cell, kernels=None, phi_at_state=None, act=None):
-        """
-        @param Title
-        @param cell The index of the kernel vector, or phi_at_state to print; e.g., if there are kernels at cells
-               [0, 2, 3] then cell=1 will access the kernel (or coresponding phi values) centered at grid-cell 2.
-        @param action Used for plotting phi values.
-        """
-        fig, ax = super(self.__class__, self).configurePlot(title)
-        if phi_at_state is not None:
-            try:
-                bar_height = np.array([phi_at_state[state][act][len(action_list)*(cell)+action_list.index(act)] for state
-                    in range(grid_map.size)]).reshape(grid_dim)
-            except:
-                # Determine type of error to raise when cell is invalid.
-                import pdb; pdb.set_trace()
-        elif kernels is not None:
-            bar_height = np.array([kernels[cell](state) for state in range(grid_map.size)]).reshape(grid_dim)
-        else:
-            raise ValueError('No input values to plot!')
-        print('Values of bars in {} plot.'.format('kernels' if kernels is not None else 'phi'))
-        pprint(bar_height)
-        ax1 = fig.add_subplot(111, projection='3d')
-        ax1.view_init(elev=56, azim=-31)
-
-        num_cells = bar_height.size
-        zpos = np.zeros(num_cells)
-        dx = np.ones(num_cells)
-        dy = np.ones(num_cells)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, bar_height.ravel(), color='#00ceaa')
-            # Invert y-axis because we're plotting this like an image with origin in upper left corner.
-            ax1.invert_yaxis()
-        return fig, ax1
-
-class PlotPolicy(PlotGrid):
-
-    def __init__(self, maze_cells, cmap, center_offset):
-        super(self.__class__, self).__init__(maze_cells, cmap)
-        self.x_cent = self.x[:-1,:-1].ravel()+center_offset
-        self.y_cent = self.y[:-1,:-1].ravel()+center_offset
-        self.zero_mag = np.zeros(np.array(self.grid_dim))
-        # Make these configurable eventually.
-        self.quiv_angs = {'North': np.pi/2, 'South': -np.pi/2, 'East': 0, 'West': np.pi}
-        self.quiv_scale = 20
-        self.stay_scale = 250
-        self.prob_disp_thresh = 0.02
-
-    def confiigurePlot(self, title, policy, action_list, use_print_key, policy_keys_to_print, decimals,
-                       kernel_locations=None):
-        fig, ax = super(self.__class__, self).configurePlot(title)
-        policy = deepcopy(policy)
-        # Stay probabilies - plot with dots.
-        if use_print_keys:
-            stay_probs = [np.round(policy[state]['Empty'], decimals) for state in policy_keys_to_print]
-        else:
-            stay_probs = [np.round(policy[state]['Empty'][0][0], decimals) for state in policy.keys()]
-        # Deepcopy allows for each action not to plot cells when there is probability of the action rounds to zero.
-        this_x_cent = deepcopy(self.x_cent)
-        this_y_cent = deepcopy(self.y_cent)
-        this_x_cent = [x for idx,x in enumerate(this_x_cent) if stay_probs[idx] > self.prob_disp_thresh]
-        this_y_cent = [y for idx,y in enumerate(this_y_cent) if stay_probs[idx] > self.prob_disp_thresh]
-        try:
-            if type(stay_probs).__module__=='numpy':
-                stay_probs = stay_probs.tolist()
-        except SyntaxError:
-            pass
-        stay_probs = [p for p in stay_probs if  p > self.prob_disp_thresh]
-        df_stay = pd.DataFrame({'Prob': stay_probs, 'x': this_x_cent, 'y': this_y_cent})
-        df_stay.plot(kind='scatter', x='x', y='y', s=df_stay['Prob']*self.stay_scale, c=1-df_stay['Prob'], ax=ax,
-                     cmap='gray', legend=None)
-        # Motion actions - plot with arrows.
-        for act in action_list:
-            if act=='Empty':
-                continue # Alraedy plotted
-            # Deepcopy allows for each action not to plot cells when there is probability of the action rounds to zero.
-            this_x_cent = deepcopy(self.x_cent)
-            this_y_cent = deepcopy(self.y_cent)
-            if use_print_keys:
-                act_probs = np.round([policy[state][act] for state in policy_keys_to_print], decimals)
-            else:
-                act_probs = np.round([policy[state][act][0][0] for state in policy.keys()], decimals)
-            this_x_cent = [x for idx,x in enumerate(this_x_cent) if act_probs[idx] > self.prob_disp_thresh]
-            this_y_cent = [y for idx,y in enumerate(this_y_cent) if act_probs[idx] > self.prob_disp_thresh]
-            act_probs = [p for p in act_probs if  p > self.prob_disp_thresh]
-            act_probs = np.array(act_probs) # This is redundanct for everything except the value iteration policy.
-            U = np.cos(self.quiv_angs[act])*act_probs
-            V = np.sin(self.quiv_angs[act])*act_probs
-            Q = plt.quiver(this_x_cent, this_y_cent, U, V, scale=self.quiv_scale, units='width')
-
-        if kernel_locations is not None:
-            # Add marker to cells at kernel centers.
-            circ_handles = []
-            radius = 0.5 # Relative to cell width.
-            for kern_cell in kernel_locations:
-                circ_handles += [Wedge((self.x_cent[kern_cell], self.y_cent[kern_cell]), radius, 0, 360, width=0.05)]
-            circle_collection = PatchCollection(circ_handles, alpha=0.4)
-            ax.add_collection(circle_collection)
-
-        plt.gca().invert_yaxis()
-        return fig
 
 
 # Entry point when called from Command line.
@@ -708,7 +576,7 @@ if __name__=='__main__':
 
     if plot_all_grids or plot_initial_mdp_grids or plot_inferred_mdp_grids:
         center_offset = 0.5 # Shifts points into center of cell.
-        base_policy_grid = PlotPolicy(maze, cmap, center_offset)
+        base_policy_grid = plotHelp.PlotPolicy(maze, cmap, center_offset)
         for policy, use_print_keys, title, kernel_loc in zip(plot_policies, only_use_print_keys, titles,
                                                              kernel_locations):
             # Reorder policy dict for plotting.
@@ -718,8 +586,8 @@ if __name__=='__main__':
                 order_of_keys = [str(key) for key in range(grid_map.size)]
                 list_of_tuples = [(key, policy[key]) for key in order_of_keys]
             policy = OrderedDict(list_of_tuples)
-            fig = base_policy_grid.confiigurePlot(title, policy, action_list, use_print_keys, policy_keys_to_print,
-                                                  decimals=2, kernel_locations=kernel_loc)
+            fig = base_policy_grid.configurePlot(title, policy, action_list, use_print_keys, policy_keys_to_print,
+                                                 decimals=2, kernel_locations=kernel_loc)
 
         print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
                 'arrow/dot size ratio!\n'
@@ -729,17 +597,17 @@ if __name__=='__main__':
             kernels = new_infer_mdp.kernels
         else:
             kernels = infer_mdp.kernels
-        kernel_grid = PlotKernel(maze, cmap)
+        kernel_grid = plotHelp.PlotKernel(maze, cmap, action_list, grid_map)
         kern_idx = 0
         title='Kernel Centered at {}.'.format(kern_idx)
-        fig, ax =  kernel_grid.configurePlot(title, kern_idx, kernels=kernels)
+        fig, ax = kernel_grid.configurePlot(title, kern_idx, kernels=kernels)
 
     if plot_loaded_phi or plot_new_phi:
         if not perform_new_inference and plot_new_phi:
             phi_at_state = new_infer_mdp.phi_at_state
         else:
             phi_at_state = infer_mdp.phi_at_state
-        phi_grid = PlotKernel(maze, cmap)
+        phi_grid = plotHelp.PlotKernel(maze, cmap, action_list, grid_map)
         phi_idx = 0
         for act in action_list:
             title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
