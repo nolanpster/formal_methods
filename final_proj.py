@@ -591,6 +591,7 @@ if __name__=='__main__':
             policy = OrderedDict(list_of_tuples)
             fig = base_policy_grid.configurePlot(title, policy, action_list, use_print_keys, policy_keys_to_print,
                                                  decimals=2, kernel_locations=kernel_loc)
+            plt.savefig('{}_solved.tif'.format(title), dpi=400, transparent=False)
 
         print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
                 'arrow/dot size ratio!\n'
