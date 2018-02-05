@@ -165,7 +165,7 @@ infer_act_prob = {'North': np.array([[0.0, 1.0, 0.0, 0.0, 0.0],
                                     )
                  }
 
-grid_dim = [6, 6] # [num-rows, num-cols]
+grid_dim = [4, 4] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
 states = [str(state) for state in range(grid_map.size)]
 
@@ -181,11 +181,13 @@ action_list = ['Empty', 'North', 'South', 'East', 'West']
 # generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
 # _False_ to have EM and the MDP always start from the `initial_state` below.
 solve_with_uniform_distribution = True
-initial_state = '35'
+initial_state = '15'
 labels = {state: empty for state in states}
-labels['10'] = red
-labels['6'] = green
-goal_state = 6 # Currently assumess only one goal.
+labels['6'] = red
+labels['7'] = red
+labels['8'] = red
+labels['0'] = green
+goal_state = 0 # Currently assumess only one goal.
 
 
 def makeGridMDPxDRA(do_print=False):
@@ -294,13 +296,13 @@ if __name__=='__main__':
     make_new_mdp = False
     write_mdp_policy_csv = False
     gather_new_data = False
-    perform_new_inference = False
+    perform_new_inference = True
     load_inference_statistics = (not perform_new_inference) & True
     inference_method='default' # Default chooses gradient ascent. Other options: 'MLE'
     kernel_sigma = 1.5
-    kernel_count_start = 36
-    kernel_count_end = 0
-    kernel_count_increment_per_set = -4
+    kernel_count_start = 16
+    kernel_count_end = 1
+    kernel_count_increment_per_set = -2
     kernel_set_sample_count = 25
     batch_size_for_kernel_set = 4
     plot_inference_statistics = True
@@ -336,7 +338,7 @@ if __name__=='__main__':
             pickle.dump([EM_mdp, VI_mdp, policy_keys_to_print,policy_difference], _file)
     else:
         # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180204_1446')
+        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180205_1024')
         print "Loading file {}.".format(mdp_file)
         with open(mdp_file) as _file:
             EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = pickle.load(_file)
@@ -368,7 +370,7 @@ if __name__=='__main__':
         # Use policy to simulate and record results.
         #
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
-        num_episodes = 500
+        num_episodes = 250
         steps_per_episode = 15
         if mdp.num_states < np.iinfo(np.uint8).max:
             hist_dtype = np.uint8
@@ -395,7 +397,7 @@ if __name__=='__main__':
             pickle.dump(run_histories, _file)
     else:
         # Manually choose data to load here:
-        history_file = os.path.join(data_path, 'EM_MDP_UTC180204_1446_HIST_500eps15steps_UTC180204_2227')
+        history_file = os.path.join(data_path, 'EM_MDP_UTC180205_1024_HIST_250eps15steps_UTC180205_1032')
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
@@ -508,7 +510,7 @@ if __name__=='__main__':
     else:
         # Manually choose data to load here:
         infered_mdp_file = os.path.join(infered_mdps_path,
-                'EM_MDP_UTC180204_1446_HIST_500eps15steps_UTC180204_2227_Policy_UTC180205_0935')
+                'EM_MDP_UTC180205_1024_HIST_250eps15steps_UTC180205_1032_Policy_UTC180205_1124')
         print "Loading infered policy data file {}.".format(infered_mdp_file)
         with open(infered_mdp_file) as _file:
             infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
@@ -523,7 +525,7 @@ if __name__=='__main__':
     if load_inference_statistics:
         # Manually choose data to load here:
         infered_stats_file = os.path.join(infered_statistics_path,
-            'EM_MDP_UTC180204_1446_HIST_500eps15steps_UTC180204_2227_Inference_Stats_UTC180204_2318')
+            'EM_MDP_UTC180205_1024_HIST_250eps15steps_UTC180205_1032_Inference_Stats_UTC180205_1046')
         print "Loading inference statistics data file {}.".format(infered_stats_file)
         with open(infered_stats_file) as _file:
            kernel_set_L1_err, kernel_set_infer_time = pickle.load(_file)
@@ -613,8 +615,8 @@ if __name__=='__main__':
             phi_at_state = infer_mdp.phi_at_state
         phi_grid = plotHelp.PlotKernel(maze, cmap, action_list, grid_map)
         phi_idx = 0
+        title=''
         for act in action_list:
-            title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
             fig, ax = phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
 
     if plot_inference_statistics:

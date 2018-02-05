@@ -77,6 +77,8 @@ class PlotKernel(PlotGrid):
             ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, bar_height.ravel(), color='#00ceaa')
             # Invert y-axis because we're plotting this like an image with origin in upper left corner.
             ax1.invert_yaxis()
+        plt.axis('off')
+        #plt.savefig('phi_idx_0_act_{}.tif'.format(act), dpi=400, transparent=False)
         return fig, ax1
 
 class PlotPolicy(PlotGrid):
