@@ -619,6 +619,7 @@ if __name__=='__main__':
     if plot_inference_statistics:
         infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=False)
         mle_L1_norm = MDP.getPolicyL1Norm(reference_policy_vec, infer_mdp.getPolicyAsVec())
+        print 'MLE L1 error is  {0:.3f}.'.format(mle_L1_norm)
         title = '' # Set to empty to format title in external program.
         plotHelp.plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, num_kernels_in_set, title, mle_L1_norm)
 
