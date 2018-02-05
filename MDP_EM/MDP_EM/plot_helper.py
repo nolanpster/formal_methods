@@ -145,7 +145,7 @@ class PlotPolicy(PlotGrid):
         return fig
 
 
-def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set, title):
+def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set, title, mle_L1_norm=None):
     """
     @param kernel_set_L1_err A [NxM] numpy array where N is the number of kernel sets used and M is the number of
            trials at for each set.
@@ -164,5 +164,7 @@ def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set
     plt.ylabel('L1-Norm Error')
     plt.xlabel('Kernel Count')
     ax.set_xticks(number_of_kernels_in_set)
+    if mle_L1_norm is not None:
+        ax.axhline(y=mle_L1_norm, color='navy', linestyle='--', linewidth=3)
 
     return fig, ax

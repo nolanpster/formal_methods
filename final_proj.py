@@ -616,7 +616,10 @@ if __name__=='__main__':
         fig, ax = phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
 
     if plot_inference_statistics:
-        plotHelp.plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, num_kernels_in_set, 'Policy Error')
+        infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=False)
+        mle_L1_norm = MDP.getPolicyL1Norm(reference_policy_vec, infer_mdp.getPolicyAsVec())
+        title = '' # Set to empty to format title in external program.
+        plotHelp.plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, num_kernels_in_set, title, mle_L1_norm)
 
     if any(plot_flags):
         plt.show()
