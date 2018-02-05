@@ -589,7 +589,7 @@ if __name__=='__main__':
                 list_of_tuples = [(key, policy[key]) for key in order_of_keys]
             policy = OrderedDict(list_of_tuples)
             fig = base_policy_grid.configurePlot(title, policy, action_list, use_print_keys, policy_keys_to_print,
-                                                  decimals=2, kernel_locations=kernel_loc)
+                                                 decimals=2, kernel_locations=kernel_loc)
             plt.savefig('{}_solved.tif'.format(title), dpi=400, transparent=False)
 
         print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
@@ -600,7 +600,7 @@ if __name__=='__main__':
             kernels = new_infer_mdp.kernels
         else:
             kernels = infer_mdp.kernels
-        kernel_grid = pltHelp.PlotKernel(maze, cmap, action_list, grid_map)
+        kernel_grid = plotHelp.PlotKernel(maze, cmap, action_list, grid_map)
         kern_idx = 0
         title='Kernel Centered at {}.'.format(kern_idx)
         fig, ax = kernel_grid.configurePlot(title, kern_idx, kernels=kernels)
@@ -610,7 +610,7 @@ if __name__=='__main__':
             phi_at_state = new_infer_mdp.phi_at_state
         else:
             phi_at_state = infer_mdp.phi_at_state
-        phi_grid = pltHelp.PlotKernel(maze, cmap, action_list, grid_map)
+        phi_grid = plotHelp.PlotKernel(maze, cmap, action_list, grid_map)
         phi_idx = 0
         act = 'West'
         title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
