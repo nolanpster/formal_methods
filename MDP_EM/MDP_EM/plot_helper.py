@@ -152,6 +152,7 @@ def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set
     @param number_of_kernels_in_set A numpy array of how many kernels are in each set, length N.
     """
     fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
     means = kernel_set_L1_err.mean(axis=1)
     stds = kernel_set_L1_err.std(axis=1)
     mins = kernel_set_L1_err.min(axis=1)
@@ -162,4 +163,6 @@ def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set
     plt.title(title)
     plt.ylabel('L1-Norm Error')
     plt.xlabel('Kernel Count')
-    return fig
+    ax.set_xticks(number_of_kernels_in_set)
+
+    return fig, ax

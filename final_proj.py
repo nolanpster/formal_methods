@@ -294,8 +294,8 @@ if __name__=='__main__':
     make_new_mdp = False
     write_mdp_policy_csv = False
     gather_new_data = False
-    perform_new_inference = True
-    load_inference_statistics = False
+    perform_new_inference = False
+    load_inference_statistics = (not perform_new_inference) & True
     inference_method='default' # Default chooses gradient ascent. Other options: 'MLE'
     kernel_sigma = 1.5
     kernel_count_start = 36
