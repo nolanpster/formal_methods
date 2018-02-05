@@ -559,6 +559,7 @@ if __name__=='__main__':
     plot_policies = []
     only_use_print_keys = []
     titles = []
+    kernel_locations = []
     if plot_all_grids:
         plot_policies.append(VI_mdp.policy)
         plot_policies.append(EM_mdp.policy)
@@ -614,9 +615,9 @@ if __name__=='__main__':
             phi_at_state = infer_mdp.phi_at_state
         phi_grid = plotHelp.PlotKernel(maze, cmap, action_list, grid_map)
         phi_idx = 0
-        act = 'West'
-        title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
-        fig, ax = phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
+        for act in action_list:
+            title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
+            fig, ax = phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
 
     if plot_inference_statistics:
         infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=False)
