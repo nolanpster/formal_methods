@@ -52,8 +52,9 @@ class PlotKernel(PlotGrid):
         fig, ax = super(self.__class__, self).configurePlot(title)
         if phi_at_state is not None:
             try:
-                bar_height = np.array([phi_at_state[state][act][len(self.action_list)*(cell) + self.action_list.index(act)] for state
-                    in range(self.grid_map.size)]).reshape(self.grid_dim)
+                bar_height = np.array([phi_at_state[state][act]
+                                      [len(self.action_list)*(cell) + self.action_list.index(act)] for state in
+                                      range(self.grid_map.size)]).reshape(self.grid_dim)
             except:
                 # Determine type of error to raise when cell is invalid.
                 import pdb; pdb.set_trace()
@@ -64,7 +65,7 @@ class PlotKernel(PlotGrid):
         print('Values of bars in {} plot.'.format('kernels' if kernels is not None else 'phi'))
         pprint(bar_height)
         ax1 = fig.add_subplot(111, projection='3d')
-        ax1.view_init(elev=56, azim=-31)
+        ax1.view_init(elev=46, azim=-76)
 
         num_cells = bar_height.size
         zpos = np.zeros(num_cells)
