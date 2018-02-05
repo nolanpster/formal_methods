@@ -25,8 +25,9 @@ class PlotGrid(object):
         self.cmap = cmap
 
     def configurePlot(self, title):
-        fig, ax = plt.subplots()
-        self.quadmesh = ax.pcolormesh(self.x, self.y, self.maze_cells, edgecolor='k', cmap=self.cmap)
+        fig = plt.figure(figsize=(16.5, 13), dpi=50)
+        ax = fig.add_subplot(1, 1, 1)
+        self.quadmesh = ax.pcolormesh(self.x, self.y, self.maze_cells, edgecolor='k', linewidth=0.5, cmap=self.cmap)
         plt.title(title)
         return fig, ax
 
