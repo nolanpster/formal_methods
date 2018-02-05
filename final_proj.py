@@ -615,8 +615,8 @@ if __name__=='__main__':
             phi_at_state = infer_mdp.phi_at_state
         phi_grid = plotHelp.PlotKernel(maze, cmap, action_list, grid_map)
         phi_idx = 0
+        title=''
         for act in action_list:
-            title='Phi Values Centered at {} for action {}.'.format(phi_idx, act)
             fig, ax = phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
 
     if plot_inference_statistics:
