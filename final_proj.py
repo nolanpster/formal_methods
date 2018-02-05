@@ -299,12 +299,12 @@ if __name__=='__main__':
     perform_new_inference = True
     load_inference_statistics = (not perform_new_inference) & True
     inference_method='default' # Default chooses gradient ascent. Other options: 'MLE'
-    kernel_sigma = 1.5
-    kernel_count_start = 16
-    kernel_count_end = 1
-    kernel_count_increment_per_set = -2
-    kernel_set_sample_count = 25
-    batch_size_for_kernel_set = 4
+    kernel_sigma = 3
+    kernel_count_start = 6
+    kernel_count_end = 5
+    kernel_count_increment_per_set = -1
+    kernel_set_sample_count = 1
+    batch_size_for_kernel_set = 1
     plot_inference_statistics = True
     plot_all_grids = True
     plot_initial_mdp_grids = False
@@ -477,6 +477,7 @@ if __name__=='__main__':
                 for trial in xrange(kernel_set_sample_count):
                     trial_kernel_set = frozenset(np.random.choice(len(states), num_kernels_in_set[kernel_set_idx],
                                                  replace=False))
+                    trial_kernel_set |= set([0])
                     print('Inference set {} has {} kernels:{}'.format(
                           (kernel_set_idx * kernel_set_sample_count) + trial, num_kernels_in_set[kernel_set_idx],
                           trial_kernel_set))
