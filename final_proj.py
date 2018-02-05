@@ -301,7 +301,8 @@ if __name__=='__main__':
     kernel_count_start = 36
     kernel_count_end = 0
     kernel_count_increment_per_set = -4
-    batch_size_for_kernel_set = 4
+    kernel_set_sample_count = 10
+    batch_size_for_kernel_set = 10
     plot_inference_statistics = True
     plot_all_grids = True
     plot_initial_mdp_grids = False
@@ -513,7 +514,7 @@ if __name__=='__main__':
     if load_inference_statistics:
         # Manually choose data to load here:
         infered_stats_file = os.path.join(infered_statistics_path,
-            'EM_MDP_UTC180204_1446_HIST_100eps20steps_UTC180204_1446_Inference_Stats_UTC180204_1539')
+            'EM_MDP_UTC180204_1446_HIST_100eps20steps_UTC180204_1446_Inference_Stats_UTC180204_2128')
         print "Loading inference statistics data file {}.".format(infered_stats_file)
         with open(infered_stats_file) as _file:
            kernel_set_L1_err, kernel_set_infer_time = pickle.load(_file)
