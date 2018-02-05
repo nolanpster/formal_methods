@@ -325,8 +325,8 @@ if __name__=='__main__':
     num_kernel_sets = len(num_kernels_in_set)
     kernel_centers = {set_idx: frozenset(np.random.choice(len(states), num_kernels_in_set[set_idx] , replace=False)) for
                       set_idx in range(num_kernel_sets)}
-    kernel_set_L1_err = np.empty([num_kernel_sets, batch_size_for_kernel_set])
-    kernel_set_infer_time = np.empty([len(num_kernels_in_set), batch_size_for_kernel_set])
+    kernel_set_L1_err = np.empty([num_kernel_sets, kernel_set_sample_count])
+    kernel_set_infer_time = np.empty([len(num_kernels_in_set), kernel_set_sample_count])
 
     if make_new_mdp:
         EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = makeGridMDPxDRA(do_print=True)
@@ -469,18 +469,27 @@ if __name__=='__main__':
 
             # Peform the inference batch.
             for kernel_set_idx in xrange(num_kernel_sets):
-                print ' Performing inference with kernels at:'
-                print('Set {}:{}'.format(kernel_set_idx, kernel_centers[kernel_set_idx]))
-                infer_mdp.buildGGKs(kernel_centers[kernel_set_idx])
 
-                kernel_set_L1_err[kernel_set_idx], kernel_set_infer_time[kernel_set_idx] = \
-                    infer_mdp.inferPolicy(histories=run_histories,
-                                          do_print=print_inference_iterations,
-                                          use_precomputed_phi=True,
-                                          dtype=np.float32,
-                                          monte_carlo_size=batch_size_for_kernel_set,
-                                          reference_policy_vec=reference_policy_vec,
-                                          precomputed_observed_action_indeces=observed_action_indeces)
+                batch_L1_err = np.empty([kernel_set_sample_count, batch_size_for_kernel_set])
+                batch_infer_time = np.empty([kernel_set_sample_count, batch_size_for_kernel_set])
+                for trial in xrange(kernel_set_sample_count):
+                    trial_kernel_set = frozenset(np.random.choice(len(states), num_kernels_in_set[kernel_set_idx],
+                                                 replace=False))
+                    print('Inference set {} has {} kernels:{}'.format(
+                          (kernel_set_idx * kernel_set_sample_count) + trial, num_kernels_in_set[kernel_set_idx],
+                          trial_kernel_set))
+                    infer_mdp.buildGGKs(trial_kernel_set)
+
+                    batch_L1_err[trial], batch_infer_time[trial] = \
+                        infer_mdp.inferPolicy(histories=run_histories,
+                                              do_print=print_inference_iterations,
+                                              use_precomputed_phi=True,
+                                              dtype=np.float32,
+                                              monte_carlo_size=batch_size_for_kernel_set,
+                                              reference_policy_vec=reference_policy_vec,
+                                              precomputed_observed_action_indeces=observed_action_indeces)
+                kernel_set_L1_err[kernel_set_idx] = batch_L1_err.mean(axis=1)
+                kernel_set_infer_time[kernel_set_idx] = batch_infer_time.mean(axis=1)
         toc = time.clock() -tic
         print 'Total time to infer policy{}: {} sec, or {} min.'.format(' set' if num_kernel_sets > 1 else '', toc,
                                                                         toc/60.0)
