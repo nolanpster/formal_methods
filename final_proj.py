@@ -525,7 +525,7 @@ if __name__=='__main__':
     if load_inference_statistics:
         # Manually choose data to load here:
         infered_stats_file = os.path.join(infered_statistics_path,
-            'EM_MDP_UTC180204_1446_HIST_500eps15steps_UTC180204_2227_Inference_Stats_UTC180204_2318')
+            'EM_MDP_UTC180205_1024_HIST_250eps15steps_UTC180205_1032_Inference_Stats_UTC180205_1046')
         print "Loading inference statistics data file {}.".format(infered_stats_file)
         with open(infered_stats_file) as _file:
            kernel_set_L1_err, kernel_set_infer_time = pickle.load(_file)
