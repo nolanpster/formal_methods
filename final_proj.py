@@ -508,7 +508,7 @@ if __name__=='__main__':
     else:
         # Manually choose data to load here:
         infered_mdp_file = os.path.join(infered_mdps_path,
-                'EM_MDP_UTC180204_1446_HIST_500eps15steps_UTC180204_2227_Policy_UTC18020')
+                'EM_MDP_UTC180204_1446_HIST_500eps15steps_UTC180204_2227_Policy_UTC180205_0935')
         print "Loading infered policy data file {}.".format(infered_mdp_file)
         with open(infered_mdp_file) as _file:
             infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
@@ -523,7 +523,7 @@ if __name__=='__main__':
     if load_inference_statistics:
         # Manually choose data to load here:
         infered_stats_file = os.path.join(infered_statistics_path,
-            'EM_MDP_UTC180204_1446_HIST_100eps20steps_UTC180204_1446_Inference_Stats_UTC180204_2128')
+            'EM_MDP_UTC180204_1446_HIST_500eps15steps_UTC180204_2227_Inference_Stats_UTC180204_2318')
         print "Loading inference statistics data file {}.".format(infered_stats_file)
         with open(infered_stats_file) as _file:
            kernel_set_L1_err, kernel_set_infer_time = pickle.load(_file)
