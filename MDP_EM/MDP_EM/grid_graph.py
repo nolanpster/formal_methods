@@ -20,9 +20,10 @@ class GridGraph(object):
     red = LTL_plus('red')
     OBSTACLE_VAL = 1
 
-    def __init__(self, paths={}, grid_map=None, neighbor_dict=None, label_dict=None):
+    def __init__(self, paths={}, distances={}, grid_map=None, neighbor_dict=None, label_dict=None):
         # Shortest Path dictionary structure = {{s_0, s_N}: (s_0, ... s_N)}
         self.paths = paths
+        self.distances = distances
         self.grid_map = grid_map
         self.astar_map = np.zeros(self.grid_map.shape, dtype=np.int8)
         self.astar_no_obstacle_map = np.zeros(self.grid_map.shape, dtype=np.int8)
@@ -45,6 +46,7 @@ class GridGraph(object):
         # still possible for a policy to be dependent on the position of an obstacle).
         #
         # @todo Can save _partial_ paths too!
+        # @todo There's a more efficient way of finding coordinates in a known grid than np.where().
 
         # Test if key is in dictionary
         if (s_0, s_N) not in self.paths:
@@ -66,6 +68,23 @@ class GridGraph(object):
                                              self.motion_prim[1], xA[0], yA[0], xB[0], yB[0])
                     self.paths[(s_0, s_N)] = self.actionListToStateNum(yA[0], xA[0], act_idx)
         return self.paths[(s_0, s_N)]
+
+    def getEuclidianDistance(self, s_0, s_N):
+        """
+        @brief Return the Euclidan distance between two cells.
+
+        @todo There's a more efficient way of finding coordinates in a known grid than np.where().
+        """
+        raise NotImplementedError('Need to figure out if obstacles effect distance calculation at all.')
+        if (s_0, s_N) not in self.distances:
+            yA, xA = np.where(self.grid_map==s_0)
+            yB, xB = np.where(self.grid_map==s_N)
+
+            del_x = x_B - x_A
+            del_y = y_B - y_A
+            self.distances[(s_0, s_N)] = np.sqrt(del_x**2 + del_y**y)
+
+        return self.distances[(s_0, s_N)]
 
     def actionListToStateNum(self, s_0_row, s_0_col, action_idx):
         """
