@@ -221,7 +221,7 @@ class PolicyInference(object):
                     del2print.append(delta_theta_norm)
                 if do_print:
                     infer_toc = time.clock() - iter_tic
-                    pprint('Iter#: {}, delta: {}, iter-time: {}sec.'.format(iter_count, delta_theta_norm[0], infer_toc),
+                    pprint('Iter#: {}, delta: {}, iter-time: {}sec.'.format(iter_count, delta_theta_norm, infer_toc),
                            indent=4)
 
             if do_print:

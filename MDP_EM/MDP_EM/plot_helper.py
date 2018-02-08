@@ -102,7 +102,7 @@ class PlotPolicy(PlotGrid):
         if use_print_keys:
             stay_probs = [np.round(policy[state]['Empty'], decimals) for state in policy_keys_to_print]
         else:
-            stay_probs = [np.round(policy[state]['Empty'][0][0], decimals) for state in policy.keys()]
+            stay_probs = [np.round(policy[state]['Empty'][0], decimals) for state in policy.keys()]
         # Deepcopy allows for each action not to plot cells when there is probability of the action rounds to zero.
         this_x_cent = deepcopy(self.x_cent)
         this_y_cent = deepcopy(self.y_cent)
@@ -127,7 +127,7 @@ class PlotPolicy(PlotGrid):
             if use_print_keys:
                 act_probs = np.round([policy[state][act] for state in policy_keys_to_print], decimals)
             else:
-                act_probs = np.round([policy[state][act][0][0] for state in policy.keys()], decimals)
+                act_probs = np.round([policy[state][act][0] for state in policy.keys()], decimals)
             this_x_cent = [x for idx,x in enumerate(this_x_cent) if act_probs[idx] > self.prob_disp_thresh]
             this_y_cent = [y for idx,y in enumerate(this_y_cent) if act_probs[idx] > self.prob_disp_thresh]
             act_probs = [p for p in act_probs if  p > self.prob_disp_thresh]

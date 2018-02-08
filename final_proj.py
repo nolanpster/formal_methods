@@ -299,7 +299,7 @@ if __name__=='__main__':
     perform_new_inference = True
     load_inference_statistics = (not perform_new_inference) & True
     inference_method='default' # Default chooses gradient ascent. Other options: 'MLE'
-    kernel_sigma = 3
+    kernel_sigmas = [1]*6
     kernel_count_start = 6
     kernel_count_end = 5
     kernel_count_increment_per_set = -1
@@ -431,8 +431,8 @@ if __name__=='__main__':
         # Use a new mdp to model created/loaded one and a @ref GridGraph object to record, and seach for shortest paths
         # between two grid-cells.
         infer_mdp = InferenceMDP(init=initial_state, action_list=action_list, states=states,
-                                 act_prob=deepcopy(act_prob), grid_map=grid_map, L=labels, kernel_type='GGK',
-                                 kernel_sigma=kernel_sigma, kernel_centers=kernel_centers[0])
+                                 act_prob=deepcopy(act_prob), grid_map=grid_map, L=labels,
+                                 gg_kernel_centers=kernel_centers[0],kernel_sigmas=kernel_sigmas)
         print 'Built InferenceMDP with kernel set:'
         print(kernel_centers[0])
         if not perform_new_inference and (plot_new_phi or plot_new_kernel):
@@ -464,7 +464,7 @@ if __name__=='__main__':
         if inference_method == 'MLE':
             infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=True)
         else:
-            if batch_size_for_kernel_set is not None:
+            if batch_size_for_kernel_set > 1:
                 print_inference_iterations = False
             else:
                 print_inference_iterations = True
@@ -481,7 +481,7 @@ if __name__=='__main__':
                     print('Inference set {} has {} kernels:{}'.format(
                           (kernel_set_idx * kernel_set_sample_count) + trial, num_kernels_in_set[kernel_set_idx],
                           trial_kernel_set))
-                    infer_mdp.buildGGKs(trial_kernel_set)
+                    infer_mdp.buildKernels(trial_kernel_set)
 
                     batch_L1_err[trial], batch_infer_time[trial] = \
                         infer_mdp.inferPolicy(histories=run_histories,
