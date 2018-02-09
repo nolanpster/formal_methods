@@ -72,6 +72,14 @@ class PolicyInference(object):
                indeces for each time-step in each episode in the history. This is useful if the inference is being
                called externally with the same history.
         """
+        def computePhis():
+            # Initialize arrays for intermediate computations.
+            phis = np.zeros([self.mdp.num_states, self.mdp.num_actions, theta_size], dtype=dtype)
+            for state in self.mdp.state_vec:
+                for act_idx, act in enumerate(acts_list):
+                    for kern_idx in xrange(theta_size):
+                        phis[state, act_idx, kern_idx] = self.mdp.phi_at_state[state][act][kern_idx]
+            return phis
 
         # Process input arguments
         do_plot=False
@@ -110,6 +118,8 @@ class PolicyInference(object):
                         theta_0[0][kern_idx*self.mdp.num_actions+act_idx]= 1.0 / (theta_0.size)
         theta_size = theta_0.size
 
+        phis = computePhis()
+
         # Velocity vector can be thought of as the momentum of the gradient descent. It is used to carry the theta
         # estimate through local minimums. https://wiseodd.github.io/techblog/2016/06/22/nn-optimization/. Set at top of
         # for-loop.
@@ -134,12 +144,6 @@ class PolicyInference(object):
         # remove effect of temperature cooling.
         inverse_temp_rate =  np.float16(0.25)
 
-        # Initialize arrays for intermediate computations.
-        phis = np.zeros([self.mdp.num_states, self.mdp.num_actions, theta_size], dtype=dtype)
-        for state in self.mdp.state_vec:
-            for act_idx, act in enumerate(acts_list):
-                for kern_idx in xrange(theta_size):
-                    phis[state, act_idx, kern_idx] = self.mdp.phi_at_state[state][act][kern_idx]
 
         # For any calculations with numpy.einsum, unless otherwise noted:
         # - d : time-step axis
