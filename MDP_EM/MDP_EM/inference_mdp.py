@@ -48,6 +48,7 @@ class InferenceMDP(MDP):
         self.kernel_centers = list(self.gg_kernel_centers) + list(self.og_kernel_centers)
         self.kernel_sigmas = kernel_sigmas
         self.buildKernels()
+        self.delPhi_delSig=self.phi.buildKernelDeltas()
 
         # option to rebuild kernels here?
 
@@ -70,6 +71,8 @@ class InferenceMDP(MDP):
     def updateSigmas(self, sigmas):
         self.phi.updateStdDevs(sigmas)
         self.precomputePhiAtState()
+        self.delPhi_delSig=self.phi.buildKernelDeltas()
+
 
     def inferPolicy(self, method='gradientAscent', write_video=False, **kwargs):
         """

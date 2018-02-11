@@ -80,10 +80,12 @@ class FeatureVector(object):
         self.state_distances_to_kernels = np.empty([self.num_kernels, self.num_states], dtype=self.dtype)
         self.kernel_argument = np.empty([self.num_kernels, self.num_states], dtype=self.dtype)
         self.kernel_values = np.empty([self.num_kernels, self.num_states], dtype=self.dtype)
+        self.dkernel_values = np.empty([self.num_kernels, self.num_states], dtype=self.dtype)
         self.weighted_prob_kernel_sum = np.empty([self.num_kernels, self.num_states, self.num_actions])
         self.buildTransProbMat()
         self.updateStateDistancesToKernels()
         self.updateStdDevs(also_update_kernel_weights=True)
+        self.buildKernelDeltas()
 
         # Variables to keep track of things that have already been calculated.
         self.evaluatedStateActions = frozenset([])
@@ -119,6 +121,7 @@ class FeatureVector(object):
         if std_devs is not None:
             self.std_devs = std_devs
         self.kernel_divisor_reciprocal = np.reciprocal(2*np.power(self.std_devs, 2, dtype=self.dtype))
+        self.dkernel_divisor_reciprocal = np.reciprocal(np.power(self.std_devs, 3, dtype=self.dtype))
 
         if also_update_kernel_weights:
             self.updateKernels()
@@ -182,3 +185,26 @@ class FeatureVector(object):
                 for state in self.state_vec:
                     self.weighted_prob_kernel_sum[kernel_ind, state, act_ind] = \
                         np.inner(self.kernel_values[kernel_ind], self.prob_mat[state, :, act_ind])
+
+
+    def buildKernelDeltas(self, selected_kernel_indeces=None):
+            """
+            @brief Updates the weighted sum of P(s'|s,a)*K(s',c) for all kernsl, states and actions.
+
+            @param selected_kernel_indeces The indeces to update the selected indeces, otherwise all will be updated.
+            """
+            if selected_kernel_indeces is None:
+                # Slice with ':' instead of 'None' because 'None' adds an extra dimension to the array.
+                selected_kernel_indeces = xrange(self.num_kernels)
+            kernel_arg_numerator = np.power(self.state_distances_to_kernels[selected_kernel_indeces], 2)
+            dkernel_arg_denom_recip = self.dkernel_divisor_reciprocal[selected_kernel_indeces]
+            self.dkernel_values[selected_kernel_indeces] = np.einsum('kl,k->kl', kernel_arg_numerator,
+                                                                  dkernel_arg_denom_recip)
+
+            # Below, the prob-mat has dimsion |S|x|S|x|A|, the first axis of states is indexed with 'i'.
+            for kernel_ind in selected_kernel_indeces:
+                for act_ind in xrange(self.num_actions):
+                    for state in self.state_vec:
+                        self.weighted_prob_kernel_sum[kernel_ind, state, act_ind] = \
+                            np.inner(self.kernel_values[kernel_ind]*self.dkernel_values[kernel_ind], self.prob_mat[state, :, act_ind])
+            return self.weighted_prob_kernel_sum
