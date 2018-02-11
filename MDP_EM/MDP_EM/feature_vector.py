@@ -82,6 +82,7 @@ class FeatureVector(object):
         self.kernel_values = np.empty([self.num_kernels, self.num_states], dtype=self.dtype)
         self.dkernel_values = np.empty([self.num_kernels, self.num_states], dtype=self.dtype)
         self.weighted_prob_kernel_sum = np.empty([self.num_kernels, self.num_states, self.num_actions])
+        self.del_weighted_prob_kernel_sum = np.empty([self.num_kernels, self.num_states, self.num_actions])
         self.buildTransProbMat()
         self.updateStateDistancesToKernels()
         self.updateStdDevs(also_update_kernel_weights=True)
@@ -205,6 +206,6 @@ class FeatureVector(object):
             for kernel_ind in selected_kernel_indeces:
                 for act_ind in xrange(self.num_actions):
                     for state in self.state_vec:
-                        self.weighted_prob_kernel_sum[kernel_ind, state, act_ind] = \
+                        self.del_weighted_prob_kernel_sum[kernel_ind, state, act_ind] = \
                             np.inner(self.kernel_values[kernel_ind]*self.dkernel_values[kernel_ind], self.prob_mat[state, :, act_ind])
-            return self.weighted_prob_kernel_sum
+            return self.del_weighted_prob_kernel_sum

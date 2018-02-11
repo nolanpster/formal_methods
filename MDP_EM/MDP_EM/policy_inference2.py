@@ -192,7 +192,6 @@ class PolicyInference(object):
                             #   del_theta_total_Q = np.divide(sum_weighted_exp_Q.T, sum_exp_Q).T
 
                             exp_Q = np.exp(np.einsum('ijk,hk->ij', phis, theta))
-                            print(phis)
                             reciprocal_sum_exp_Q = np.reciprocal(np.einsum('ij->i', exp_Q))
                             sum_weighted_exp_Q = np.einsum('ij,ijk->ki', exp_Q, phis)
                             # For this calc only because einsum uses a pedantic alphabetic convention:
@@ -218,8 +217,8 @@ class PolicyInference(object):
 
                         velocity *= velocity_memory
                         velocity += np.multiply(eps, grad_wrt_theta.T)
-                        self.theta += velocity
-                        print(theta)
+                        theta += velocity
+
 
                     # Update moving average value of theta vector, then decrease the learning rate, @c eps.
                     theta_avg_old = copy(theta_avg)
@@ -239,24 +238,18 @@ class PolicyInference(object):
             def del_V_del_sig():
                 del_sig=np.zeros(len(self.mdp.phi.std_devs))
                 dpds=del_phi_del_sig()
-                print(theta)
-                print(phis)
-                exp_Q=np.exp(np.einsum('ijk,hk->ij', phis, theta))
                 for state in self.mdp.state_vec:
                     for act_idx, act in enumerate(acts_list):
-                        print(exp_Q)
-                        print(dpds[state,act_idx,0])
-                        del_sig=exp_Q[state,act_idx]*theta/np.sum(exp_Q[state,:])-exp_Q[state,act_idx]*theta*np.sum(exp_Q[state,:]*dpds[state,act_idx,:])
-
-
+                        print(dpds.size)
+                        del_sig=exp_Q[state,act_idx]*np.dot(dpds[state,act_idx,:],theta.T)/np.sum(exp_Q[state,:])-exp_Q[state,act_idx]*np.sum(exp_Q[state,:]*np.dot(dpds[state,act_idx,:],theta.T))
 
             def del_phi_del_sig(): 
-                del_phis = np.zeros([self.mdp.num_states, self.mdp.num_actions, theta_size], dtype=dtype)
-                print(self.mdp.delPhi_delSig.size)
+                del_phis = np.zeros([self.mdp.num_states, theta_size], dtype=dtype)
+                
                 for state in self.mdp.state_vec:
                     for act_idx, act in enumerate(acts_list):
                         for kern_idx in range(theta_size):
-                            del_phis[state, act_idx, kern_idx] = self.mdp.delPhi_delSig[kern_idx%(len(self.mdp.delPhi_delSig)), state, act_idx]
+                            del_phis[state,act_idx, kern_idx] = self.mdp.delPhi_delSig[kern_idx%(self.mdp.num_kern), state,act_idx]
                 return del_phis
 
             sig=sig+del_V_del_sig()
