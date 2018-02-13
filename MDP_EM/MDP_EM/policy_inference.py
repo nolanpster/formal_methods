@@ -258,7 +258,7 @@ class PolicyInference(object):
         if doing_monte_carlo:
             return (batch_L1_norm, batch_infer_time)
 
-    def historyMLE(self, histories, do_print=False):
+    def historyMLE(self, histories, do_print=False, do_weighted_update=False, reference_policy_vec=None):
         """
         @brief Given the set of demonstrated histories, use Maximum Likelihood Estimation to compute a tabular policy
                for each state.
@@ -279,8 +279,11 @@ class PolicyInference(object):
                           'all actions.'.format(set(self.mdp.state_vec) - states_in_history))
 
         # Initialize decision of each state to take first action in MDP's @c action_list.
-        empty_policy_dist = {act:np.array([[0.]]) for act in self.mdp.action_list}
-        self.mdp.policy = {state: deepcopy(empty_policy_dist) for state in self.mdp.states}
+        if do_weighted_update:
+            prior_policy = deepcopy(self.mdp.policy)
+        if not do_weighted_update:
+            empty_policy_dist = {act:np.array([[0.]]) for act in self.mdp.action_list}
+            self.mdp.policy = {state: deepcopy(empty_policy_dist) for state in self.mdp.states}
 
         # For every state-action pair in the history, increment each observed action.
         (num_episodes, num_steps) = self.histories.shape
@@ -289,7 +292,13 @@ class PolicyInference(object):
                 this_state = self.histories[episode, t_step-1]
                 next_state = self.histories[episode, t_step]
                 observed_action = self.mdp.graph.getObservedAction(this_state, next_state)
-                self.mdp.policy[str(this_state)][observed_action][0][0] += 1
+                if do_weighted_update:
+                    action_weights = PolicyInference.actionProbGivenStatePair(this_state, next_state, prior_policy,
+                                                                              self.mdp.P, self.mdp.action_list)
+                    for act_idx, act in enumerate(self.mdp.action_list):
+                        self.mdp.policy[str(this_state)][act] += action_weights[act_idx]
+                else:
+                    self.mdp.policy[str(this_state)][observed_action][0][0] += 1
 
         # Weight each action by the number of times the state was visited.
         for state in self.mdp.policy.keys():
@@ -307,6 +316,35 @@ class PolicyInference(object):
             print("Infered-Policy as a {state: action-distribution} dictionary.")
             pprint(self.mdp.policy)
 
+
+    def iterativeBayes(self, histories, do_print=False, reference_policy_vec=None):
+        self.histories = histories
+        states_in_history = set(self.histories.ravel())
+        if states_in_history != set(self.mdp.state_vec):
+            warnings.warn('The following states were not visited in the history: {}. Their policies will be `nan` for '
+                          'all actions.'.format(set(self.mdp.state_vec) - states_in_history))
+
+        # Solve for initial guess of policy.
+        self.historyMLE(histories, do_weighted_update=False)
+        current_policy = self.mdp.getPolicyAsVec()
+        # Improve the guess using the probability of an action given the observed states.
+        for trial in xrange(10):
+            self.historyMLE(histories, do_weighted_update=True)
+
+
+    @staticmethod
+    def actionProbGivenStatePair(s_0, s_1, policy, trans_prob_func, action_list):
+        """
+        @param policy A policy in dictionary representation used by MDP.py.
+        @param trans_prob_func A reference to the MDP.P() method.
+        """
+        s_0_string = str(s_0)
+        s_1_string = str(s_1)
+        total_prob_of_s_1 = np.sum([trans_prob_func(s_0_string, act, s_1_string) for act in action_list])
+        policy_at_state = np.array([policy[s_0_string][act][0][0] for act in action_list])
+        transition_prob_to_s_1 = np.array([trans_prob_func(s_0_string, act, s_1_string) for act in action_list])
+
+        return (transition_prob_to_s_1 * policy_at_state) / total_prob_of_s_1
 
     @staticmethod
     def evalGibbsPolicy(theta, phi, action, action_list):

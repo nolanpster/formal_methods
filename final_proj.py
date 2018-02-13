@@ -461,8 +461,9 @@ if __name__=='__main__':
                 observed_action = infer_mdp.graph.getObservedAction(this_state, next_state)
                 observed_action_indeces[episode, t_step] = action_list.index(observed_action)
 
-        if inference_method == 'MLE':
-            infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=True)
+        if inference_method is not 'default':
+            infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=True,
+                                  reference_policy_vec=reference_policy_vec)
         else:
             if batch_size_for_kernel_set > 1:
                 print_inference_iterations = False
