@@ -244,15 +244,17 @@ class PolicyInference(object):
                         del_sig=exp_Q[state,act_idx]*np.dot(dpds[state,act_idx,:],theta.T)/np.sum(exp_Q[state,:])-exp_Q[state,act_idx]*np.sum(exp_Q[state,:]*np.dot(dpds[state,act_idx,:],theta.T))
 
             def del_phi_del_sig(): 
-                del_phis = np.zeros([self.mdp.num_states, theta_size], dtype=dtype)
-                
+                del_phis = np.zeros([self.mdp.num_states,self.mdp.num_actions, theta_size], dtype=dtype)
+                print(self.mdp.delPhi_delSig)
                 for state in self.mdp.state_vec:
                     for act_idx, act in enumerate(acts_list):
                         for kern_idx in range(theta_size):
                             del_phis[state,act_idx, kern_idx] = self.mdp.delPhi_delSig[kern_idx%(self.mdp.num_kern), state,act_idx]
                 return del_phis
 
-            sig=sig+del_V_del_sig()
+            u=del_V_del_sig()
+            print(u)
+            sig=sig+u
             self.mdp.updateSigmas(sig)
             print('Sigmas={0} for iteration {1}'.format(sig,p))
 
