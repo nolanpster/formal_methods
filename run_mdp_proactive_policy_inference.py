@@ -19,6 +19,7 @@ from numpy import ma
 from copy import deepcopy
 from pprint import pprint
 from collections import OrderedDict
+import itertools
 import warnings
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
@@ -125,7 +126,10 @@ act_prob = {'North': np.array([[0.0, 0.8, 0.0, 0.1, 0.1],
 
 grid_dim = [4, 4] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
-states = [state for state in range(grid_map.size)]
+
+# Create a list of tuples where the tuples have length @c num_agents and represent the joint states of the agents.
+num_agents = 1
+states = [state[0] for state in itertools.product(xrange(grid_map.size), repeat=num_agents)]
 
 # Atomic Proposition and labels configuration. Note that 'empty' is the empty string/label/dfa-action. The empty action
 # for MDP incurrs a self loop.
