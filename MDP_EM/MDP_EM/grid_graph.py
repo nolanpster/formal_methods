@@ -20,13 +20,15 @@ class GridGraph(object):
     red = LTL_plus('red')
     OBSTACLE_VAL = 1
 
-    def __init__(self, paths={}, distances={}, grid_map=None, neighbor_dict=None, label_dict=None):
+    def __init__(self, paths={}, distances={}, grid_map=None, neighbor_dict=None, label_dict=None,
+                 obstacle_label=red):
         # Shortest Path dictionary structure = {{s_0, s_N}: (s_0, ... s_N)}
         self.paths = paths
         self.distances = distances
         self.grid_map = grid_map
         self.astar_map = np.zeros(self.grid_map.shape, dtype=np.int8)
         self.astar_no_obstacle_map = np.zeros(self.grid_map.shape, dtype=np.int8)
+        self.obstacle_label = obstacle_label
 
         # The longest path length is returned if no path is found (the state is inside an obstacle). Since these values
         # are used in the gaussian kernel functions, exp(-746) is the first value that returns 0.0, which is desired for
@@ -35,7 +37,7 @@ class GridGraph(object):
         # Fill in astar_map with ones for every obstacle.
         if label_dict is not None:
             for state, label in label_dict.iteritems():
-                if label==self.red:
+                if label==self.obstacle_label:
                     grid_row, grid_col = np.where(self.grid_map==state)
                     self.astar_map[grid_row, grid_col] = GridGraph.OBSTACLE_VAL
         self.neighbor_dict = neighbor_dict
