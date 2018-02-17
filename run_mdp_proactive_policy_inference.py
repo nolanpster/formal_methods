@@ -6,7 +6,7 @@ from NFA_DFA_Module.DFA import DRA
 from NFA_DFA_Module.DFA import LTL_plus
 from MDP_EM.MDP_EM.MDP import MDP
 from MDP_EM.MDP_EM.inference_mdp import InferenceMDP
-import MDP_EM.MDP_EM.plot_helper as plotHelp
+import MDP_EM.MDP_EM.plot_helper as PlotHelp
 
 import os
 import datetime
@@ -23,10 +23,14 @@ import warnings
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 
+########################################################################################################################
+# Numpy Print Options
 np.set_printoptions(linewidth=300)
 np.set_printoptions(threshold=np.inf)
 np.set_printoptions(precision=3)
 
+########################################################################################################################
+# Data save/load configuration
 mdp_obj_path = os.path.abspath('pickled_mdps')
 data_path = os.path.abspath('pickled_episodes')
 infered_mdps_path = os.path.abspath('pickled_inference')
@@ -46,8 +50,11 @@ def getOutFile(name_prefix='EM_MDP', dir_path=mdp_obj_path):
                 raise
     return full_file_path
 
-# Transition probabilities for each action in each cell (gross, explodes with
-# the number of states).
+########################################################################################################################
+# Transition Probability matricies
+
+# Transition probabilities for each action in each cell  explodes with the number of states so we build the transition
+# probabilites based on relative position based on grid walls.
 #
 # Row transition probabilites are:
 # 0) Transition prob from Normal Grid cell to another normal grid cell.
@@ -113,85 +120,45 @@ act_prob = {'North': np.array([[0.0, 0.8, 0.0, 0.1, 0.1],
                                )
             }
 
-infer_act_prob = {'North': np.array([[0.0, 1.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [0.0, 1.0, 0.0, 0.0, 0.0],
-                                    [0.0, 1.0, 0.0, 0.0, 0.0],
-                                    [0.0, 1.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [0.0, 1.0, 0.0, 0.0, 0.0],
-                                    [0.0, 1.0, 0.0, 0.0, 0.0]]
-                                    ),
-                 'South': np.array([[0.0, 0.0, 1.0, 0.0, 0.0],
-                                    [0.0, 0.0, 1.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [0.0, 0.0, 1.0, 0.0, 0.0],
-                                    [0.0, 0.0, 1.0, 0.0, 0.0],
-                                    [0.0, 0.0, 1.0, 0.0, 0.0],
-                                    [0.0, 0.0, 1.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0]]
-                                    ),
-                 'East': np.array([[0.0, 0.0, 0.0, 1.0, 0.0],
-                                   [0.0, 0.0, 0.0, 1.0, 0.0],
-                                   [0.0, 0.0, 0.0, 1.0, 0.0],
-                                   [0.0, 0.0, 0.0, 1.0, 0.0],
-                                   [1.0, 0.0, 0.0, 0.0, 0.0],
-                                   [1.0, 0.0, 0.0, 0.0, 0.0],
-                                   [0.0, 0.0, 0.0, 1.0, 0.0],
-                                   [1.0, 0.0, 0.0, 0.0, 0.0],
-                                   [0.0, 0.0, 0.0, 1.0, 0.0]]
-                                   ),
-                 'West': np.array([[0.0, 0.0, 0.0, 0.0, 1.0],
-                                   [0.0, 0.0, 0.0, 0.0, 1.0],
-                                   [0.0, 0.0, 0.0, 0.0, 1.0],
-                                   [0.0, 0.0, 0.0, 0.0, 1.0],
-                                   [1.0, 0.0, 0.0, 0.0, 0.0],
-                                   [0.0, 0.0, 0.0, 0.0, 1.0],
-                                   [1.0, 0.0, 0.0, 0.0, 0.0],
-                                   [0.0, 0.0, 0.0, 0.0, 1.0],
-                                   [1.0, 0.0, 0.0, 0.0, 0.0]]
-                                   ),
-                 'Empty': np.array([[1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0],
-                                    [1.0, 0.0, 0.0, 0.0, 0.0]]
-                                    )
-                 }
+########################################################################################################################
+# Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
 grid_dim = [4, 4] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
 states = [state for state in range(grid_map.size)]
 
-# Shared MDP Initialization Parameters.
+# Atomic Proposition and labels configuration. Note that 'empty' is the empty string/label/dfa-action. The empty action
+# for MDP incurrs a self loop.
 green = LTL_plus('green')
 red = LTL_plus('red')
 empty = LTL_plus('E')
-# Where empty is the empty string/label/dfa-action.
 atom_prop = [green, red, empty]
-# Defined empty action for MDP incurrs a self loop.
-action_list = ['Empty', 'North', 'South', 'East', 'West']
-# Set `solve_with_uniform_distribution` to True to have the initial distribution for EM and the history/demonstration
-# generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
-# _False_ to have EM and the MDP always start from the `initial_state` below.
-solve_with_uniform_distribution = True
-initial_state = 15
 labels = {state: empty for state in states}
 labels[6] = red
 labels[7] = red
 labels[8] = red
 labels[0] = green
+
+# Starting and final states
+initial_state = 15
 goal_state = 0 # Currently assumess only one goal.
 
+# Action options.
+action_list = ['Empty', 'North', 'South', 'East', 'West']
 
+# Set `solve_with_uniform_distribution` to True to have the initial distribution for EM and the history/demonstration
+# generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
+# _False_ to have EM and the MDP always start from the `initial_state` below.
+solve_with_uniform_distribution = True
+
+########################################################################################################################
 def makeGridMDPxDRA(do_print=False):
-    ##### Problem 2 - Configure MDP #####
+    """
+    @brief Configure the product MDP and DRA.
+
+    Constructs an MDP based on the global variables. Then constructs a "4" state DRA, but two of the states are sink
+    states.
+    """
     # For the simple 6-state gridworld, see slide 8 of Lecture 7, write the specification automata for the following:
     # visit all green cells and avoid the red cell.
     #
@@ -211,23 +178,28 @@ def makeGridMDPxDRA(do_print=False):
     co_safe_dra.add_transition(empty, 'q0', 'q0') # Initial state
     co_safe_dra.add_transition(empty, 'q2', 'q2') # Losing sink.
     co_safe_dra.add_transition(empty, 'q3', 'q3') # Winning sink.
-    # Labeled transitions
-    co_safe_dra.add_transition(green, 'q0', 'q1')
-    co_safe_dra.add_transition(green, 'q1', 'q1')
-    co_safe_dra.add_transition(red, 'q0', 'q2')
-    # If the DRA reaches state 'q1' we win. Therefore I do not define a transition from 'q3' to 'q4'. Note that 'q4' is
-    # a sink state due to the self loop.
+    # Labeled transitions:
+    # If the DRA reaches state 'q1' we win. Therefore I do not define a transition from 'q1' to 'q2'. Note that 'q2' and
+    # 'q3' are a sink states due to the self loop.
     #
     # Also, I define a winning 'sink' state, 'q3'. I do this so that there is only one out-going transition from 'q1'
     # and it's taken only under the empty action. This action, is the winning action. This is a little bit of a hack,
     # but it was the way that I thought of to prevent the system from repeatedly taking actions that earned a reward.
+    co_safe_dra.add_transition(green, 'q0', 'q1')
+    co_safe_dra.add_transition(green, 'q1', 'q1') # State where winning action is available.
+    co_safe_dra.add_transition(red, 'q0', 'q2')
     co_safe_dra.add_transition(empty, 'q1', 'q3')
-    # Not adding a transition from 'q3' to 'q2' under red for simplicity. If we get to 'q3' we win.
+
+    # Optional saving of DRA visualization file (can convert '.dot' file to PDF from terminal).
     if False:
         co_safe_dra.toDot('visitGreensAndNoRed.dot')
         pprint(vars(co_safe_dra))
+
+    #### Create the Product MPDxDRA ####
+    # Note that this isn't actually a "game" as define in Automata literature.
     VI_game_mdp = MDP.productMDP(grid_mdp, co_safe_dra)
     VI_game_mdp.grid_map = grid_map
+
     # Define the reward function for the VI_game_mdp. Get a reward when leaving
     # the winning state 'q1' to 'q3'.
     pos_reward = {
@@ -257,62 +229,85 @@ def makeGridMDPxDRA(do_print=False):
             # No reward when leaving current state.
             reward_dict[state] = no_reward
     VI_game_mdp.reward = reward_dict
+
     # Then I set up all sink states so all transition probabilities from a sink
     # states take a self loop with probability 1.
     VI_game_mdp.sink_act = 'Empty'
     VI_game_mdp.setSinks('q3')
-    # If I uncomment the following line, all states at grid cell '5' no longer
-    # build up any reward.
-    #VI_game_mdp.setSinks('5')
     VI_game_mdp.setSinks('q2')
+
     # @TODO Prune unreachable states from MDP.
 
-    # Reachable states for printing.
+    # Create a dictionary of reachable states for printing.
     policy_keys_to_print = deepcopy([(state[0], VI_game_mdp.dra.get_transition(VI_game_mdp.L[state], state[1])) for
                                      state in VI_game_mdp.states if 'q0' in state])
-    EM_game_mdp = deepcopy(VI_game_mdp)
     if solve_with_uniform_distribution:
         initial_set = policy_keys_to_print
     else:
         initial_set = initial_state
+
+    ##### SOLVE #####
+    # To enable a solution of the MDP with multiple methods, copy the MDP, set the initial state likelihood
+    # distributinos and then solve the MDPs.
+    EM_game_mdp = deepcopy(VI_game_mdp)
     EM_game_mdp.setInitialProbDist(initial_set)
     VI_game_mdp.setInitialProbDist(initial_set)
-    ##### SOLVE #####
     VI_game_mdp.solve(do_print=do_print, method='valueIteration', write_video=False,
                       policy_keys_to_print=policy_keys_to_print)
     EM_game_mdp.solve(do_print=do_print, method='expectationMaximization', write_video=False,
                       policy_keys_to_print=policy_keys_to_print)
 
+    # Compare the two solution methods.
     policy_difference = MDP.comparePolicies(VI_game_mdp.policy, EM_game_mdp.policy, policy_keys_to_print,
                                             compare_to_decimals=3, do_print=do_print, compute_kl_divergence=True,
                                             reference_policy_has_augmented_states=True,
                                             compare_policy_has_augmented_states=True)
-    # Solved mdp.
+
     return EM_game_mdp, VI_game_mdp, policy_keys_to_print, policy_difference
 
-
+#######################################################################################################################
 # Entry point when called from Command line.
 if __name__=='__main__':
-    make_new_mdp = False
+    # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
+    make_new_mdp = True
+    pickled_mdp_file = 'EM_MDP_UTC180217_1526'
     write_mdp_policy_csv = False
+
+    # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
+    # load the @c pickled_episodes_file. If @c gather_new_data is true, use @c num_episodes and @c steps_per_episode to
+    # determine how large the demonstration set should be.
     gather_new_data = False
+    num_episodes = 250
+    steps_per_episode = 15
+    pickled_episodes_file = 'EM_MDP_UTC180217_1526_HIST_250eps15steps_UTC180217_1526'
+
+    # Perform/load policy inference options. If @c perform_new_inference is false, load the
+    # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
+    # demonstration policy.
     perform_new_inference = True
+    pickled_inference_mdps_file = 'EM_MDP_UTC180217_1526_HIST_250eps15steps_UTC180217_1526_Policy_UTC180217_1526'
     load_inference_statistics = (not perform_new_inference) & True
-    inference_method='default' # Default chooses gradient ascent. Other options: 'MLE'
+    pickled_inference_statistics_file = \
+        'EM_MDP_UTC180205_1024_HIST_250eps15steps_UTC180205_1032_Inference_Stats_UTC180205_1046'
+    inference_method='default' # Default chooses gradient ascent. Other options: 'historyMLE', 'iterativeBayes'.
+
+    # Gradient Ascent kernel configurations
     kernel_sigmas = [1]*6
     kernel_count_start = 6
     kernel_count_end = 5
     kernel_count_increment_per_set = -1
     kernel_set_sample_count = 1
     batch_size_for_kernel_set = 1
-    plot_inference_statistics = True
+
+    # Plotting lags
     plot_all_grids = True
     plot_initial_mdp_grids = False
     plot_inferred_mdp_grids = False
-    plot_new_phi = False
+    plot_new_phi = True
     plot_new_kernel = False
     plot_loaded_phi = False
     plot_loaded_kernel = False
+    plot_inference_statistics = True
     plot_flags = [plot_all_grids, plot_initial_mdp_grids, plot_inferred_mdp_grids, plot_new_phi, plot_loaded_phi,
                   plot_new_kernel, plot_loaded_kernel, plot_inference_statistics]
     if plot_new_kernel and plot_loaded_kernel:
@@ -338,7 +333,7 @@ if __name__=='__main__':
             pickle.dump([EM_mdp, VI_mdp, policy_keys_to_print,policy_difference], _file)
     else:
         # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, 'EM_MDP_UTC180205_1024')
+        mdp_file = os.path.join(mdp_obj_path, pickled_mdp_file)
         print "Loading file {}.".format(mdp_file)
         with open(mdp_file) as _file:
             EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = pickle.load(_file)
@@ -397,7 +392,7 @@ if __name__=='__main__':
             pickle.dump(run_histories, _file)
     else:
         # Manually choose data to load here:
-        history_file = os.path.join(data_path, 'EM_MDP_UTC180205_1024_HIST_250eps15steps_UTC180205_1032')
+        history_file = os.path.join(data_path, pickled_episodes_file)
         print "Loading history data file {}.".format(history_file)
         with open(history_file) as _file:
             run_histories = pickle.load(_file)
@@ -511,8 +506,7 @@ if __name__=='__main__':
 
     else:
         # Manually choose data to load here:
-        infered_mdp_file = os.path.join(infered_mdps_path,
-                'EM_MDP_UTC180205_1024_HIST_250eps15steps_UTC180205_1032_Policy_UTC180205_1124')
+        infered_mdp_file = os.path.join(infered_mdps_path, pickled_inference_mdps_file)
         print "Loading infered policy data file {}.".format(infered_mdp_file)
         with open(infered_mdp_file) as _file:
             infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
@@ -526,8 +520,7 @@ if __name__=='__main__':
 
     if load_inference_statistics:
         # Manually choose data to load here:
-        infered_stats_file = os.path.join(infered_statistics_path,
-            'EM_MDP_UTC180205_1024_HIST_250eps15steps_UTC180205_1032_Inference_Stats_UTC180205_1046')
+        infered_stats_file = os.path.join(infered_statistics_path, pickled_inference_statistics_file)
         print "Loading inference statistics data file {}.".format(infered_stats_file)
         with open(infered_stats_file) as _file:
            kernel_set_L1_err, kernel_set_infer_time = pickle.load(_file)
@@ -583,7 +576,7 @@ if __name__=='__main__':
 
     if plot_all_grids or plot_initial_mdp_grids or plot_inferred_mdp_grids:
         center_offset = 0.5 # Shifts points into center of cell.
-        base_policy_grid = plotHelp.PlotPolicy(maze, cmap, center_offset)
+        base_policy_grid = PlotHelp.PlotPolicy(maze, cmap, center_offset)
         for policy, use_print_keys, title, kernel_loc in zip(plot_policies, only_use_print_keys, titles,
                                                              kernel_locations):
             # Reorder policy dict for plotting.
@@ -605,7 +598,7 @@ if __name__=='__main__':
             kernels = new_infer_mdp.kernels
         else:
             kernels = infer_mdp.kernels
-        kernel_grid = plotHelp.PlotKernel(maze, cmap, action_list, grid_map)
+        kernel_grid = PlotHelp.PlotKernel(maze, cmap, action_list, grid_map)
         kern_idx = 0
         title='Kernel Centered at {}.'.format(kern_idx)
         fig, ax = kernel_grid.configurePlot(title, kern_idx, kernels=kernels)
@@ -615,7 +608,7 @@ if __name__=='__main__':
             phi_at_state = new_infer_mdp.phi_at_state
         else:
             phi_at_state = infer_mdp.phi_at_state
-        phi_grid = plotHelp.PlotKernel(maze, cmap, action_list, grid_map)
+        phi_grid = PlotHelp.PlotKernel(maze, cmap, action_list, grid_map)
         phi_idx = 0
         title=''
         for act in action_list:
@@ -626,7 +619,7 @@ if __name__=='__main__':
         mle_L1_norm = MDP.getPolicyL1Norm(reference_policy_vec, infer_mdp.getPolicyAsVec())
         print 'MLE L1 error is  {0:.3f}.'.format(mle_L1_norm)
         title = '' # Set to empty to format title in external program.
-        plotHelp.plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, num_kernels_in_set, title, mle_L1_norm)
+        PlotHelp.plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, num_kernels_in_set, title, mle_L1_norm)
 
     if any(plot_flags):
         plt.show()
