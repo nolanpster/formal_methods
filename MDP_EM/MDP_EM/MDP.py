@@ -32,7 +32,7 @@ class MDP(object):
         self.action_list=action_list
         self.num_actions = len(self.action_list)
         self.states=states
-        self.state_vec = np.array(map(int, self.states))
+        self.state_vec = np.array(self.states)
         self.num_states = len(self.states)
         self.current_state = None
         self.acc=acc
@@ -139,13 +139,13 @@ class MDP(object):
         @brief see title.
         """
         for state in self.act_prob_mat_row_idx.keys():
-            self.act_prob_mat_row_idx[state] = self.getActProbMatRow(int(state))
+            self.act_prob_mat_row_idx[state] = self.getActProbMatRow(state)
 
     def buildNeighborDict(self):
         self.neighbor_dict = {} # {this_state: next_state: prob}
         for state_0 in self.states:
             self.neighbor_dict[state_0] = {}
-            (this_row, this_col) = np.where(self.grid_map==int(state_0))
+            (this_row, this_col) = np.where(self.grid_map==state_0)
             # ID valid actions from this state.
             this_act_prob_mat_row_idx = self.act_prob_mat_row_idx[state_0]
             valid_acts = ['Empty']
@@ -194,8 +194,8 @@ class MDP(object):
         for act in self.action_list:
             self.prob[act]=np.zeros((self.num_states, self.num_states))
             for state in self.state_vec:
-                for next_state, ideal_act in self.neighbor_dict[str(state)].iteritems():
-                        self.prob[act][state, next_state]= self.act_prob[act][self.act_prob_mat_row_idx[str(state)],
+                for next_state, ideal_act in self.neighbor_dict[state].iteritems():
+                        self.prob[act][state, next_state]= self.act_prob[act][self.act_prob_mat_row_idx[state],
                                                                               self.action_list.index(ideal_act)]
 
 
@@ -234,7 +234,7 @@ class MDP(object):
         except ValueError:
             import pdb; pdb.set_trace()
         self.current_state = self.states[next_index]
-        return int(self.current_state[0])
+        return self.current_state[0]
 
     def resetState(self):
         """
@@ -245,7 +245,7 @@ class MDP(object):
                                                               p=self.S)[0]]
         elif self.init is not None:
             self.current_state = self.init
-        return int(self.current_state[0])
+        return self.current_state[0]
 
     def timePrior(self, _t):
         """
@@ -396,8 +396,8 @@ class MDP(object):
                 this_state = unique_episodes[episode, t_step-1]
                 next_state = unique_episodes[episode, t_step]
                 observed_action = self.graph.getObservedAction(this_state, next_state)
-                prob_of_traj_given_policy[episode] *= self.P(str(this_state), observed_action, str(next_state))
-                prob_of_traj_given_policy[episode] *= self.policy[str(this_state)][observed_action]
+                prob_of_traj_given_policy[episode] *= self.P(this_state, observed_action, next_state)
+                prob_of_traj_given_policy[episode] *= self.policy[this_state][observed_action]
         return np.sum(np.multiply(episode_freq, np.log(np.divide(episode_freq, prob_of_traj_given_policy))))
 
     def getPolicyAsVec(self, policy_keys_to_use=None):
@@ -416,7 +416,7 @@ class MDP(object):
             policy_dict = self.policy
         for state in xrange(len(policy_vec) / self.num_actions):
             for act_idx, act in enumerate(self.action_list):
-                policy_vec[state * self.num_actions+act_idx] = policy_dict[str(state)][act]
+                policy_vec[state * self.num_actions+act_idx] = policy_dict[state][act]
         return policy_vec
 
     @staticmethod

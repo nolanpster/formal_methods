@@ -62,7 +62,7 @@ class SolutionVideo(object):
             grid_state = self.grid_num_func([i, j])
             # Only showing DRA-state q1 for now.
             for dra_state in self.dra_state_list:
-                augmented_state = (str(grid_state), dra_state)
+                augmented_state = (grid_state, dra_state)
                 highest_prob_act = max(policy[augmented_state].iteritems(), key=operator.itemgetter(1))[0]
                 row_offset = self.dra_video_offset[dra_state][0]
                 col_offset = self.dra_video_offset[dra_state][1]

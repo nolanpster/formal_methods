@@ -31,7 +31,7 @@ class GridGraph(object):
         if label_dict is not None:
             for state, label in label_dict.iteritems():
                 if label==self.red:
-                    grid_row, grid_col = np.where(self.grid_map==int(state))
+                    grid_row, grid_col = np.where(self.grid_map==state)
                     self.astar_map[grid_row, grid_col] = GridGraph.OBSTACLE_VAL
         self.neighbor_dict = neighbor_dict
         if self.grid_map is not None and self.neighbor_dict is not None:
@@ -111,7 +111,7 @@ class GridGraph(object):
         """
         self.state_transition_actions = {}
         for start_state in range(self.grid_map.size):
-            for neighbor_state, action in self.neighbor_dict[str(start_state)].iteritems():
+            for neighbor_state, action in self.neighbor_dict[start_state].iteritems():
                 self.state_transition_actions[(start_state, neighbor_state)] = action
 
     def getObservedAction(self, s_0, s_N):

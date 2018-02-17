@@ -48,7 +48,7 @@ class PolicyInference(object):
             exp_Q = {state: {act: np.exp(np.dot(self.mdp.theta, self.mdp.phi_at_state[state][act])) for act in
                              self.mdp.action_list} for state in self.mdp.state_vec}
             sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.mdp.state_vec}
-            self.mdp.policy = {state: {act: exp_Q[int(state)][act]/sum_exp_Q[int(state)] for act in self.mdp.action_list}
+            self.mdp.policy = {state: {act: exp_Q[state][act]/sum_exp_Q[state] for act in self.mdp.action_list}
                                for state in self.mdp.states}
 
     def gradientAscent(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False, dtype=np.float64,
@@ -111,7 +111,7 @@ class PolicyInference(object):
 
         # Initialize Weight vector, theta.
         if theta_0 == None:
-            test_phi = self.mdp.phi(str(1), 'East')
+            test_phi = self.mdp.phi(1, 'East')
             theta_0 = np.empty([test_phi.size, 1], dtype=dtype).T
             for kern_idx in xrange(self.mdp.num_kern):
                 for act_idx, act in enumerate(self.mdp.action_list):
@@ -296,9 +296,9 @@ class PolicyInference(object):
                     action_weights = PolicyInference.actionProbGivenStatePair(this_state, next_state, prior_policy,
                                                                               self.mdp.P, self.mdp.action_list)
                     for act_idx, act in enumerate(self.mdp.action_list):
-                        self.mdp.policy[str(this_state)][act] += action_weights[act_idx]
+                        self.mdp.policy[this_state][act] += action_weights[act_idx]
                 else:
-                    self.mdp.policy[str(this_state)][observed_action][0][0] += 1
+                    self.mdp.policy[this_state][observed_action][0][0] += 1
 
         # Weight each action by the number of times the state was visited.
         for state in self.mdp.policy.keys():
@@ -338,11 +338,9 @@ class PolicyInference(object):
         @param policy A policy in dictionary representation used by MDP.py.
         @param trans_prob_func A reference to the MDP.P() method.
         """
-        s_0_string = str(s_0)
-        s_1_string = str(s_1)
-        total_prob_of_s_1 = np.sum([trans_prob_func(s_0_string, act, s_1_string) for act in action_list])
-        policy_at_state = np.array([policy[s_0_string][act][0][0] for act in action_list])
-        transition_prob_to_s_1 = np.array([trans_prob_func(s_0_string, act, s_1_string) for act in action_list])
+        total_prob_of_s_1 = np.sum([trans_prob_func(s_0, act, s_1) for act in action_list])
+        policy_at_state = np.array([policy[s_0][act][0][0] for act in action_list])
+        transition_prob_to_s_1 = np.array([trans_prob_func(s_0, act, s_1) for act in action_list])
 
         return (transition_prob_to_s_1 * policy_at_state) / total_prob_of_s_1
 

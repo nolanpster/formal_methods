@@ -167,7 +167,7 @@ infer_act_prob = {'North': np.array([[0.0, 1.0, 0.0, 0.0, 0.0],
 
 grid_dim = [4, 4] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
-states = [str(state) for state in range(grid_map.size)]
+states = [state for state in range(grid_map.size)]
 
 # Shared MDP Initialization Parameters.
 green = LTL_plus('green')
@@ -181,12 +181,12 @@ action_list = ['Empty', 'North', 'South', 'East', 'West']
 # generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
 # _False_ to have EM and the MDP always start from the `initial_state` below.
 solve_with_uniform_distribution = True
-initial_state = '15'
+initial_state = 15
 labels = {state: empty for state in states}
-labels['6'] = red
-labels['7'] = red
-labels['8'] = red
-labels['0'] = green
+labels[6] = red
+labels[7] = red
+labels[8] = red
+labels[0] = green
 goal_state = 0 # Currently assumess only one goal.
 
 
@@ -407,9 +407,9 @@ if __name__=='__main__':
     # Determine which states are goals or obstacles.
     normal_states = {state: True if label==empty else False for state, label in labels.items()}
     unique, starting_counts = np.unique(run_histories[:,0], return_counts=True)
-    num_trials_from_state = {int(state):0 for state in states}
+    num_trials_from_state = {state:0 for state in states}
     num_trials_from_state.update(dict(zip(unique, starting_counts)))
-    num_rewards_from_state = {int(state):0 for state in states}
+    num_rewards_from_state = {state:0 for state in states}
     for run_idx in range(num_episodes):
         starting_state = run_histories[run_idx][0]
         final_state = run_histories[run_idx][-1]
@@ -546,10 +546,10 @@ if __name__=='__main__':
         maze = np.zeros(np.array(grid_dim)+1)
         for state, label in labels.iteritems():
             if label==red:
-                grid_row, grid_col = np.where(grid_map==int(state))
+                grid_row, grid_col = np.where(grid_map==state)
                 maze[grid_row, grid_col] = 2
             if label==green:
-                grid_row, grid_col = np.where(grid_map==int(state))
+                grid_row, grid_col = np.where(grid_map==state)
                 maze[grid_row, grid_col] = 1
         if red in labels.values():
             # Maximum value in maze corresponds to red.
@@ -590,7 +590,7 @@ if __name__=='__main__':
             if use_print_keys: # VI and EM policies have DRA states in policy keys.
                 list_of_tuples = [(key, policy[key]) for key in policy_keys_to_print]
             else: # Learned policy only has state numbers.
-                order_of_keys = [str(key) for key in range(grid_map.size)]
+                order_of_keys = [key for key in range(grid_map.size)]
                 list_of_tuples = [(key, policy[key]) for key in order_of_keys]
             policy = OrderedDict(list_of_tuples)
             fig = base_policy_grid.configurePlot(title, policy, action_list, use_print_keys, policy_keys_to_print,

@@ -103,10 +103,9 @@ class FeatureVector(object):
         if self.has_mobile_kernels:
             self.updateKernelWeights(self.mobile_indeces)
 
-        int_state = int(state)
         this_action_idx = self.action_list.index(action)
         phi_mat = np.zeros([self.num_actions, self.num_kernels])
-        phi_mat[this_action_idx, :] = self.weighted_prob_kernel_sum[:, int_state, this_action_idx]
+        phi_mat[this_action_idx, :] = self.weighted_prob_kernel_sum[:, state, this_action_idx]
 
         return phi_mat.transpose().ravel().transpose()
 
@@ -114,7 +113,7 @@ class FeatureVector(object):
         self.prob_mat = np.empty([self.num_states, self.num_states, self.num_actions], dtype=self.dtype)
         for state in self.state_vec:
             for act_idx, action in enumerate(self.action_list):
-                self.prob_mat[state, :, act_idx] = self.trans_prob_func(str(state), action)
+                self.prob_mat[state, :, act_idx] = self.trans_prob_func(state, action)
 
     def updateStdDevs(self, std_devs=None, also_update_kernel_weights=True):
         if std_devs is not None:
