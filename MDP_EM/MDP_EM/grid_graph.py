@@ -27,6 +27,11 @@ class GridGraph(object):
         self.grid_map = grid_map
         self.astar_map = np.zeros(self.grid_map.shape, dtype=np.int8)
         self.astar_no_obstacle_map = np.zeros(self.grid_map.shape, dtype=np.int8)
+
+        # The longest path length is returned if no path is found (the state is inside an obstacle). Since these values
+        # are used in the gaussian kernel functions, exp(-746) is the first value that returns 0.0, which is desired for
+        # a state inside an obstacle; we want that state not to increase the  weight of phi.
+        self.longest_path_length_squared = min(746**2, self.grid_map.size**2)
         # Fill in astar_map with ones for every obstacle.
         if label_dict is not None:
             for state, label in label_dict.iteritems():
@@ -103,7 +108,7 @@ class GridGraph(object):
         the start and end state, (length=2) so we must subtract one from it for the correct return value.
         """
         path = self.getShortestPath(s_0, s_N)
-        return len(path)-1 if path is not None else np.inf
+        return len(path)-1 if path is not None else self.longest_path_length_squared
 
     def setStateTransitionsFromActions(self):
         """
