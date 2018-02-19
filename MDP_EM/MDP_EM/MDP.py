@@ -53,7 +53,6 @@ class MDP(object):
         self.L=L # Labels of states
         self.S = None # Initial probability distribution.
         # For EM Solving
-        self.act_ind = lambda a_0, a_i: int(a_0 == a_i)
         if self.num_actions > 0:
             self.makeUniformPolicy()
         self.init_set = None
