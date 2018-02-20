@@ -244,9 +244,7 @@ class PolicyInference(object):
                             pprint('Iter#: {}, delta: {}, iter-time: {} sec.'.format(iter_count, delta_theta_norm, infer_toc),
                                    indent=4)
                     u=np.dot(gradE(),Z)
-                    print(u)
                     global sig
-                    print(unit_grad(u[0]))
                     sig=np.add(sig,unit_grad(u[0]), out=sig, casting="unsafe") 
                     print('Sigmas={0}'.format(sig))
                     self.mdp.updateSigmas(sig)
