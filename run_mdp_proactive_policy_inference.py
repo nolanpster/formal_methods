@@ -536,7 +536,10 @@ if __name__=='__main__':
         mle_L1_norm = MDP.getPolicyL1Norm(reference_policy_vec, infer_mdp.getPolicyAsVec())
         print 'MLE L1 error is  {0:.3f}.'.format(mle_L1_norm)
         title = '' # Set to empty to format title in external program.
-        PlotHelp.plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, num_kernels_in_set, title, mle_L1_norm)
+        if num_kernels_in_set.size > 1:
+            PlotHelp.plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, num_kernels_in_set, title, mle_L1_norm)
+        else:
+            warnings.warn('Only one kernel set, can\'t plot inferece statistics.')
 
     if any(plot_flags):
         plt.show()
