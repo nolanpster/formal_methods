@@ -7,13 +7,9 @@ from NFA_DFA_Module.DFA import LTL_plus
 from MDP_EM.MDP_EM.MDP import MDP
 from MDP_EM.MDP_EM.inference_mdp import InferenceMDP
 import MDP_EM.MDP_EM.plot_helper as PlotHelp
+import MDP_EM.MDP_EM.data_helper as DataHelp
 
-import os
-import datetime
 import time
-import pickle
-import dill # For pickling lambda functions.
-import csv
 import numpy as np
 from copy import deepcopy
 from pprint import pprint
@@ -28,27 +24,6 @@ import matplotlib.pyplot as plt
 np.set_printoptions(linewidth=300)
 np.set_printoptions(threshold=np.inf)
 np.set_printoptions(precision=3)
-
-########################################################################################################################
-# Data save/load configuration
-mdp_obj_path = os.path.abspath('pickled_mdps')
-data_path = os.path.abspath('pickled_episodes')
-infered_mdps_path = os.path.abspath('pickled_inference')
-infered_statistics_path = os.path.abspath('pickled_inference_set_stats')
-
-def getOutFile(name_prefix='EM_MDP', dir_path=mdp_obj_path):
-    # Dev machine returns UTC.
-    current_datetime = datetime.datetime.now()
-    formatted_time = current_datetime.strftime('_UTC%y%m%d_%H%M')
-    # Filepath for mdp objects.
-    full_file_path = os.path.join(dir_path, name_prefix + formatted_time)
-    if not os.path.exists(os.path.dirname(full_file_path)):
-        try:
-            os.makedirs(os.path.dirname(full_file_path))
-        except OSError as exc: # Guard against race condition
-            if exc.errno != errno.EEXIST:
-                raise
-    return full_file_path
 
 ########################################################################################################################
 # Transition Probability matricies
@@ -273,7 +248,7 @@ def makeGridMDPxDRA(do_print=False):
 if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
     make_new_mdp = True
-    pickled_mdp_file = 'EM_MDP_UTC180217_1526'
+    pickled_mdp_file_to_load  = 'robot_mdps_180221_1651'
     write_mdp_policy_csv = False
 
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -282,20 +257,21 @@ if __name__=='__main__':
     gather_new_data = False
     num_episodes = 250
     steps_per_episode = 15
-    pickled_episodes_file = 'EM_MDP_UTC180217_1526_HIST_250eps15steps_UTC180217_1526'
+    pickled_episodes_file_to_load = 'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
     # demonstration policy.
-    perform_new_inference = True
-    pickled_inference_mdps_file = 'EM_MDP_UTC180217_1526_HIST_250eps15steps_UTC180217_1526_Policy_UTC180217_1526'
+    perform_new_inference = False
+    pickled_inference_mdps_file_to_load  = \
+        'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Policy_180221_1418'
     load_inference_statistics = (not perform_new_inference) & True
-    pickled_inference_statistics_file = \
-        'EM_MDP_UTC180205_1024_HIST_250eps15steps_UTC180205_1032_Inference_Stats_UTC180205_1046'
+    pickled_inference_statistics_file_to_load  = \
+        'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Inference_Stats_180221_1431'
     inference_method='default' # Default chooses gradient ascent. Other options: 'historyMLE', 'iterativeBayes'.
 
     # Gradient Ascent kernel configurations
-    kernel_sigmas = [1]*6
+    kernel_sigmas = [1]*16
     kernel_count_start = 6
     kernel_count_end = 5
     kernel_count_increment_per_set = -1
@@ -329,36 +305,17 @@ if __name__=='__main__':
     kernel_set_infer_time = np.empty([len(num_kernels_in_set), kernel_set_sample_count])
 
     if make_new_mdp:
-        EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = makeGridMDPxDRA(do_print=True)
-        mdp_file = getOutFile()
-        with open(mdp_file, 'w+') as _file:
-            print "Pickling EM_mdp to {}".format(mdp_file)
-            pickle.dump([EM_mdp, VI_mdp, policy_keys_to_print,policy_difference], _file)
+        (EM_mdp, VI_mdp, policy_keys_to_print, policy_difference) = makeGridMDPxDRA(do_print=True)
+        pickled_mdp_file = DataHelp.pickleMDP(
+            variables_to_save=[EM_mdp, VI_mdp, policy_keys_to_print, policy_difference], name_prefix="robot_mdps")
     else:
-        # Manually choose file here:
-        mdp_file = os.path.join(mdp_obj_path, pickled_mdp_file)
-        print "Loading file {}.".format(mdp_file)
-        with open(mdp_file) as _file:
-            EM_mdp, VI_mdp, policy_keys_to_print, policy_difference = pickle.load(_file)
+        (EM_mdp, VI_mdp, policy_keys_to_print, policy_difference, pickled_mdp_file) = \
+            DataHelp.loadPickledMDP(pickled_mdp_file_to_load)
     if write_mdp_policy_csv:
-        diff_csv_dict = {key: policy_difference[key] for key in policy_keys_to_print}
-        with open(mdp_file+'_Policy_difference.csv', 'w+') as csv_file:
-            writer = csv.writer(csv_file)
-            for key, value in diff_csv_dict.items():
-                for subkey, sub_value in value.items():
-                    writer.writerow([key,subkey,sub_value])
-        #EM_csv_dict = {key: EM_mdp.policy[key] for key in policy_keys_to_print}
-        #with open(mdp_file+'_EM_Policy.csv', 'w+') as csv_file:
-        #    writer = csv.writer(csv_file)
-        #    for key, value in EM_csv_dict.items():
-        #        for subkey, sub_value in value.items():
-        #            writer.writerow([key,subkey,sub_value])
-        #VI_csv_dict = {key: VI_mdp.policy[key] for key in policy_keys_to_print}
-        #with open(mdp_file+'_VI_policy.csv', 'w+') as csv_file:
-        #    writer = csv.writer(csv_file)
-        #    for key, value in VI_csv_dict.items():
-        #        for subkey, sub_value in value.items():
-        #            writer.writerow([key,subkey,sub_value])
+        DataHelp.writePolicyToCSV(policy_difference, policy_keys_to_print,
+                                  file_name=pickled_mdp_file+'_Policy_difference')
+        DataHelp.writePolicyToCSV(EM_mdp.policy, policy_keys_to_print, file_name=pickled_mdp_file+'_EM_Policy')
+        DataHelp.writePolicyToCSV(VI_mdp.policy, policy_keys_to_print, file_name=pickled_mdp_file+'_EM_Policy')
 
     # Choose which policy to use for demonstration.
     mdp = VI_mdp
@@ -368,37 +325,18 @@ if __name__=='__main__':
         # Use policy to simulate and record results.
         #
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
-        num_episodes = 250
-        steps_per_episode = 15
-        if mdp.num_states < np.iinfo(np.uint8).max:
-            hist_dtype = np.uint8
-        elif mdp.num_states < np.iinfo(np.uint16).max:
-            hist_dtype = np.uint16
-        elif mdp.num_states < np.iinfo(np.uint32).max:
-            hist_dtype = np.uint32
-        elif mdp.num_states < np.iinfo(np.uint64).max:
-            hist_dtype = np.uint64
-        else:
-            raise ValueError('This MDP has {} states, that\'s not currently supported, I\'m surprised your code made '
-                             'it this far...'.format(np.iinfo(np.uint64).max))
+        hist_dtype = DataHelp.getSmallestNumpyUnsignedIntType(mdp.num_states)
         run_histories = np.zeros([num_episodes, steps_per_episode], dtype=hist_dtype)
         for episode in range(num_episodes):
             # Create time-history for this episode.
             run_histories[episode, 0] = mdp.resetState()
             for t_step in range(1, steps_per_episode):
                 run_histories[episode, t_step] = mdp.step()
-        # Save sampled trajectories.
-        history_file = getOutFile(os.path.basename(mdp_file)
-                                  + ('_HIST_{}eps{}steps'.format(num_episodes, steps_per_episode)), data_path)
-        with open(history_file, 'w+') as _file:
-            print "Pickling Episode histories to {}.".format(history_file)
-            pickle.dump(run_histories, _file)
+        pickled_episodes_file = DataHelp.pickleEpisodes(variables_to_save=[run_histories], name_prefix=pickled_mdp_file,
+                                                        num_episodes=num_episodes, steps_per_episode=steps_per_episode)
     else:
-        # Manually choose data to load here:
-        history_file = os.path.join(data_path, pickled_episodes_file)
-        print "Loading history data file {}.".format(history_file)
-        with open(history_file) as _file:
-            run_histories = pickle.load(_file)
+        # Load pickled episodes. Note that trailing comma on assignment automatically unpacks run_histories from a list.
+        (run_histories, pickled_episodes_file) = DataHelp.loadPickledEpisodes(pickled_episodes_file_to_load)
         num_episodes = run_histories.shape[0]
         steps_per_episode = run_histories.shape[1]
 
@@ -440,17 +378,7 @@ if __name__=='__main__':
         # Infer the policy from the recorded data.
 
         # Precompute observed actions for all episodes. Should do this in a "history" class.
-        if len(action_list) < np.iinfo(np.uint8).max:
-            observation_dtype = np.uint8
-        elif len(action_lists) < np.iinfo(np.uint16).max:
-            observation_dtype  = np.uint16
-        elif len(action_lists) < np.iinfo(np.uint32).max:
-            observation_dtype  = np.uint32
-        elif len(action_lists) < np.iinfo(np.uint64).max:
-            observation_dtype  = np.uint64
-        else:
-            raise ValueError('This MDP has {} actions, that\'s not currently supported, I\'m surprised your '
-                             'code made it this far...'.format(np.iinfo(np.uint64).max))
+        observation_dtype  = DataHelp.getSmallestNumpyUnsignedIntType(mdp.num_actions)
         observed_action_indeces = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
         for episode in xrange(num_episodes):
             for t_step in xrange(1, steps_per_episode):
@@ -495,38 +423,23 @@ if __name__=='__main__':
         toc = time.clock() -tic
         print 'Total time to infer policy{}: {} sec, or {} min.'.format(' set' if num_kernel_sets > 1 else '', toc,
                                                                         toc/60.0)
-        infered_mdp_file = getOutFile(os.path.basename(history_file) + '_Policy', infered_mdps_path)
-        with open(infered_mdp_file, 'w+') as _file:
-            print "Pickling Infered Policy to {}.".format(infered_mdp_file)
-            pickle.dump(infer_mdp, _file)
+        pickled_inference_file = DataHelp.picklePolicyInferenceMDP(variables_to_save=[infer_mdp],
+                                                                   name_prefix=pickled_episodes_file)
         if num_kernel_sets > 1:
             # Save data for inference sets
-            infered_stats_file = getOutFile(os.path.basename(history_file) + '_Inference_Stats',
-                                            infered_statistics_path)
-            with open(infered_stats_file, 'w+') as _file:
-                print "Pickling Inference Statistics to {}.".format(infered_stats_file)
-                pickle.dump([kernel_set_L1_err, kernel_set_infer_time], _file)
-
+            pickled_inference_file = \
+                DataHelp.pickleInferenceStatistics(variables_to_save=[kernel_set_L1_err, kernel_set_infer_time],
+                                                   name_prefix=pickled_episodes_file)
     else:
-        # Manually choose data to load here:
-        infered_mdp_file = os.path.join(infered_mdps_path, pickled_inference_mdps_file)
-        print "Loading infered policy data file {}.".format(infered_mdp_file)
-        with open(infered_mdp_file) as _file:
-            infer_mdp = pickle.load(_file)        # Reconsturct Policy with Q(s,a) = <theta, phi(s,a)>
+        (infer_mdp, pickled_inference_file) = \
+            DataHelp.loadPickledPolicyInferenceMDP(pickled_inference_mdps_file_to_load)
+
     if write_mdp_policy_csv:
-        infer_csv_dict = {key: infer_mdp.policy[key] for key in infer_mdp.policy.keys()}
-        with open(infered_mdp_file+'.csv', 'w+') as csv_file:
-            writer = csv.writer(csv_file)
-            for key, value in infer_csv_dict.items():
-                for subkey, sub_value in value.items():
-                    writer.writerow([key,subkey,sub_value])
+        DataHelp.writePolicyToCSV(infer_mdp.policy, file_name=pickled_inference_file)
 
     if load_inference_statistics:
-        # Manually choose data to load here:
-        infered_stats_file = os.path.join(infered_statistics_path, pickled_inference_statistics_file)
-        print "Loading inference statistics data file {}.".format(infered_stats_file)
-        with open(infered_stats_file) as _file:
-           kernel_set_L1_err, kernel_set_infer_time = pickle.load(_file)
+        (kernel_set_L1_err, kernel_set_infer_time, pickled_inference_statistics_file) = \
+            DataHelp.loadPickledInferenceStatistics(pickled_inference_statistics_file_to_load)
 
     # Remember that variable @ref mdp is used for demonstration.
     if len(policy_keys_to_print) == infer_mdp.num_states:
