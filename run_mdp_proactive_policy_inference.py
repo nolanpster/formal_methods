@@ -255,7 +255,7 @@ if __name__=='__main__':
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
     # load the @c pickled_episodes_file. If @c gather_new_data is true, use @c num_episodes and @c steps_per_episode to
     # determine how large the demonstration set should be.
-    gather_new_data = False
+    gather_new_data = True
     num_episodes = 250
     steps_per_episode = 15
     pickled_episodes_file_to_load = 'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306'
@@ -263,13 +263,15 @@ if __name__=='__main__':
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
     # demonstration policy.
-    perform_new_inference = False
+    perform_new_inference = True
     pickled_inference_mdps_file_to_load  = \
         'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Policy_180221_1418'
     load_inference_statistics = (not perform_new_inference) & True
     pickled_inference_statistics_file_to_load  = \
         'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Inference_Stats_180221_1431'
-    inference_method='default' # Default chooses gradient ascent. Other options: 'historyMLE', 'iterativeBayes'.
+    # Select the inference method to use, 'gradientAscent' chooses gradient ascent. Other options: 'historyMLE',
+    # 'iterativeBayes', 'gradientAscentHyperParamOpt'.
+    inference_method='gradientAscent'
 
     # Gradient Ascent kernel configurations
     kernel_sigmas = np.array([1]*6, dtype=np.float32)
@@ -280,14 +282,14 @@ if __name__=='__main__':
     batch_size_for_kernel_set = 1
 
     # Plotting lags
-    plot_all_grids = True
+    plot_all_grids = False
     plot_initial_mdp_grids = False
     plot_inferred_mdp_grids = False
-    plot_new_phi = True
+    plot_new_phi = False
     plot_new_kernel = False
     plot_loaded_phi = False
     plot_loaded_kernel = False
-    plot_inference_statistics = True
+    plot_inference_statistics = False
     plot_flags = [plot_all_grids, plot_initial_mdp_grids, plot_inferred_mdp_grids, plot_new_phi, plot_loaded_phi,
                   plot_new_kernel, plot_loaded_kernel, plot_inference_statistics]
     if plot_new_kernel and plot_loaded_kernel:
@@ -370,7 +372,6 @@ if __name__=='__main__':
         infer_mdp = InferenceMDP(init=initial_state, action_list=action_list, states=states,
                                  act_prob=deepcopy(act_prob), grid_map=grid_map, L=labels,
                                  gg_kernel_centers=kernel_centers[0],kernel_sigmas=kernel_sigmas)
-        infer_mdp.EM_inf_policy=EM_mdp.policy
 
         print 'Built InferenceMDP with kernel set:'
         print(kernel_centers[0])
@@ -390,10 +391,12 @@ if __name__=='__main__':
                 observed_action = infer_mdp.graph.getObservedAction(this_state, next_state)
                 observed_action_indeces[episode, t_step] = action_list.index(observed_action)
 
-        if inference_method is not 'default':
+        if 'gradientAscent' not in inference_method:
+            # If we're using historyMLE, or `iterativeBayes` methods we can use a simple call to inferPolicy.
             infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=True,
                                   reference_policy_vec=reference_policy_vec)
         else:
+            # We need to account for the kernel size.
             if batch_size_for_kernel_set > 1:
                 print_inference_iterations = False
             else:
@@ -414,7 +417,8 @@ if __name__=='__main__':
                     infer_mdp.buildKernels(trial_kernel_set)
 
                     batch_L1_err[trial], batch_infer_time[trial] = \
-                        infer_mdp.inferPolicy(histories=run_histories,
+                        infer_mdp.inferPolicy(method=inference_method,
+                                              histories=run_histories,
                                               do_print=print_inference_iterations,
                                               use_precomputed_phi=True,
                                               dtype=np.float32,

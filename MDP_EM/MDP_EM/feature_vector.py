@@ -5,7 +5,7 @@ __author__ = 'Nolan Poulin, nipoulin@wpi.edu, Nishant Doshi, ndoshi@wpi.edu'
 from kernel_centers import GeodesicGaussianKernelCenter as GGKCent
 from kernel_centers import OrdinaryGaussianKernelCenter as OGKCent
 import numpy as np
-import pdb
+
 
 class FeatureVector(object):
     """
@@ -83,11 +83,10 @@ class FeatureVector(object):
         self.dkernel_values = np.empty([self.num_kernels, self.num_states], dtype=self.dtype)
         self.weighted_prob_kernel_sum = np.empty([self.num_kernels, self.num_states, self.num_actions])
         self.del_weighted_prob_kernel_sum = np.empty([self.num_kernels, self.num_states, self.num_actions])
+
         self.buildTransProbMat()
         self.updateStateDistancesToKernels()
-        #pdb.set_trace()
         self.updateStdDevs(also_update_kernel_weights=True)
-
         self.buildKernelDeltas()
 
         # Variables to keep track of things that have already been calculated.
@@ -195,7 +194,6 @@ class FeatureVector(object):
                         np.inner(self.kernel_values[kernel_ind], self.prob_mat[state, :, act_ind])
                     #self.sig_weighted_prob_kernel_sum[kernel_ind, state, act_ind] = \
                      #   self.sig_kernels[kernel_ind]*self.prob_mat[state, :, act_ind]
-
 
     def buildKernelDeltas(self, selected_kernel_indeces=None):
             """

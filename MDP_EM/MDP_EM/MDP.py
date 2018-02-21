@@ -26,7 +26,6 @@ class MDP(object):
         tuple.  AP: a set of atomic propositions. Each proposition is
         identified by an index between 0 -N.  L: the labeling
         function, implemented as a dictionary: state: a subset of AP."""
-    EM_inf_policy=None
     def __init__(self, init=None, action_list=[], states=[], prob=dict([]), acc=None, gamma=.9, AP=set([]), L=dict([]),
                  reward=dict([]), grid_map=None, act_prob=dict([])):
         self.init=init # Initial state
@@ -596,7 +595,6 @@ class MDP(object):
             print("KL-Divergence of the comparison policy from the reference policy =  "
                   "{:.03f}.".format(policy_kl_divergence))
         return policy_difference, policy_kl_divergence
-    
 
     @staticmethod
     def computePolicyKLDivergence(reference_policy, comparison_policy, reference_policy_has_augmented_states=False,

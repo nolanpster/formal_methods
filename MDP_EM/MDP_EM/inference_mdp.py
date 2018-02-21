@@ -73,7 +73,6 @@ class InferenceMDP(MDP):
         self.precomputePhiAtState()
         self.delPhi_delSig=self.phi.buildKernelDeltas()
 
-
     def inferPolicy(self, method='gradientAscent', write_video=False, **kwargs):
         """
         @brief Infers the policy of a given MDP. Defaults to the Gradient Ascent method.
