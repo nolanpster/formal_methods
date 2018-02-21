@@ -89,7 +89,7 @@ class PolicyInference(object):
         num_states = self.mdp.num_states
         self.histories = histories
         (num_episodes, num_steps) = self.histories.shape
-        monte_carlo_size=10
+        monte_carlo_size=20
         traj_samples = range(num_episodes) # Will be shuffled every iteration.
         if monte_carlo_size is not None:
             batch_L1_norm = np.empty(monte_carlo_size)
@@ -251,6 +251,12 @@ class PolicyInference(object):
                     sig+=unit_grad(u[0])
                     print('Sigmas={0}'.format(sig))
                     self.mdp.updateSigmas(sig)
+                    if doing_monte_carlo:
+                        batch_infer_time[trial] = time.clock() - trial_tic
+                        print('Infernce Batch Trial {} done in {} sec.'.format(trial+1, batch_infer_time[trial]))
+                        infered_policy_vec = np.einsum('ij,i->ij', exp_Q, reciprocal_sum_exp_Q)
+                        batch_L1_norm[trial] = np.einsum('l->', np.abs(np.subtract(infered_policy_vec.ravel(),
+                                                                                   reference_policy_vec)))
 
         def gradE():
                 grad=np.ones([1,theta_size])
@@ -309,7 +315,7 @@ class PolicyInference(object):
                 ns=self.mdp.num_states
                 na=self.mdp.num_actions
                 nk=self.mdp.num_kern
-                ba=np.zeros([ns,na,nk*na,nk])
+                ba=np.zeros([ns,na,nk*na,nk])  
                 dd=np.zeros([ns,na,nk*na,nk])
                 ca=np.zeros([ns,na,nk*na,nk])
                 for state in self.mdp.state_vec:
@@ -352,12 +358,6 @@ class PolicyInference(object):
         if is_last_trial:
                 self.buildPolicy()
 
-        if doing_monte_carlo:
-                batch_infer_time[trial] = time.clock() - trial_tic
-                print('Infernce Batch Trial {} done in {} sec.'.format(trial+1, batch_infer_time[trial]))
-                infered_policy_vec = np.einsum('ij,i->ij', exp_Q, reciprocal_sum_exp_Q)
-                batch_L1_norm[trial] = np.einsum('l->', np.abs(np.subtract(infered_policy_vec.ravel(),
-                                                                           reference_policy_vec)))
 
         if do_print:
                 print("Infered-Policy as a {state: action-distribution} dictionary.")
@@ -372,10 +372,10 @@ class PolicyInference(object):
                     plt2.ylabel('Theta '+str(int(u/6))+'_'+str(u%6))
                     plt2.show()
 
-            
-
-
         if doing_monte_carlo:
+            plt2.plot(range(monte_carlo_size),batch_L1_norm)
+            plt2.ylabel('L1 norm')
+            plt2.show()
             return (batch_L1_norm, batch_infer_time)
 
     def historyMLE(self, histories, do_print=False):
