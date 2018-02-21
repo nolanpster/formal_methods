@@ -5,7 +5,7 @@ __author__ = 'Nolan Poulin, nipoulin@wpi.edu, Nishant Doshi, ndoshi@wpi.edu'
 from kernel_centers import GeodesicGaussianKernelCenter as GGKCent
 from kernel_centers import OrdinaryGaussianKernelCenter as OGKCent
 import numpy as np
-
+import pdb
 
 class FeatureVector(object):
     """
@@ -85,7 +85,9 @@ class FeatureVector(object):
         self.del_weighted_prob_kernel_sum = np.empty([self.num_kernels, self.num_states, self.num_actions])
         self.buildTransProbMat()
         self.updateStateDistancesToKernels()
+        #pdb.set_trace()
         self.updateStdDevs(also_update_kernel_weights=True)
+
         self.buildKernelDeltas()
 
         # Variables to keep track of things that have already been calculated.
@@ -121,8 +123,11 @@ class FeatureVector(object):
     def updateStdDevs(self, std_devs=None, also_update_kernel_weights=True):
         if std_devs is not None:
             self.std_devs = std_devs
+            #sig = np.linspace(1, np.sqrt(self.num_states)/2, 100)
+
         self.kernel_divisor_reciprocal = np.reciprocal(2*np.power(self.std_devs, 2, dtype=self.dtype))
         self.dkernel_divisor_reciprocal = np.reciprocal(np.power(self.std_devs, 3, dtype=self.dtype))
+        #self.sym_kernel_div=np.reciprocal(2*np.power(sig, 2, dtype=self.dtype))
 
         if also_update_kernel_weights:
             self.updateKernels()
@@ -168,7 +173,9 @@ class FeatureVector(object):
         kernel_arg_denom_recip = self.kernel_divisor_reciprocal[selected_kernel_indeces]
         self.kernel_argument[selected_kernel_indeces] = np.einsum('kl,k->kl', kernel_arg_numerator,
                                                                   kernel_arg_denom_recip)
+        #self.sig_kernel_argument[selected_kernel_indeces] =  kernel_arg_numerator*self.sym_kernel_div
         self.kernel_values[selected_kernel_indeces] = np.exp(self.kernel_argument[selected_kernel_indeces])
+        #self.sig_kernels[selected_kernel_indeces]= np.exp(self.sig_kernel_argument[selected_kernel_indeces])
 
     def updateWeightedSum(self, selected_kernel_indeces=None):
         """
@@ -186,6 +193,8 @@ class FeatureVector(object):
                 for state in self.state_vec:
                     self.weighted_prob_kernel_sum[kernel_ind, state, act_ind] = \
                         np.inner(self.kernel_values[kernel_ind], self.prob_mat[state, :, act_ind])
+                    #self.sig_weighted_prob_kernel_sum[kernel_ind, state, act_ind] = \
+                     #   self.sig_kernels[kernel_ind]*self.prob_mat[state, :, act_ind]
 
 
     def buildKernelDeltas(self, selected_kernel_indeces=None):
