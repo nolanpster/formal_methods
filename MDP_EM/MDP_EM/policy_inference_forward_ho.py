@@ -89,6 +89,7 @@ class PolicyInference(object):
         num_states = self.mdp.num_states
         self.histories = histories
         (num_episodes, num_steps) = self.histories.shape
+        monte_carlo_size=10
         traj_samples = range(num_episodes) # Will be shuffled every iteration.
         if monte_carlo_size is not None:
             batch_L1_norm = np.empty(monte_carlo_size)
@@ -139,14 +140,14 @@ class PolicyInference(object):
         # theta vector as described here: https://en.wikipedia.org/wiki/Moving_average#Exponential_moving_average. Take
         # the difference between the new average @theta and the previous @theta. If the Euclidian norm of the difference
         # is less than @c thresh, the iteration exits.
-        thresh = 20
+        thresh = 10
         eps = 0.25
         inverse_temp_start = np.float16(1.0)
         # Larger value of inverse_temp_rate causes the temperature to cool faster, reduces oscilation. Set to 0 to
         # remove effect of temperature cooling.
         inverse_temp_rate =  np.float16(0.25)
         global sig
-
+        num_inferences=10
         sig=np.array(self.mdp.phi.std_devs)
         def forward_mode():
                 phis = computePhis()
@@ -245,7 +246,9 @@ class PolicyInference(object):
                                    indent=4)
                     u=np.dot(gradE(),Z)
                     global sig
-                    sig=np.add(sig,unit_grad(u[0]), out=sig, casting="unsafe") 
+                    sig=sig.astype(float)
+                    print(unit_grad(u[0]))
+                    sig+=unit_grad(u[0])
                     print('Sigmas={0}'.format(sig))
                     self.mdp.updateSigmas(sig)
 
@@ -269,14 +272,14 @@ class PolicyInference(object):
 
         def d_phi_dlamda():
             b=del_V_del_sig()
-            d=-velocity_memory*eps*b
+            d=velocity_memory*eps*b
             return np.concatenate((b,d),axis=0)
 
         def d_phi_ds():
             a=velocity_memory*np.identity(len(velocity))
             b=deldelL()
             c=np.concatenate((a,b),axis=1)
-            d=np.concatenate((eps*a,np.identity(len(b))-eps*b),axis=1)
+            d=np.concatenate((eps*a,np.identity(len(b))+eps*b),axis=1)
             return np.concatenate((c,d),axis=0)
 
         def deldelL():
@@ -301,7 +304,6 @@ class PolicyInference(object):
             return vec/np.sum(vec)
 
         def del_V_del_sig():
-
                 dpds=del_phi_del_sig()
 
                 ns=self.mdp.num_states
@@ -318,7 +320,7 @@ class PolicyInference(object):
                                 db=0
                                 for act2_idx, act2 in enumerate(acts_list):
                                     ba[state,act_idx, kern_idx,kern_idx2]+=dpds[state,act2_idx,kern_idx, kern_idx2]*exp_Q[state,act2_idx]/np.sum(exp_Q[state,:])
-                                    da+=phis[state,act2_idx, kern_idx]*exp_Q[state,act2_idx]*phis[state,act2_idx, kern_idx]
+                                    da+=phis[state,act2_idx, kern_idx]*exp_Q[state,act2_idx]
                                     db+=theta[0,act2_idx*nk+(kern_idx%nk)]*dpds[state,act2_idx,kern_idx,kern_idx2]/(np.sum(exp_Q[state,:])**2)
                                     dd[state,act_idx, kern_idx,kern_idx2]+=phis[state,act2_idx, kern_idx]*exp_Q[state,act2_idx]*theta[0,act2_idx*nk+(kern_idx%nk)]*dpds[state,act2_idx,kern_idx, kern_idx2]/np.sum(exp_Q[state,:])
                                 ca[state,act_idx, kern_idx,kern_idx2]=da*db
