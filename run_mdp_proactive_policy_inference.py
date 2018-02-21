@@ -236,10 +236,11 @@ def makeGridMDPxDRA(do_print=False):
                       policy_keys_to_print=policy_keys_to_print)
 
     # Compare the two solution methods.
-    policy_difference = MDP.comparePolicies(VI_game_mdp.policy, EM_game_mdp.policy, policy_keys_to_print,
-                                            compare_to_decimals=3, do_print=do_print, compute_kl_divergence=True,
-                                            reference_policy_has_augmented_states=True,
-                                            compare_policy_has_augmented_states=True)
+    policy_difference, policy_KL_divergence  = MDP.comparePolicies(VI_game_mdp.policy, EM_game_mdp.policy,
+                                                                   policy_keys_to_print, compare_to_decimals=3,
+                                                                   do_print=do_print, compute_kl_divergence=True,
+                                                                   reference_policy_has_augmented_states=True,
+                                                                   compare_policy_has_augmented_states=True)
 
     return EM_game_mdp, VI_game_mdp, policy_keys_to_print, policy_difference
 
