@@ -12,6 +12,10 @@ import matplotlib.colors as mcolors
 from matplotlib.patches import Wedge
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.mplot3d import Axes3D
+
+# Set warning filter before pandas import so pandas recognizes it.
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 
 class PlotGrid(object):
