@@ -271,7 +271,7 @@ if __name__=='__main__':
     inference_method='default' # Default chooses gradient ascent. Other options: 'historyMLE', 'iterativeBayes'.
 
     # Gradient Ascent kernel configurations
-    kernel_sigmas = [1]*16
+    kernel_sigmas = np.array([1]*6, dtype=np.float32)
     kernel_count_start = 6
     kernel_count_end = 5
     kernel_count_increment_per_set = -1
