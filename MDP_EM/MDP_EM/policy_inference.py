@@ -46,7 +46,7 @@ class PolicyInference(object):
         """
         @brief Method to build the policy during/after policy inference.
         """
-        if self.method is 'gradientAscent':
+        if 'gradientAscent' in self.method:
             exp_Q = {state: {act: np.exp(np.dot(self.mdp.theta, self.mdp.phi_at_state[state][act])) for act in
                              self.mdp.action_list} for state in self.mdp.state_vec}
             sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.mdp.state_vec}
@@ -260,6 +260,7 @@ class PolicyInference(object):
 
             if do_print:
                 print("Infered-Policy as a {state: action-distribution} dictionary.")
+                self.buildPolicy()
                 pprint(self.mdp.policy)
 
             if do_plot:
