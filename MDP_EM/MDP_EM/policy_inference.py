@@ -88,6 +88,13 @@ class PolicyInference(object):
                Sugiyama, 2015.
 
         @note All policy differences are computed with L1-norm.
+        @note For any calculations with numpy.einsum, unless otherwise noted:
+                - d : time-step axis
+                - h : garbage (length 1) axis
+                - i : state-axis
+                - j : action-axis
+                - k : theta/phi vector axis
+                - l : a policy represented as a vector
 
         @param theta_0 Initial parameter vector used to start inference.
         @param do_print Flag to print policy difference and time for each iteration.
