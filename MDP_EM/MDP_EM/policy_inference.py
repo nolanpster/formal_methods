@@ -50,6 +50,14 @@ class PolicyInference(object):
             sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.mdp.state_vec}
             self.mdp.policy = {state: {act: exp_Q[state][act]/sum_exp_Q[state] for act in self.mdp.action_list}
                                for state in self.mdp.states}
+    def computePhis(self):
+        # Initialize arrays for intermediate computations.
+        phis = np.zeros([self.mdp.num_states, self.mdp.num_actions, self.theta_size], dtype=self.dtype)
+        for state in self.mdp.state_vec:
+            for act_idx, act in enumerate(self.mdp.action_list):
+                for kern_idx in xrange(self.theta_size):
+                    phis[state, act_idx, kern_idx] = self.mdp.phi_at_state[state][act][kern_idx]
+        return phis
 
     def gradientAscent(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False, dtype=np.float64,
                        monte_carlo_size=None, reference_policy_vec=None, precomputed_observed_action_indeces=None):
@@ -72,15 +80,6 @@ class PolicyInference(object):
                indeces for each time-step in each episode in the history. This is useful if the inference is being
                called externally with the same history.
         """
-        def computePhis():
-            # Initialize arrays for intermediate computations.
-            phis = np.zeros([self.mdp.num_states, self.mdp.num_actions, theta_size], dtype=dtype)
-            for state in self.mdp.state_vec:
-                for act_idx, act in enumerate(acts_list):
-                    for kern_idx in xrange(theta_size):
-                        phis[state, act_idx, kern_idx] = self.mdp.phi_at_state[state][act][kern_idx]
-            return phis
-
         # Process input arguments
         do_plot=False
         acts_list = self.mdp.action_list
@@ -88,6 +87,7 @@ class PolicyInference(object):
         num_states = self.mdp.num_states
         self.histories = histories
         (num_episodes, num_steps) = self.histories.shape
+        self.dtype = dtype
         traj_samples = range(num_episodes) # Will be shuffled every iteration.
         if monte_carlo_size is not None:
             batch_L1_norm = np.empty(monte_carlo_size)
@@ -116,9 +116,9 @@ class PolicyInference(object):
             for kern_idx in xrange(self.mdp.num_kern):
                 for act_idx, act in enumerate(self.mdp.action_list):
                         theta_0[0][kern_idx*self.mdp.num_actions+act_idx]= 1.0 / (theta_0.size)
-        theta_size = theta_0.size
+        self.theta_size = theta_0.size
 
-        phis = computePhis()
+        phis = self.computePhis()
 
         # Velocity vector can be thought of as the momentum of the gradient descent. It is used to carry the theta
         # estimate through local minimums. https://wiseodd.github.io/techblog/2016/06/22/nn-optimization/. Set at top of
@@ -158,7 +158,7 @@ class PolicyInference(object):
             inverse_temp = inverse_temp_start
             iter_count = 0
             delta_theta_norm = np.inf
-            velocity = np.zeros([theta_size], dtype=dtype)
+            velocity = np.zeros([self.theta_size], dtype=dtype)
             self.mdp.theta = deepcopy(theta_0)
             theta = self.mdp.theta # Use a local reference to theta for look-up speed.
             theta_avg = deepcopy(theta_0)
@@ -197,7 +197,7 @@ class PolicyInference(object):
                         raise NotImplementedError
 
                     # Using Numpy.einsum, equivalent code is:
-                    grad_wrt_theta = np.zeros(theta_size)
+                    grad_wrt_theta = np.zeros(self.theta_size)
                     #   for t_step in xrange(1, num_steps):
                     #       this_state = histories[episode, t_step-1]
                     #       grad_wrt_theta += \
