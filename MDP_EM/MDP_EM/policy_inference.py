@@ -52,6 +52,26 @@ class PolicyInference(object):
             sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.mdp.state_vec}
             self.mdp.policy = {state: {act: exp_Q[state][act]/sum_exp_Q[state] for act in self.mdp.action_list}
                                for state in self.mdp.states}
+
+    def getObservedActionIndeces(self):
+        """
+        @brief Precompute the observed action indeces for the instance's demonstration set.
+
+        @return observed_action_indeces A Num_episodes-by-(num_steps) matrix of action indeces. Each column
+                corresponds to the action taken from the state at time-step t from t=0 to T-1 so the first column is
+                invalid.
+        """
+        (num_episodes, num_steps) = self.histories.shape
+        observed_action_indeces = np.empty([num_episodes, num_steps],
+                                           dtype=DataHelp.getSmallestNumpyUnsignedIntType(self.mdp.num_actions))
+        for episode in xrange(num_episodes):
+            for t_step in xrange(1, num_steps):
+                this_state = self.histories[episode, t_step-1]
+                next_state = self.histories[episode, t_step]
+                observed_action = self.mdp.graph.getObservedAction(this_state, next_state)
+                observed_action_indeces[episode, t_step] = acts_list.index(observed_action)
+        return observed_action_indeces
+
     def computePhis(self):
         # Initialize arrays for intermediate computations.
         phis = np.zeros([self.mdp.num_states, self.mdp.num_actions, self.theta_size], dtype=self.dtype)
@@ -103,14 +123,7 @@ class PolicyInference(object):
             observed_action_indeces = precomputed_observed_action_indeces
         else:
             # Precompute observed actions for all episodes.
-            observed_action_indeces = np.empty([num_episodes, num_steps],
-                                               dtype=DataHelp.getSmallestNumpyUnsignedIntType(self.mdp.num_actions))
-            for episode in xrange(num_episodes):
-                for t_step in xrange(1, num_steps):
-                    this_state = self.histories[episode, t_step-1]
-                    next_state = self.histories[episode, t_step]
-                    observed_action = self.mdp.graph.getObservedAction(this_state, next_state)
-                    observed_action_indeces[episode, t_step] = acts_list.index(observed_action)
+            observed_action_indeces = self.getObservedActionIndeces()
 
         # Initialize Weight vector, theta.
         if theta_0 == None:
