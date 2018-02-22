@@ -140,6 +140,7 @@ class PolicyInference(object):
                 for act_idx, act in enumerate(self.mdp.action_list):
                         theta_0[0][kern_idx*self.mdp.num_actions+act_idx]= 1.0 / (theta_0.size)
         self.theta_size = theta_0.size
+        self.ones_length_theta = np.ones(self.theta_size)
 
         phis = self.computePhis()
 
@@ -220,20 +221,19 @@ class PolicyInference(object):
                         raise NotImplementedError
 
                     # Using Numpy.einsum, equivalent code is:
-                    grad_wrt_theta = np.zeros(self.theta_size)
                     #   for t_step in xrange(1, num_steps):
                     #       this_state = histories[episode, t_step-1]
                     #       grad_wrt_theta += \
                     #           np.multiply(np.subtract(phis[this_state, observed_action_indeces[episode, t_step]],
                     #                                   del_theta_total_Q[this_state]), temp)
-                    grad_wrt_theta = \
-                        np.multiply(np.einsum('dk->k',
-                                    np.subtract(phis[histories[episode,:-1], observed_action_indeces[episode,1:]],
-                                                del_theta_total_Q[histories[episode,:-1]])),
-                                    temp)
+                    grad_wrt_theta = np.einsum('dk->k',
+                                               np.subtract(phis[histories[episode,:-1],
+                                                           observed_action_indeces[episode,1:]],
+                                               del_theta_total_Q[histories[episode,:-1]]))
+                    grad_wrt_theta *= temp
 
                     velocity *= velocity_memory
-                    velocity += np.multiply(eps, grad_wrt_theta.T)
+                    velocity += np.multiply(eps, grad_wrt_theta)
                     theta += velocity
 
                 # Update moving average value of theta vector, then decrease the learning rate, @c eps.
@@ -241,7 +241,7 @@ class PolicyInference(object):
                 theta_avg -= np.divide(theta_avg, iter_count);
                 theta_avg += np.divide(theta, iter_count);
                 vector_diff = np.subtract(theta_avg_old, theta_avg)
-                delta_theta_norm = np.einsum('ij->', np.absolute(vector_diff))
+                delta_theta_norm = inner1d(np.absolute(vector_diff), self.ones_length_theta)
 
                 if do_plot:
                     vals2plot.append(self.mdp.theta.tolist())
