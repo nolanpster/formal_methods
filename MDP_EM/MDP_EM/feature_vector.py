@@ -13,8 +13,8 @@ class FeatureVector(object):
     """
     np_all = np.s_[:] # Slice operator for all values.
 
-    def __init__(self, action_list, trans_prob_function, graph, ggk_centers=None, ogk_centers=None, std_devs=None,
-                 dtype=np.float64, ggk_mobile_indeces=[], ogk_mobile_indeces=[]):
+    def __init__(self, action_list, trans_prob_function, graph, ggk_centers=frozenset([]), ogk_centers=frozenset([]),
+                 std_devs=None, dtype=np.float64, ggk_mobile_indeces=[], ogk_mobile_indeces=[]):
         """
         @brief Creates and instance of a feature vector class.
 
@@ -45,12 +45,12 @@ class FeatureVector(object):
 
         # Prepare Geodesic Gaussian Kernels
         self.ggk_centers = ggk_centers
-        self.G = len(self.ggk_centers) if self.ggk_centers is not None else 0
+        self.G = len(self.ggk_centers)
         self.GGK_dist_objs = [GGKCent(cent, graph) for cent in self.ggk_centers]
 
         # Prepare Ordinary Gaussian Kernels
         self.ogk_centers = ogk_centers
-        self.O = len(self.ogk_centers) if self.ogk_centers is not None else 0
+        self.O = len(self.ogk_centers)
         self.OGK_dist_objs = [OGKCent(cent, graph) for cent in self.ogk_centers]
 
         # Objects that return the distance to each kernel center when called.
@@ -61,6 +61,7 @@ class FeatureVector(object):
         self.num_states = len(self.state_vec)
         self.num_actions = len(action_list)
         self.num_kernels = self.G + self.O
+        self.kernel_centers = list(self.ggk_centers) + list(self.ogk_centers)
         self.length = self.num_kernels * self.num_actions
 
         # Create a list of any mobile kernels.

@@ -369,7 +369,7 @@ if __name__=='__main__':
         # between two grid-cells.
         infer_mdp = InferenceMDP(init=initial_state, action_list=action_list, states=states,
                                  act_prob=deepcopy(act_prob), grid_map=grid_map, L=labels,
-                                 gg_kernel_centers=kernel_centers[0],kernel_sigmas=kernel_sigmas)
+                                 gg_kernel_centers=kernel_centers[0], kernel_sigmas=kernel_sigmas)
         print 'Built InferenceMDP with kernel set:'
         print(kernel_centers[0])
         if not perform_new_inference and (plot_new_phi or plot_new_kernel):
@@ -402,15 +402,15 @@ if __name__=='__main__':
 
                 batch_L1_err = np.empty([kernel_set_sample_count, batch_size_for_kernel_set])
                 batch_infer_time = np.empty([kernel_set_sample_count, batch_size_for_kernel_set])
+                batch_kernel_sigmas = np.array([1]*num_kernels_in_set[kernel_set_idx], dtype=np.float32)
                 for trial in xrange(kernel_set_sample_count):
                     trial_kernel_set = frozenset(np.random.choice(len(states), num_kernels_in_set[kernel_set_idx],
                                                  replace=False))
-                    trial_kernel_set |= set([0])
-                    print('Inference set {} has {} kernels:{}'.format(
-                          (kernel_set_idx * kernel_set_sample_count) + trial, num_kernels_in_set[kernel_set_idx],
-                          trial_kernel_set))
-                    infer_mdp.buildKernels(trial_kernel_set)
-
+                    infer_mdp.buildKernels(gg_kernel_centers=trial_kernel_set, kernel_sigmas=batch_kernel_sigmas)
+                    print('Inference set {} has {} kernels:{}'
+                          .format((kernel_set_idx * kernel_set_sample_count) + trial,
+                                  num_kernels_in_set[kernel_set_idx],
+                                  infer_mdp.phi.kernel_centers))
                     batch_L1_err[trial], batch_infer_time[trial] = \
                         infer_mdp.inferPolicy(histories=run_histories,
                                               do_print=print_inference_iterations,

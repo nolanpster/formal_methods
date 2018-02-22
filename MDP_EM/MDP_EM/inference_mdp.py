@@ -18,8 +18,8 @@ class InferenceMDP(MDP):
     of atomic propositions. Each proposition is identified by an index between 0 -N.  L: the labeling function,
     implemented as a dictionary: state: a subset of AP."""
     def __init__(self, init=None, action_list=[], states=[], prob=dict([]), acc=None, gamma=.9, AP=set([]), L=dict([]),
-                 reward=dict([]), grid_map=None, act_prob=dict([]), gg_kernel_centers=[], og_kernel_centers=[],
-                 kernel_sigmas=None):
+                 reward=dict([]), grid_map=None, act_prob=dict([]), gg_kernel_centers=frozenset([]),
+                 og_kernel_centers=frozenset([]), kernel_sigmas=None):
         """
         @brief Construct an MDP meant to perform inference.
         @param init @todo
@@ -51,13 +51,25 @@ class InferenceMDP(MDP):
 
         # option to rebuild kernels here?
 
-    def buildKernels(self, kernel_centers=None, kernel_sigmas=None):
+    def buildKernels(self, gg_kernel_centers=None, og_kernel_centers=None, kernel_sigmas=None):
         """
         @brief @todo
 
         @param kernel_centers A set/list/numpy.array of kernel centers to use. If not provided this method assumes that
                the member is already set.
         """
+        kernel_centers_were_updated = False
+        if kernel_sigmas is not None:
+            self.kernel_sigmas = kernel_sigmas
+        if gg_kernel_centers is not None:
+            self.gg_kernel_centers = gg_kernel_centers
+            kernel_centers_were_updated = True
+        if og_kernel_centers is not None:
+            self.og_kernel_centers = og_kernel_centers
+            kernel_centers_were_updated = True
+        if kernel_centers_were_updated:
+            self.kernel_centers = list(self.gg_kernel_centers) + list(self.og_kernel_centers)
+
         self.phi = FeatureVector(self.action_list, self.T, self.graph, ggk_centers=self.gg_kernel_centers,
                                  ogk_centers=self.og_kernel_centers, std_devs=self.kernel_sigmas)
         self.num_kern = self.phi.num_kernels
