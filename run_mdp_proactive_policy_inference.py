@@ -248,7 +248,7 @@ def makeGridMDPxDRA(do_print=False):
 # Entry point when called from Command line.
 if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
-    make_new_mdp = True
+    make_new_mdp = False
     pickled_mdp_file_to_load  = 'robot_mdps_180221_1651'
     write_mdp_policy_csv = False
 
@@ -263,21 +263,29 @@ if __name__=='__main__':
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
     # demonstration policy.
-    perform_new_inference = False
+    perform_new_inference = True
     pickled_inference_mdps_file_to_load  = \
         'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Policy_180221_1418'
     load_inference_statistics = (not perform_new_inference) & True
     pickled_inference_statistics_file_to_load  = \
         'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Inference_Stats_180221_1431'
-    inference_method='default' # Default chooses gradient ascent. Other options: 'historyMLE', 'iterativeBayes'.
+    # Select the inference method to use. Must match a method in PolicyInference: 'gradientAscent', 'historyMLE',
+    # 'iterativeBayes', 'gradientAscentGaussianTheta'.
+    inference_method = 'gradientAscentGaussianTheta'
 
     # Gradient Ascent kernel configurations
-    kernel_count_start = 6
-    kernel_count_end = 5
+    kernel_count_start = 16
+    kernel_count_end = 15
     kernel_sigmas = np.array([1]*kernel_count_start, dtype=np.float32)
     kernel_count_increment_per_set = -1
     kernel_set_sample_count = 1
     batch_size_for_kernel_set = 1
+    num_theta_samples = 500
+    if inference_method is 'gradientAscentGaussianTheta':
+        monte_carlo_size = num_theta_samples
+    else:
+        monte_carlo_size = batch_size_for_kernel_set
+
 
     # Plotting lags
     plot_all_grids = True
@@ -416,7 +424,7 @@ if __name__=='__main__':
                                               do_print=print_inference_iterations,
                                               use_precomputed_phi=True,
                                               dtype=np.float32,
-                                              monte_carlo_size=batch_size_for_kernel_set,
+                                              monte_carlo_size=monte_carlo_size,
                                               reference_policy_vec=reference_policy_vec,
                                               precomputed_observed_action_indeces=observed_action_indeces)
                 kernel_set_L1_err[kernel_set_idx] = batch_L1_err.mean(axis=1)

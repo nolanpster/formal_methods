@@ -53,6 +53,25 @@ class PolicyInference(object):
             self.mdp.policy = {state: {act: exp_Q[state][act]/sum_exp_Q[state] for act in self.mdp.action_list}
                                for state in self.mdp.states}
 
+    def buildPolicyVectors(self, phis, theta):
+        """
+        @brief Given Q(s,a) = <phi, theta>, this build the Boltzman policy as a vector.
+
+        Vector indeces are [s_0_a_0, s_0_a_1, ... s_0_a_N, ... s_M_a_N-1, s_M_a_N] for M states and N actions.
+
+        @param phis A Num-states--by--num-actions--by--num-kernels numpy array.
+        @param theta A KxNum-kernels numpy array. Where K is the number of samples of the theta vector.
+
+        @return policy_matrix  A matrix of action probabilities of shape K-by-(num-actions*num-states).
+        """
+        # See note about numpy.einsum axes in PolicyInference.gradientAscent(). In this case, 'h' is used to referce the
+        # rows (number of samples) of theta.
+        if 'gradientAscent' in self.method:
+            exp_Q = np.exp(np.einsum('ijk,hk->hij', phis, theta))
+            reciprocal_sum_exp_Q = np.reciprocal(np.einsum('hij->hi', exp_Q))
+            policy_matrix = np.einsum('hij,hi->hij', exp_Q, reciprocal_sum_exp_Q)
+            return policy_matrix.reshape(theta.shape[0], self.policy_vec_length)
+
     def getObservedActionIndeces(self):
         """
         @brief Precompute the observed action indeces for the instance's demonstration set.
@@ -69,7 +88,7 @@ class PolicyInference(object):
                 this_state = self.histories[episode, t_step-1]
                 next_state = self.histories[episode, t_step]
                 observed_action = self.mdp.graph.getObservedAction(this_state, next_state)
-                observed_action_indeces[episode, t_step] = acts_list.index(observed_action)
+                observed_action_indeces[episode, t_step] = self.mdp.action_list.index(observed_action)
         return observed_action_indeces
 
     def computePhis(self):
@@ -381,3 +400,260 @@ class PolicyInference(object):
         exp_Q = {act:np.exp(np.dot(theta, phi)) for act in action_list}
 
         return exp_Q[action]/sum(exp_Q.values())
+
+    def logProbTrajGivenTheta(self, traj_idx, theta_mat, phis):
+        """
+        @brief Given Q(s,a) = <phi(s,a), theta>, this evaluates the log probability of a trajectory given the parameter
+               vector, theta.
+
+        Vector indeces are [s_0_a_0, s_0_a_1, ... s_0_a_N, ... s_M_a_N-1, s_M_a_N] for M states and N actions.
+
+        @param traj_idx The index of the trajectory to evaluate.
+        @param phis A Num-states--by--num-actions--by--num-kernels numpy array.
+        @param theta A KxNum-kernels numpy array where K is the number of times theta is sampled.
+
+        @return The log probability of the trajectory for each theta sample.
+        """
+        policy_mat = self.buildPolicyVectors(phis, theta_mat)
+        self.episode_policy_vec_indeces[traj_idx]
+        total_prob = np.prod(policy_mat[:,self.episode_policy_vec_indeces[traj_idx]], axis=1)
+        # Replace any zero values in total probability with the minimum float value.
+        total_prob[total_prob == 0] = self.dtype(sys.float_info.min) 
+        log_prob_traj_given_theta = np.log(total_prob)
+        return log_prob_traj_given_theta
+
+    def probTrajGivenPolicy():
+        vec_ones = np.ones(100)
+        np.log(inner1d(np.random.sample(100),vec_ones))
+
+    def gradientAscentGaussianTheta(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False,
+                                    dtype=np.float64, monte_carlo_size=10, reference_policy_vec=None,
+                                    precomputed_observed_action_indeces=None, theta_std_dev_0=None):
+        """
+        @brief Performs Policy inference using gradient ascent on the distribution theta_i ~ (mu_i, sigma_i).
+
+        @note All policy differences are computed with L1-norm.
+        @note For any calculations with numpy.einsum, unless otherwise noted:
+                - d : time-step axis
+                - h : sampled-theta axis
+                - i : state-axis
+                - j : action-axis
+                - k : theta/phi vector axis
+                - l : a policy represented as a vector
+
+        @param histories A num-episodes - by - num-time-steps matrix of observed states.
+        @param theta_0 Vector of initial theta distribution mean values.
+        @param do_print Flag to print policy difference and time for each iteration.
+        @param use_procompute_phi Flag to use the self.mdp.phi_at_state state-action dictionary for inference.
+        @param dtype Numpy data type to use for array computation, default is numpy.float64.
+        @param monte_carlo_size The number of times to sample from theta's distribution when performing monte-carlo
+               integration of the log-likelihood of a demonstration set given theta's distribution.
+        @param reference_policy_vec Not used by this implementation.
+        @param precomputed_observed_action_indeces If supplied, the inference will assume the correct observed action
+               indeces for each time-step in each episode in the history. This is useful if the inference is being
+               called externally with the same history.
+        """
+        # Process input arguments
+        do_plot=False
+        acts_list = self.mdp.action_list
+        num_acts = self.mdp.num_actions
+        num_states = self.mdp.num_states
+        self.histories = histories
+        (num_episodes, num_steps) = self.histories.shape
+        self.dtype = dtype
+        traj_samples = range(num_episodes) # Will be shuffled every iteration.
+        if precomputed_observed_action_indeces is not None:
+            observed_action_indeces = precomputed_observed_action_indeces
+        else:
+            # Precompute observed actions for all episodes.
+            observed_action_indeces = self.getObservedActionIndeces()
+
+        # Initialize Weight vector, theta.
+        if theta_0 == None:
+            test_phi = self.mdp.phi(1, 'East')
+            theta_0 = np.empty([test_phi.size, 1], dtype=dtype).T
+            for kern_idx in xrange(self.mdp.num_kern):
+                for act_idx, act in enumerate(self.mdp.action_list):
+                    theta_0[0][kern_idx*self.mdp.num_actions+act_idx]= 1.0 / (theta_0.size)
+        self.theta_size = theta_0.size
+        self.ones_length_theta = np.ones(self.theta_size)
+        self.mdp.theta = deepcopy(theta_0)
+        theta_mean_vec = theta_0 # Vector to compute SGD with.
+
+        if theta_std_dev_0 is None:
+            theta_std_dev_0 = np.ones(self.theta_size) * self.mdp.num_states
+        theta_std_dev_vec = theta_std_dev_0 # Vector to compute SGD with.
+        theta_std_dev_min = 0.1
+        theta_std_dev_max = 100.
+
+        # Precompute feature vector at all states.
+        phis = self.computePhis()
+
+        #  Precompute the indeces in a policy vector of length (num-states * num-actions) given the observed actions and
+        #  the episodes. Note that the histories are (num-episodes by num-time-steps) large, but the matrix of policy
+        #  vector indeces is (num-episodes by num-time-steps - 1).
+        self.episode_policy_vec_indeces = histories[:,:-1]*self.mdp.num_actions + observed_action_indeces[:,1:]
+        self.policy_vec_length = self.mdp.num_actions * self.mdp.num_states
+
+        # Velocity vector can be thought of as the momentum of the gradient descent. It is used to carry the theta
+        # estimate through local minimums. https://wiseodd.github.io/techblog/2016/06/22/nn-optimization/. Set at top of
+        # for-loop.
+        velocity_memory = 0.9
+        velocity_mu = np.zeros([self.theta_size], dtype=dtype)
+        velocity_sigma = np.zeros([self.theta_size], dtype=dtype)
+
+        # Configure printing and plotting options.
+        vals2plot=[]
+        del2print=[]
+
+        # This block configures the iteration parameters. The threshold at which to stop iteration, @c thresh, the
+        # fraction of gradient to apply in each iteration, @c eps, an iteration counter, and the change in the norm of
+        # the average theta vector since the previous iteration.
+        #
+        # The stopping threshold for the Stochastic gradient ascent is based upon the the moving average  of the @c
+        # theta vector as described here: https://en.wikipedia.org/wiki/Moving_average#Exponential_moving_average. Take
+        # the difference between the new average @theta and the previous @theta. If the Euclidian norm of the difference
+        # is less than @c thresh, the iteration exits.
+        theta_mu_avg = deepcopy(theta_0)
+        theta_sigma_avg = deepcopy(theta_std_dev_0)
+        thresh = 0.05
+        eps = 0.25
+        inverse_temp_start = np.float16(1.0)
+        inverse_temp = inverse_temp_start
+        # Larger value of inverse_temp_rate causes the temperature to cool faster, reduces oscilation. Set to 0 to
+        # remove effect of temperature cooling.
+        inverse_temp_rate =  np.float16(0.25)
+
+        # Loop until convergence
+        iter_count = 0
+        delta_theta_mu_norm = np.inf
+        delta_theta_sigma_norm = np.inf
+        while delta_theta_mu_norm > thresh or delta_theta_sigma_norm > thresh:
+            if do_print:
+                iter_tic = time.clock()
+            iter_count += 1
+            inverse_temp += inverse_temp_rate
+            temp = np.float16(1.0) / inverse_temp
+            random.shuffle(traj_samples)
+            traj_queue = deque(traj_samples)
+
+            # Sample monte_carlo_size theta vectors from their distributions. This forms a
+            # monte_carlo_size-by-theta_size matrix.
+            theta_samples = np.empty([monte_carlo_size, self.theta_size])
+            for theta_idx in xrange(self.theta_size):
+                theta_samples[:, theta_idx] =np.random.normal(theta_mean_vec[0, theta_idx],
+                                                              theta_std_dev_vec[theta_idx], monte_carlo_size)
+
+            log_prob_traj_given_thetas = 0.0
+            while len(traj_queue)>0:
+                episode = traj_queue.pop()
+
+                # Compute the log-likelihood of a trajectory given the sampled theta values.
+                log_prob_traj_given_thetas += self.logProbTrajGivenTheta(episode, theta_samples, phis)
+
+            ## Mu Update ##
+            # Calculate the gradient of the log-likelihood of the sampled thetas with respect to the means of the
+            # theta distribution.
+            theta_variance = np.power(theta_std_dev_vec, 2)
+            theta_sample_less_mean = theta_samples
+            theta_sample_less_mean -= theta_mean_vec[0]
+            grad_log_prob_theta_wrt_mu = theta_sample_less_mean
+            grad_log_prob_theta_wrt_mu /= theta_variance
+
+            # Calculate the gradient of the log-likelihood of the trajectory with respect to the means of the theta
+            # distribution.
+            grad_log_prob_hist_given_theta_dist_wrt_mu = np.einsum('hk,h->k', grad_log_prob_theta_wrt_mu,
+                                                                   log_prob_traj_given_thetas)
+            grad_log_prob_hist_given_theta_dist_wrt_mu /= monte_carlo_size
+            grad_log_prob_hist_given_theta_dist_wrt_mu *= temp
+
+            # Update the gradient with the velocity of theta_mu.
+            velocity_mu *= velocity_memory
+            velocity_mu += np.multiply(eps, grad_log_prob_hist_given_theta_dist_wrt_mu)
+            theta_mean_vec += velocity_mu
+
+            ## Sigma Update ##
+            # Calculate the gradient of the log-likelihood of the sampled thetas with respect to the standard
+            # deviations of the theta distribution.
+            grad_log_prob_theta_wrt_sigma = np.power(theta_sample_less_mean, 2)
+            grad_log_prob_theta_wrt_sigma -= theta_variance
+            grad_log_prob_theta_wrt_sigma /= np.multiply(theta_variance, theta_std_dev_vec) # Sigma^3
+
+            # Calculate the gradient of the log-likelihood of the trajectory with respect to the standard deviations
+            # of the theta distribution.
+            grad_log_prob_hist_given_theta_dist_wrt_sigma = np.einsum('hk,h->k', grad_log_prob_theta_wrt_sigma,
+                                                                      log_prob_traj_given_thetas)
+            grad_log_prob_hist_given_theta_dist_wrt_sigma /= monte_carlo_size
+            grad_log_prob_hist_given_theta_dist_wrt_sigma *= temp
+
+            # Update the gradient with the velocity of theta_std_devs
+            velocity_sigma *= velocity_memory
+            velocity_sigma += np.multiply(eps, grad_log_prob_hist_given_theta_dist_wrt_sigma)
+            theta_std_dev_vec += velocity_sigma
+
+            # Check for any invalid standard deviations.
+            theta_std_dev_vec[theta_std_dev_vec < theta_std_dev_min] = theta_std_dev_min
+            theta_std_dev_vec[theta_std_dev_vec > theta_std_dev_max] = theta_std_dev_max
+
+            # Update moving average value of theta distribution average.
+            theta_mu_avg_old = copy(theta_mu_avg)
+            theta_mu_avg -= np.divide(theta_mu_avg, iter_count);
+            theta_mu_avg += np.divide(theta_mean_vec, iter_count);
+            vector_diff = np.subtract(theta_mu_avg_old, theta_mu_avg)
+            delta_theta_mu_norm = inner1d(np.absolute(vector_diff), self.ones_length_theta)
+
+            # Update moving average value of theta distribution standard deviation.
+            theta_sigma_avg_old = copy(theta_sigma_avg)
+            theta_sigma_avg -= np.divide(theta_sigma_avg, iter_count);
+            theta_sigma_avg += np.divide(theta_std_dev_vec, iter_count);
+            vector_diff = np.subtract(theta_sigma_avg_old, theta_sigma_avg)
+            delta_theta_sigma_norm = inner1d(np.absolute(vector_diff), self.ones_length_theta)
+
+            if do_plot:
+                vals2plot.append(theta_mean_vec.tolist())
+                del2print.append(delta_theta_mu_norm)
+            if do_print:
+                infer_toc = time.clock() - iter_tic
+                pprint('Iter#: {}, delta_mu: {}, delta_sigma: {}, iter-time: {}sec.'
+                       .format(iter_count, delta_theta_mu_norm, delta_theta_sigma_norm, infer_toc),
+                       indent=4)
+
+        # Prepare to exit.
+        self.mdp.theta = theta_mean_vec
+
+        if do_print:
+            pprint('Found Theta:')
+            pprint(self.mdp.theta)
+            pprint('Covariance:')
+            pprint(theta_std_dev_vec)
+
+        self.buildPolicy()
+
+        if do_print:
+            print("Infered-Policy as a {state: action-distribution} dictionary.")
+            pprint(self.mdp.policy)
+            self.printPolicyUncertainty(theta_std_dev_vec, phis)
+
+        if do_plot:
+            plt.plot(range(iter_count),del2print)
+            plt.show()
+
+            for u in range(self.mdp.theta.size):
+                plt2.plot(range(iter_count),[vals2plot[o][0][u] for o in range(len(vals2plot))])
+                plt2.ylabel('Theta '+str(int(u/6))+'_'+str(u%6))
+                plt2.show()
+
+        self.mdp.theta = theta_mean_vec
+        self.mdp.theta_std_dev = theta_std_dev_vec
+        return theta_mean_vec
+
+
+    def printPolicyUncertainty(self, theta_std_dev, phis):
+        empty_policy_dist = {act:np.array([[0.]]) for act in self.mdp.action_list}
+        policy_uncertainty = {state: deepcopy(empty_policy_dist) for state in self.mdp.states}
+        for state in xrange(self.mdp.num_states):
+            for act_idx, action in enumerate(self.mdp.action_list):
+                policy_uncertainty[state][action] = np.sqrt(np.dot(np.power(theta_std_dev,2),
+                                                                   np.power(phis[state, act_idx],2)))
+        print('Policy Uncertainty')
+        pprint(policy_uncertainty)
