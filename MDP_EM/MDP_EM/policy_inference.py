@@ -14,6 +14,8 @@ import random
 import warnings
 import sys
 
+import data_helper as DataHelp
+
 class PolicyInference(object):
     """
     @brief Class that infers for polices using an instance of the MDP class.
@@ -101,7 +103,8 @@ class PolicyInference(object):
             observed_action_indeces = precomputed_observed_action_indeces
         else:
             # Precompute observed actions for all episodes.
-            observed_action_indeces = np.empty([num_episodes, num_steps], dtype=np.int8)
+            observed_action_indeces = np.empty([num_episodes, num_steps],
+                                               dtype=DataHelp.getSmallestNumpyUnsignedIntType(self.mdp.num_actions))
             for episode in xrange(num_episodes):
                 for t_step in xrange(1, num_steps):
                     this_state = self.histories[episode, t_step-1]
