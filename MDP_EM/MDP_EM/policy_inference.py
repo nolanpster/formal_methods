@@ -114,6 +114,40 @@ class PolicyInference(object):
                     phis[state, act_idx, kern_idx] = self.mdp.phi_at_state[state][act][kern_idx]
         return phis
 
+    def estimateHessian(self, theta, phis, exp_Q, sum_exp_Q, sum_weighted_exp_Q):
+        """
+        @brief This method computes the Hessian of the objective function, which is the gradient w.r.t. the parameter
+               vector, theta.
+
+        0) delLog(pi)_delTheta = phi - ( sum_over_actions(phi * exp(theta'*phi)) / sum_over_actions(exp(theta'*phi)) ).
+
+        1) del/delTheta ( delLog(pi)_delTheta ) = del_delTheta( phi - (H / W) ) -- Note in CDC paper, H = lambda, W = z.
+
+        2) del/delTheta ( delLog(pi)_delTheta ) =  - (W*delH_delTheta - H*delW_delTheta) / W^2
+        """
+        phis_self_outer_prod = np.empty([self.mdp.num_states, self.mdp.num_actions, self.theta_size, self.theta_size])
+        sum_weighted_exp_Q_self_outer_prod = np.empty([self.mdp.num_states, self.theta_size, self.theta_size])
+        for state in xrange(self.mdp.num_states):
+            sum_weighted_exp_Q_self_outer_prod[state, :, :] = np.outer(sum_weighted_exp_Q[:, state],
+                                                                       sum_weighted_exp_Q[:, state])
+            for act_idx in xrange(self.mdp.num_actions):
+                phis_self_outer_prod[state, act_idx, :, :] = np.outer(phis[state, act_idx, :], phis[state, act_idx, :])
+
+        # See note in gradientAscent for einsum axis idences. Using 'l' for second phi axis. The lines below read:
+        # a) delH/delTheta = sum_over_all_actions( exp(theta'*phi(s,a)) * outer(phi(s,a), phi(s,a)) )
+        # b) W*delH/delTheta = sum_over_all_actions( exp(theta'*phi(s,a)) ) * delH/delTheta
+        # c) H*delW/delTheta = outer-with-self of (sum_over_all_actions( exp(theta'*phi(s,a)) * phi(s,a) ) )
+        delH_delTheta = np.einsum('ij, ijkl -> ikl', exp_Q, phis_self_outer_prod)
+        W_prod_delH_delTheta = np.einsum('i, ikl -> ikl', sum_exp_Q, delH_delTheta)
+        H_prod_delW_delTheta = sum_weighted_exp_Q_self_outer_prod
+        W_squared_reciprocal = np.reciprocal(np.einsum('i, i -> i', sum_exp_Q, sum_exp_Q))
+
+        # Note thta the leading minus sign aparent in step (2)  has already been applied:
+        hessian_objective_numerator = -np.subtract(H_prod_delW_delTheta, W_prod_delH_delTheta)
+        hessian_objective_func = np.einsum('ikl, i -> ikl', hessian_objective_numerator, W_squared_reciprocal)
+
+        return hessian_objective_func
+
     def gradientAscent(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False, dtype=np.float64,
                        monte_carlo_size=None, reference_policy_vec=None, precomputed_observed_action_indeces=None):
         """
@@ -291,6 +325,32 @@ class PolicyInference(object):
             if do_print:
                 pprint('Found Theta:')
                 pprint(self.mdp.theta)
+
+            estimate_covariance = False
+            if estimate_covariance:
+                # Following CDC paper's notation here: H is hessian, G is estimated auto-covariance of the gradient.
+
+                # Sum over all observed transitions (d), and over all histories (h).
+                # Maybe multiply by sqrt(N)?
+                N = np.float32(histories.size)
+                theta_gradient_per_step = np.subtract(phis[histories[:,:-1], observed_action_indeces[:,1:]],
+                                                      del_theta_total_Q[histories[:,:-1]])
+
+                # Precompute hessians at all states Size = [num_states, size_phi, size_phi].
+                sum_exp_Q = np.reciprocal(reciprocal_sum_exp_Q)
+                hessian_objective_func = self.estimateHessian(theta, phis, exp_Q, sum_exp_Q, sum_weighted_exp_Q)
+
+                G_estimate = np.zeros([self.theta_size, self.theta_size])
+                H_estimate = np.zeros([self.theta_size, self.theta_size])
+                for traj in xrange(num_episodes):
+                    for step in xrange(num_steps-1):
+                        G_estimate += np.outer(theta_gradient_per_step[traj, step, :],
+                                               theta_gradient_per_step[traj, step, :])
+                        H_estimate += hessian_objective_func[histories[traj, step], :, :]
+                G_estimate /= N
+                H_estimate /= N
+                H_est_inv = np.linalg.inv(H_estimate)
+                parameter_variance = np.diag(np.dot(H_est_inv, np.dot(G_estimate, H_est_inv)))
 
             if is_last_trial:
                 self.buildPolicy()
