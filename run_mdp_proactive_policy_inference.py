@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 # Numpy Print Options
 np.set_printoptions(linewidth=300)
 np.set_printoptions(threshold=np.inf)
-np.set_printoptions(precision=3)
+np.set_printoptions(precision=4)
 
 ########################################################################################################################
 # Transition Probability matricies

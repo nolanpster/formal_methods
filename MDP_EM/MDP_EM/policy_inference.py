@@ -152,7 +152,7 @@ class PolicyInference(object):
             observed_action_indeces = self.getObservedActionIndeces()
 
         # Initialize Weight vector, theta.
-        if theta_0 == None:
+        if theta_0 is None:
             test_phi = self.mdp.phi(1, 'East')
             theta_0 = np.empty([test_phi.size, 1], dtype=dtype).T
             for kern_idx in xrange(self.mdp.num_kern):
@@ -469,7 +469,7 @@ class PolicyInference(object):
             observed_action_indeces = self.getObservedActionIndeces()
 
         # Initialize Weight vector, theta.
-        if theta_0 == None:
+        if theta_0 is None:
             test_phi = self.mdp.phi(1, 'East')
             theta_0 = np.empty([test_phi.size, 1], dtype=dtype).T
             for kern_idx in xrange(self.mdp.num_kern):
