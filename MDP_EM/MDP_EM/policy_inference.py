@@ -108,7 +108,7 @@ class PolicyInference(object):
     def computePhis(self):
         # Initialize arrays for intermediate computations.
         phis = np.zeros([self.mdp.num_states, self.mdp.num_actions, self.theta_size], dtype=self.dtype)
-        for state in self.mdp.state_vec:
+        for state in self.mdp.grid_cell_vec:
             for act_idx, act in enumerate(self.mdp.action_list):
                 for kern_idx in xrange(self.theta_size):
                     phis[state, act_idx, kern_idx] = self.mdp.phi_at_state[state][act][kern_idx]
@@ -397,9 +397,9 @@ class PolicyInference(object):
         """
         self.histories = histories
         states_in_history = set(self.histories.ravel())
-        if states_in_history != set(self.mdp.state_vec):
+        if states_in_history != set(self.mdp.grid_cell_vec):
             warnings.warn('The following states were not visited in the history: {}. Their policies will be `nan` for '
-                          'all actions.'.format(set(self.mdp.state_vec) - states_in_history))
+                          'all actions.'.format(set(self.mdp.grid_cell_vec) - states_in_history))
 
         # Initialize decision of each state to take first action in MDP's @c action_list.
         if do_weighted_update:
@@ -443,9 +443,9 @@ class PolicyInference(object):
     def iterativeBayes(self, histories, do_print=False, reference_policy_vec=None):
         self.histories = histories
         states_in_history = set(self.histories.ravel())
-        if states_in_history != set(self.mdp.state_vec):
+        if states_in_history != set(self.mdp.grid_cell_vec):
             warnings.warn('The following states were not visited in the history: {}. Their policies will be `nan` for '
-                          'all actions.'.format(set(self.mdp.state_vec) - states_in_history))
+                          'all actions.'.format(set(self.mdp.grid_cell_vec) - states_in_history))
 
         # Solve for initial guess of policy.
         self.historyMLE(histories, do_weighted_update=False)

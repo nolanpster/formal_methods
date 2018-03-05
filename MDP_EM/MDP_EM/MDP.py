@@ -32,15 +32,27 @@ class MDP(object):
         self.action_list=action_list
         self.num_actions = len(self.action_list)
         self.states=states
-        self.state_vec = np.array(self.states)
+        # Determine Number of agents based on length of state elements.
+        if not self.states:
+            self.num_agents = 0
+        else:
+            if type(self.states[0]) is tuple:
+                self.num_agents = len(self.states[0])
+            else:
+                self.num_agents = 1
         self.num_states = len(self.states)
         self.current_state = None
         self.acc=acc
         self.gamma=gamma
         self.reward=reward
         self.grid_map=grid_map
-        self.act_prob_mat_row_idx = dict.fromkeys(self.states)
-        self.precomputeStateActProbMatRows()
+        if self.grid_map is not None:
+            self.grid_cell_vec = self.grid_map.ravel()
+        else:
+            self.grid_cell_vec = np.array([])
+        self.num_cells = len(self.grid_cell_vec)
+        self.act_prob_row_idx_of_grid_cell = dict.fromkeys(self.grid_cell_vec.tolist())
+        self.precomputeGridCellActProbMatRows()
         self.neighbor_dict = None
         self.prob=prob
         if any(prob):
@@ -90,17 +102,16 @@ class MDP(object):
     def labeling(self, s, A):
         self.L[s]=A
 
-    def stateRowColToNum(self,state):
-        return self.grid_map[state[0], state[1]]
+    def gridCellRowColToNum(self, row, col):
+        return self.grid_map[row, col][0]
 
-
-    def getActProbMatRow(self, state):
+    def getActProbMatRow(self, grid_cell):
         """
-        @brief Returns a row index of the Transition probability matrices corresponding to the current state.
+        @brief Returns a row index of the Transition probability matrices corresponding to the current grid_cell.
 
-        @state an array [row,col]
+        @param grid_cell a cell index (in range 0:self.grid_cell.size)
         """
-        grid_row, grid_col = np.where(self.grid_map==state)
+        grid_row, grid_col = np.where(self.grid_map==grid_cell)
         act_prob_mat_row = 0
         if grid_row == 0:
             if grid_col == 0:
@@ -133,55 +144,60 @@ class MDP(object):
             pass
         return act_prob_mat_row
 
-    def precomputeStateActProbMatRows(self):
+    def precomputeGridCellActProbMatRows(self):
         """
         @brief see title.
         """
-        for state in self.act_prob_mat_row_idx.keys():
-            self.act_prob_mat_row_idx[state] = self.getActProbMatRow(state)
+        for grid_cell in self.act_prob_row_idx_of_grid_cell.keys():
+            self.act_prob_row_idx_of_grid_cell[grid_cell] = self.getActProbMatRow(grid_cell)
 
     def buildNeighborDict(self):
-        self.neighbor_dict = {} # {this_state: next_state: prob}
-        for state_0 in self.states:
-            self.neighbor_dict[state_0] = {}
-            (this_row, this_col) = np.where(self.grid_map==state_0)
-            # ID valid actions from this state.
-            this_act_prob_mat_row_idx = self.act_prob_mat_row_idx[state_0]
+        """
+        @brief Builds a neighbor dictionary of grid cells.
+
+        The formmat is {this_cell: next_cell: necessary_action} where the necessary_action is the cardinal motion
+        primitive from this_cell to next_cell. Assumes connect-4 not connect-8 (king's move).
+        """
+        self.neighbor_dict = {} # {this_cell: next_cell: Action}
+        for cell_0 in self.grid_cell_vec:
+            self.neighbor_dict[cell_0] = {}
+            (this_row, this_col) = np.where(self.grid_map==cell_0)
+            # ID valid actions from this cell.
+            this_act_prob_row_idx_of_grid_cell = self.act_prob_row_idx_of_grid_cell[cell_0]
             valid_acts = ['Empty']
-            if this_act_prob_mat_row_idx == 0:
+            if this_act_prob_row_idx_of_grid_cell == 0:
                 valid_acts = self.action_list
-            elif this_act_prob_mat_row_idx == 1:
+            elif this_act_prob_row_idx_of_grid_cell == 1:
                 valid_acts += ['South', 'East', 'West']
-            elif this_act_prob_mat_row_idx == 2:
+            elif this_act_prob_row_idx_of_grid_cell == 2:
                 valid_acts += ['North', 'East', 'West']
-            elif this_act_prob_mat_row_idx == 3:
+            elif this_act_prob_row_idx_of_grid_cell == 3:
                 valid_acts += ['North', 'South', 'West']
-            elif this_act_prob_mat_row_idx == 4:
+            elif this_act_prob_row_idx_of_grid_cell == 4:
                 valid_acts += ['North', 'South', 'East']
-            elif this_act_prob_mat_row_idx == 5:
+            elif this_act_prob_row_idx_of_grid_cell == 5:
                 valid_acts += ['South', 'West']
-            elif this_act_prob_mat_row_idx == 6:
+            elif this_act_prob_row_idx_of_grid_cell == 6:
                 valid_acts += ['South', 'East']
-            elif this_act_prob_mat_row_idx == 7:
+            elif this_act_prob_row_idx_of_grid_cell == 7:
                 valid_acts += ['North', 'West']
-            elif this_act_prob_mat_row_idx == 8:
+            elif this_act_prob_row_idx_of_grid_cell == 8:
                 valid_acts += ['North', 'East']
 
             # +/- Correspond to "row/col" motions for cardinal directions.
             if 'North' in valid_acts:
                 next_row = this_row - 1
-                self.neighbor_dict[state_0][self.stateRowColToNum(np.concatenate((next_row, this_col)))] = 'North'
+                self.neighbor_dict[cell_0][self.gridCellRowColToNum(next_row, this_col)] = 'North'
             if 'South' in valid_acts:
                 next_row = this_row + 1
-                self.neighbor_dict[state_0][self.stateRowColToNum(np.concatenate((next_row, this_col)))] = 'South'
+                self.neighbor_dict[cell_0][self.gridCellRowColToNum(next_row, this_col)] = 'South'
             if 'East' in valid_acts:
                 next_col = this_col + 1
-                self.neighbor_dict[state_0][self.stateRowColToNum(np.concatenate((this_row, next_col)))] = 'East'
+                self.neighbor_dict[cell_0][self.gridCellRowColToNum(this_row, next_col)] = 'East'
             if 'West' in valid_acts:
                 next_col = this_col - 1
-                self.neighbor_dict[state_0][self.stateRowColToNum(np.concatenate((this_row, next_col)))] = 'West'
-            self.neighbor_dict[state_0][self.stateRowColToNum(np.concatenate((this_row, this_col)))] = 'Empty'
-
+                self.neighbor_dict[cell_0][self.gridCellRowColToNum(this_row, next_col)] = 'West'
+            self.neighbor_dict[cell_0][self.gridCellRowColToNum(this_row, this_col)] = 'Empty'
 
     def buildProbDict(self):
         """
@@ -191,12 +207,11 @@ class MDP(object):
         if self.neighbor_dict is None:
             self.buildNeighborDict()
         for act in self.action_list:
-            self.prob[act]=np.zeros((self.num_states, self.num_states))
-            for state in self.state_vec:
-                for next_state, ideal_act in self.neighbor_dict[state].iteritems():
-                        self.prob[act][state, next_state]= self.act_prob[act][self.act_prob_mat_row_idx[state],
-                                                                              self.action_list.index(ideal_act)]
-
+            self.prob[act]=np.zeros((self.num_cells, self.num_cells))
+            for starting_cell in self.grid_cell_vec:
+                for next_cell, act_to_next_state in self.neighbor_dict[starting_cell].iteritems():
+                    self.prob[act][starting_cell, next_cell] = self.act_prob[act]\
+                        [self.act_prob_row_idx_of_grid_cell[starting_cell], self.action_list.index(act_to_next_state)]
 
     def sample(self, state, action, num=1):
         """

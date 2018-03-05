@@ -211,29 +211,29 @@ def getSmallestNumpyUnsignedIntType(max_value):
     return smallest_dtype
 
 
-def printHistoryAnalysis(run_histories, states, labels, empty, goal_state):
+def printHistoryAnalysis(run_histories, cells, labels, empty, goal_state):
 
     num_episodes = run_histories.shape[0]
     steps_per_episode = run_histories.shape[1]
 
-    # Determine which states are goals or obstacles.
-    normal_states = {state: True if label==empty else False for state, label in labels.items()}
+    # Determine which cells are goals or obstacles.
+    normal_cells = {cell: True if label==empty else False for cell, label in labels.items()}
     unique, starting_counts = np.unique(run_histories[:,0], return_counts=True)
-    num_trials_from_state = {state:0 for state in states}
-    num_trials_from_state.update(dict(zip(unique, starting_counts)))
-    num_rewards_from_state = {state:0 for state in states}
+    num_trials_from_cell = {cell:0 for cell in cells}
+    num_trials_from_cell.update(dict(zip(unique, starting_counts)))
+    num_rewards_from_cell = {cell:0 for cell in cells}
     for run_idx in range(num_episodes):
-        starting_state = run_histories[run_idx][0]
-        final_state = run_histories[run_idx][-1]
-        if final_state==goal_state:
-            num_rewards_from_state[starting_state] += 1
+        starting_cell = run_histories[run_idx][0]
+        final_cell = run_histories[run_idx][-1]
+        if final_cell==goal_state:
+            num_rewards_from_cell[starting_cell] += 1
     print("In this demonstration 'history' there are  {} episodes, each with {} moves.".format(num_episodes,
           steps_per_episode))
-    for state in range(len(states)):
-        reward_likelihood = float(num_rewards_from_state[state]) / float(num_trials_from_state[state]) if \
-            num_trials_from_state[state] > 0 else np.nan
-        print("State {}: Num starts = {}, Num Rewards = {}, likelihood = {}.".format(state,
-                                                                                     num_trials_from_state[state],
-                                                                                     num_rewards_from_state[state],
+    for cell in range(len(cells)):
+        reward_likelihood = float(num_rewards_from_cell[cell]) / float(num_trials_from_cell[cell]) if \
+            num_trials_from_cell[cell] > 0 else np.nan
+        print("Cell {}: Num starts = {}, Num Rewards = {}, likelihood = {}.".format(cell,
+                                                                                     num_trials_from_cell[cell],
+                                                                                     num_rewards_from_cell[cell],
                                                                                      reward_likelihood))
 

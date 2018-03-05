@@ -47,24 +47,24 @@ class PlotKernel(PlotGrid):
         self.action_list = action_list
         self.grid_map = grid_map
 
-    def configurePlot(self, title, cell, kernels=None, phi_at_state=None, act=None):
+    def configurePlot(self, title, cell, kernels=None, phi_at_cell=None, act=None):
         """
         @param Title
-        @param cell The index of the kernel vector, or phi_at_state to print; e.g., if there are kernels at cells
+        @param cell The index of the kernel vector, or phi_at_cell to print; e.g., if there are kernels at cells
                [0, 2, 3] then cell=1 will access the kernel (or coresponding phi values) centered at grid-cell 2.
         @param action Used for plotting phi values.
         """
         fig, ax = super(self.__class__, self).configurePlot(title)
-        if phi_at_state is not None:
+        if phi_at_cell is not None:
             try:
-                bar_height = np.array([phi_at_state[state][act]
-                                      [len(self.action_list)*(cell) + self.action_list.index(act)] for state in
+                bar_height = np.array([phi_at_cell[cell][act]
+                                      [len(self.action_list)*(cell) + self.action_list.index(act)] for cell in
                                       range(self.grid_map.size)]).reshape(self.grid_dim)
             except:
                 # Determine type of error to raise when cell is invalid.
                 import pdb; pdb.set_trace()
         elif kernels is not None:
-            bar_height = np.array([kernels[cell](state) for state in range(self.grid_map.size)]).reshape(self.grid_dim)
+            bar_height = np.array([kernels[cell](cell) for cell in range(self.grid_map.size)]).reshape(self.grid_dim)
         else:
             raise ValueError('No input values to plot!')
         print('Values of bars in {} plot.'.format('kernels' if kernels is not None else 'phi'))

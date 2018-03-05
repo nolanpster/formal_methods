@@ -57,8 +57,8 @@ class FeatureVector(object):
         self.kernel_dist_objs = self.GGK_dist_objs + self.OGK_dist_objs
 
         # Configure general properties of the FeatureVector function.
-        self.state_vec = self.graph.grid_map.ravel()
-        self.num_states = len(self.state_vec)
+        self.grid_cell_vec = self.graph.grid_map.ravel()
+        self.num_states = len(self.grid_cell_vec)
         self.num_actions = len(action_list)
         self.num_kernels = self.G + self.O
         self.kernel_centers = list(self.ggk_centers) + list(self.ogk_centers)
@@ -112,9 +112,9 @@ class FeatureVector(object):
 
     def buildTransProbMat(self):
         self.prob_mat = np.empty([self.num_states, self.num_states, self.num_actions], dtype=self.dtype)
-        for state in self.state_vec:
+        for cell in self.grid_cell_vec:
             for act_idx, action in enumerate(self.action_list):
-                self.prob_mat[state, :, act_idx] = self.trans_prob_func(state, action)
+                self.prob_mat[cell, :, act_idx] = self.trans_prob_func(cell, action)
 
     def updateStdDevs(self, std_devs=None, also_update_kernel_weights=True):
         if std_devs is not None:
@@ -149,7 +149,7 @@ class FeatureVector(object):
 
         for kern_idx, kern_dist in kern_iterator:
             # Running kern_dist(state_num) will return the distance by the metric of the specific kernel.
-            self.state_distances_to_kernels[kern_idx] = map(kern_dist, self.state_vec)
+            self.state_distances_to_kernels[kern_idx] = map(kern_dist, self.grid_cell_vec)
 
     def updateKernels(self, selected_kernel_indeces=None):
         """
@@ -180,6 +180,6 @@ class FeatureVector(object):
         # Below, the prob-mat has dimsion |S|x|S|x|A|, the first axis of states is indexed with 'i'.
         for kernel_ind in selected_kernel_indeces:
             for act_ind in xrange(self.num_actions):
-                for state in self.state_vec:
+                for state in self.grid_cell_vec:
                     self.weighted_prob_kernel_sum[kernel_ind, state, act_ind] = \
                         np.inner(self.kernel_values[kernel_ind], self.prob_mat[state, :, act_ind])

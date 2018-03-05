@@ -22,7 +22,7 @@ class MDP_solvers(object):
             self.setMethod(method)
         self.write_video = write_video
         if self.write_video:
-            self.video_writer = SolutionVideo(method, self.mdp.grid_map, self.mdp.stateRowColToNum,
+            self.video_writer = SolutionVideo(method, self.mdp.grid_map, self.mdp.gridCellRowColToNum,
                                               self.mdp.action_list)
 
     def solve(self, method=None, **kwargs):

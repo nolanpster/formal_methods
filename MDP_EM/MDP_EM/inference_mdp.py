@@ -77,7 +77,7 @@ class InferenceMDP(MDP):
 
     def precomputePhiAtState(self):
         self.phi_at_state = {state: {act: self.phi(state, act) for act in self.action_list} for state in
-                             self.state_vec}
+                             self.grid_cell_vec}
 
     def updateSigmas(self, sigmas):
         self.phi.updateStdDevs(sigmas)
