@@ -401,30 +401,23 @@ class PolicyInference(object):
 
         return exp_Q[action]/sum(exp_Q.values())
 
-    def logProbTrajGivenTheta(self, traj_idx, theta_mat, phis):
+    def logProbOfDataSet(self, theta_mat, phis):
         """
-        @brief Given Q(s,a) = <phi(s,a), theta>, this evaluates the log probability of a trajectory given the parameter
-               vector, theta.
+        @brief Given Q(s,a) = <phi(s,a), theta>, this evaluates the log probability of all trajectory given the
+               parameter vector, theta.
 
-        Vector indeces are [s_0_a_0, s_0_a_1, ... s_0_a_N, ... s_M_a_N-1, s_M_a_N] for M states and N actions.
-
-        @param traj_idx The index of the trajectory to evaluate.
         @param phis A Num-states--by--num-actions--by--num-kernels numpy array.
         @param theta A KxNum-kernels numpy array where K is the number of times theta is sampled.
 
-        @return The log probability of the trajectory for each theta sample.
+        @return The log probability of all trajectorys for each theta sample.
         """
         policy_mat = self.buildPolicyVectors(phis, theta_mat)
-        self.episode_policy_vec_indeces[traj_idx]
-        total_prob = np.prod(policy_mat[:,self.episode_policy_vec_indeces[traj_idx]], axis=1)
-        # Replace any zero values in total probability with the minimum float value.
-        total_prob[total_prob == 0] = self.dtype(sys.float_info.min) 
-        log_prob_traj_given_theta = np.log(total_prob)
-        return log_prob_traj_given_theta
+        log_policy_mat = np.log(policy_mat)
 
-    def probTrajGivenPolicy():
-        vec_ones = np.ones(100)
-        np.log(inner1d(np.random.sample(100),vec_ones))
+        # Compute the log-likelihood of a trajectory given the sampled theta values.
+        log_prob_traj_given_thetas = np.sum(log_policy_mat[:, self.episode_policy_vec_indeces], axis=1)
+
+        return log_prob_traj_given_thetas
 
     def gradientAscentGaussianTheta(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False,
                                     dtype=np.float64, monte_carlo_size=10, reference_policy_vec=None,
@@ -458,10 +451,10 @@ class PolicyInference(object):
         acts_list = self.mdp.action_list
         num_acts = self.mdp.num_actions
         num_states = self.mdp.num_states
+        self.monte_carlo_size = monte_carlo_size
         self.histories = histories
         (num_episodes, num_steps) = self.histories.shape
         self.dtype = dtype
-        traj_samples = range(num_episodes) # Will be shuffled every iteration.
         if precomputed_observed_action_indeces is not None:
             observed_action_indeces = precomputed_observed_action_indeces
         else:
@@ -477,8 +470,8 @@ class PolicyInference(object):
                     theta_0[0][kern_idx*self.mdp.num_actions+act_idx]= 1.0 / (theta_0.size)
         self.theta_size = theta_0.size
         self.ones_length_theta = np.ones(self.theta_size)
-        self.mdp.theta = deepcopy(theta_0)
-        theta_mean_vec = theta_0 # Vector to compute SGD with.
+        self.mdp.theta = deepcopy(theta_0[0])
+        theta_mean_vec = deepcopy(theta_0[0]) # Vector to compute SGD with.
 
         if theta_std_dev_0 is None:
             theta_std_dev_0 = np.ones(self.theta_size) * self.mdp.num_states
@@ -492,7 +485,8 @@ class PolicyInference(object):
         #  Precompute the indeces in a policy vector of length (num-states * num-actions) given the observed actions and
         #  the episodes. Note that the histories are (num-episodes by num-time-steps) large, but the matrix of policy
         #  vector indeces is (num-episodes by num-time-steps - 1).
-        self.episode_policy_vec_indeces = histories[:,:-1]*self.mdp.num_actions + observed_action_indeces[:,1:]
+        self.episode_policy_vec_indeces = (histories[:, :-1] * self.mdp.num_actions
+                                           + observed_action_indeces[:, 1:]).ravel()
         self.policy_vec_length = self.mdp.num_actions * self.mdp.num_states
 
         # Velocity vector can be thought of as the momentum of the gradient descent. It is used to carry the theta
@@ -534,29 +528,19 @@ class PolicyInference(object):
             iter_count += 1
             inverse_temp += inverse_temp_rate
             temp = np.float16(1.0) / inverse_temp
-            random.shuffle(traj_samples)
-            traj_queue = deque(traj_samples)
 
             # Sample monte_carlo_size theta vectors from their distributions. This forms a
             # monte_carlo_size-by-theta_size matrix.
-            theta_samples = np.empty([monte_carlo_size, self.theta_size])
-            for theta_idx in xrange(self.theta_size):
-                theta_samples[:, theta_idx] =np.random.normal(theta_mean_vec[0, theta_idx],
-                                                              theta_std_dev_vec[theta_idx], monte_carlo_size)
+            theta_samples= np.random.multivariate_normal(theta_mean_vec, np.diag(theta_std_dev_vec),
+                                                         self.monte_carlo_size)
 
-            log_prob_traj_given_thetas = 0.0
-            while len(traj_queue)>0:
-                episode = traj_queue.pop()
-
-                # Compute the log-likelihood of a trajectory given the sampled theta values.
-                log_prob_traj_given_thetas += self.logProbTrajGivenTheta(episode, theta_samples, phis)
-
+            log_prob_traj_given_thetas = self.logProbOfDataSet(theta_samples, phis)
             ## Mu Update ##
             # Calculate the gradient of the log-likelihood of the sampled thetas with respect to the means of the
             # theta distribution.
             theta_variance = np.power(theta_std_dev_vec, 2)
             theta_sample_less_mean = theta_samples
-            theta_sample_less_mean -= theta_mean_vec[0]
+            theta_sample_less_mean -= theta_mean_vec
             grad_log_prob_theta_wrt_mu = theta_sample_less_mean
             grad_log_prob_theta_wrt_mu /= theta_variance
 
@@ -619,7 +603,7 @@ class PolicyInference(object):
                        indent=4)
 
         # Prepare to exit.
-        self.mdp.theta = theta_mean_vec
+        self.mdp.theta = np.expand_dims(theta_mean_vec, axis=0)
 
         if do_print:
             pprint('Found Theta:')
