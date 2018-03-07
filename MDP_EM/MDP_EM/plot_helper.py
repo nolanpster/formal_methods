@@ -19,7 +19,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 
 class PlotGrid(object):
-    def __init__(self, maze_cells, cmap):
+    def __init__(self, maze_cells, cmap, fontsize=20):
         # maze_cells - np.array - grid of ints, 0 is colored with cell_color[0], 1 is colored with cell_color[1], etc.
         #              expectes one EXTRA row and column for formatting.
         # cmap - color map providing color_cell list above (type mcolors.ListedColors())
@@ -27,12 +27,13 @@ class PlotGrid(object):
         self.grid_dim = maze_cells.shape
         self.x, self.y = np.meshgrid(np.arange(self.grid_dim[1]), np.arange(self.grid_dim[0]))
         self.cmap = cmap
+        self.fontsize = fontsize
 
     def configurePlot(self, title):
         fig = plt.figure(figsize=(16.5, 13), dpi=50)
         ax = fig.add_subplot(1, 1, 1)
         self.quadmesh = ax.pcolormesh(self.x, self.y, self.maze_cells, edgecolor='k', linewidth=0.5, cmap=self.cmap)
-        plt.title(title)
+        ax.set_title(title, fontsize=self.fontsize)
         return fig, ax
 
 
@@ -153,6 +154,25 @@ class PlotPolicy(PlotGrid):
         plt.gca().invert_yaxis()
         return fig
 
+class PlotDemonstration(PlotGrid):
+
+    def __init__(self, maze_cells, cmap, center_offset):
+        super(self.__class__, self).__init__(maze_cells, cmap)
+        self.x_cent = self.x[:-1,:-1].ravel()+center_offset
+        self.y_cent = self.y[:-1,:-1].ravel()+center_offset
+
+    def configurePlot(self, title, histories):
+
+        fig, ax = super(self.__class__, self).configurePlot(title)
+        cells_visited, times_in_demo = np.unique(histories, return_counts=True)
+        this_x_cent = deepcopy(self.x_cent)
+        this_y_cent = deepcopy(self.y_cent)
+        this_x_cent = [x for idx,x in enumerate(this_x_cent) if idx in cells_visited]
+        this_y_cent = [y for idx,y in enumerate(this_y_cent) if idx in cells_visited]
+
+        for x, y, count in zip(this_x_cent, this_y_cent, times_in_demo):
+            plt.text(x, y, str(count), fontsize=self.fontsize)
+        plt.gca().invert_yaxis()
 
 def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set, title, mle_L1_norm=None):
     """

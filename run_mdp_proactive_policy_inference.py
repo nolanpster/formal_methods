@@ -297,14 +297,15 @@ if __name__=='__main__':
     # Plotting lags
     plot_all_grids = False
     plot_initial_mdp_grids = False
-    plot_inferred_mdp_grids = True
+    plot_inferred_mdp_grids = False
+    plot_demonstration = True
     plot_new_phi = False
     plot_new_kernel = False
     plot_loaded_phi = False
     plot_loaded_kernel = False
     plot_inference_statistics = False
     plot_flags = [plot_all_grids, plot_initial_mdp_grids, plot_inferred_mdp_grids, plot_new_phi, plot_loaded_phi,
-                  plot_new_kernel, plot_loaded_kernel, plot_inference_statistics]
+                  plot_new_kernel, plot_loaded_kernel, plot_inference_statistics, plot_demonstration]
     if plot_new_kernel and plot_loaded_kernel:
         raise ValueError('Can not plot both new and loaded kernel in same call.')
     if plot_new_kernel:
@@ -510,6 +511,10 @@ if __name__=='__main__':
 
         print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
                 'arrow/dot size ratio!\n'
+
+    if plot_demonstration:
+        demo_grid = PlotHelp.PlotDemonstration(maze, cmap, center_offset=0.5)
+        demo_grid.configurePlot('State Visit Count in Demonstration', run_histories)
 
     if plot_loaded_kernel or plot_new_kernel:
         if not perform_new_inference and plot_new_kernel:
