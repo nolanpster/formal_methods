@@ -274,14 +274,21 @@ if __name__=='__main__':
     inference_method = 'gradientAscentGaussianTheta'
 
     # Gradient Ascent kernel configurations
-    kernel_count_start = 10
-    kernel_count_end = 9
-    kernel_sigmas = np.array([1]*kernel_count_start, dtype=np.float32)
-    kernel_count_increment_per_set = -1
-    kernel_set_sample_count = 1
-    batch_size_for_kernel_set = 1
-    num_theta_samples = 8000
+    use_fixed_kernel_set = True
+    if use_fixed_kernel_set is True:
+        kernel_centers = [frozenset([0, 2, 5, 7, 8, 10, 13, 15])]
+        num_kernels_in_set = len(kernel_centers[0])
+        kernel_sigmas = np.array([1.5]*num_kernels_in_set, dtype=np.float32)
+    else:
+        kernel_count_start = 10
+        kernel_count_end = 9
+        kernel_sigmas = np.array([1]*kernel_count_start, dtype=np.float32)
+        kernel_count_increment_per_set = -1
+        kernel_set_sample_count = 1
+        batch_size_for_kernel_set = 1
+
     if inference_method is 'gradientAscentGaussianTheta':
+        num_theta_samples = 8000
         monte_carlo_size = num_theta_samples
     else:
         monte_carlo_size = batch_size_for_kernel_set
@@ -305,13 +312,17 @@ if __name__=='__main__':
     if plot_new_phi and plot_loaded_phi:
         raise ValueError('Can not plot both new and loaded phi in same call.')
 
-    # Configure kernel set iterations.
-    num_kernels_in_set = np.arange(kernel_count_start, kernel_count_end, kernel_count_increment_per_set)
-    num_kernel_sets = len(num_kernels_in_set)
-    kernel_centers = {set_idx: frozenset(np.random.choice(len(states), num_kernels_in_set[set_idx] , replace=False)) for
-                      set_idx in range(num_kernel_sets)}
+    if use_fixed_kernel_set:
+        num_kernel_sets = 1
+        kernel_set_sample_count = 1
+    else:
+        # Configure kernel set iterations.
+        num_kernels_in_set = np.arange(kernel_count_start, kernel_count_end, kernel_count_increment_per_set)
+        num_kernel_sets = len(num_kernels_in_set)
+        kernel_centers = {set_idx: frozenset(np.random.choice(len(states), num_kernels_in_set[set_idx] , replace=False)) for
+                          set_idx in range(num_kernel_sets)}
     kernel_set_L1_err = np.empty([num_kernel_sets, kernel_set_sample_count])
-    kernel_set_infer_time = np.empty([len(num_kernels_in_set), kernel_set_sample_count])
+    kernel_set_infer_time = np.empty([num_kernel_sets, kernel_set_sample_count])
 
     if make_new_mdp:
         (EM_mdp, VI_mdp, policy_keys_to_print, policy_difference) = makeGridMDPxDRA(do_print=True)
@@ -377,9 +388,10 @@ if __name__=='__main__':
                 observed_action = infer_mdp.graph.getObservedAction(this_state, next_state)
                 observed_action_indeces[episode, t_step] = action_list.index(observed_action)
 
-        if inference_method is not 'default':
-            infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=True,
-                                  reference_policy_vec=reference_policy_vec)
+        if inference_method in ['historyMLE', 'iterativeBayes', 'gradientAscentGaussianTheta']:
+           theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,
+                                             do_print=True, reference_policy_vec=reference_policy_vec,
+                                             monte_carlo_size=monte_carlo_size)
         else:
             if batch_size_for_kernel_set > 1:
                 print_inference_iterations = False
