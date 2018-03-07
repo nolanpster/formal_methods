@@ -494,9 +494,9 @@ class PolicyInference(object):
         theta_mean_vec = deepcopy(theta_0[0]) # Vector to compute SGD with.
 
         if theta_std_dev_0 is None:
-            theta_std_dev_0 = np.ones(self.theta_size) * self.mdp.num_states
+            theta_std_dev_0 = np.ones(self.theta_size)
         theta_std_dev_vec = theta_std_dev_0 # Vector to compute SGD with.
-        theta_std_dev_min = 0.1
+        theta_std_dev_min = 0.05
         theta_std_dev_max = 100.
 
         # Precompute feature vector at all states.
@@ -512,7 +512,7 @@ class PolicyInference(object):
         # Velocity vector can be thought of as the momentum of the gradient descent. It is used to carry the theta
         # estimate through local minimums. https://wiseodd.github.io/techblog/2016/06/22/nn-optimization/. Set at top of
         # for-loop.
-        velocity_memory = 0.9
+        velocity_memory = 0.1
         velocity_mu = np.zeros([self.theta_size], dtype=dtype)
         velocity_sigma = np.zeros([self.theta_size], dtype=dtype)
 
@@ -532,12 +532,12 @@ class PolicyInference(object):
         theta_mu_avg = deepcopy(theta_0)
         theta_sigma_avg = deepcopy(theta_std_dev_0)
         thresh = 0.05
-        eps = 0.25
+        eps = 0.0001
         inverse_temp_start = np.float16(1.0)
         inverse_temp = inverse_temp_start
         # Larger value of inverse_temp_rate causes the temperature to cool faster, reduces oscilation. Set to 0 to
         # remove effect of temperature cooling.
-        inverse_temp_rate =  np.float16(0.25)
+        inverse_temp_rate =  np.float16(0.0)
 
         # Loop until convergence
         iter_count = 0

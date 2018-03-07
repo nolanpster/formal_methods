@@ -274,13 +274,13 @@ if __name__=='__main__':
     inference_method = 'gradientAscentGaussianTheta'
 
     # Gradient Ascent kernel configurations
-    kernel_count_start = 16
-    kernel_count_end = 15
+    kernel_count_start = 10
+    kernel_count_end = 9
     kernel_sigmas = np.array([1]*kernel_count_start, dtype=np.float32)
     kernel_count_increment_per_set = -1
     kernel_set_sample_count = 1
     batch_size_for_kernel_set = 1
-    num_theta_samples = 500
+    num_theta_samples = 3000
     if inference_method is 'gradientAscentGaussianTheta':
         monte_carlo_size = num_theta_samples
     else:
@@ -288,14 +288,14 @@ if __name__=='__main__':
 
 
     # Plotting lags
-    plot_all_grids = True
+    plot_all_grids = False
     plot_initial_mdp_grids = False
-    plot_inferred_mdp_grids = False
-    plot_new_phi = True
+    plot_inferred_mdp_grids = True
+    plot_new_phi = False
     plot_new_kernel = False
     plot_loaded_phi = False
     plot_loaded_kernel = False
-    plot_inference_statistics = True
+    plot_inference_statistics = False
     plot_flags = [plot_all_grids, plot_initial_mdp_grids, plot_inferred_mdp_grids, plot_new_phi, plot_loaded_phi,
                   plot_new_kernel, plot_loaded_kernel, plot_inference_statistics]
     if plot_new_kernel and plot_loaded_kernel:
