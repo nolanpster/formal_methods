@@ -13,8 +13,19 @@ from collections import deque
 import random
 import warnings
 import sys
+import signal
 
 import data_helper as DataHelp
+
+class GracefulKiller:
+    kill_now = False
+    def __init__(self):
+        signal.signal(signal.SIGINT, self.exit_gracefully)
+        signal.signal(signal.SIGTERM, self.exit_gracefully)
+
+    def exit_gracefully(self, signum, frame):
+        self.kill_now = True
+
 
 class PolicyInference(object):
     """
@@ -195,7 +206,12 @@ class PolicyInference(object):
         # - j : action-axis
         # - k : theta/phi vector axis
         # - l : a policy represented as a vector
+        # Loop until convergence unless killed by Crtl-C
+        killer = GracefulKiller()
         for trial in xrange(num_inferences):
+            # Loop until convergence
+            if killer.kill_now:
+                break
             is_last_trial = True if (num_inferences - trial)==1 else False
             trial_tic = time.clock()
             inverse_temp = inverse_temp_start
@@ -206,8 +222,7 @@ class PolicyInference(object):
             theta = self.mdp.theta # Use a local reference to theta for look-up speed.
             theta_avg = deepcopy(theta_0)
 
-            # Loop until convergence
-            while delta_theta_norm > thresh:
+            while delta_theta_norm > thresh and not killer.kill_now:
                 if do_print:
                     iter_tic = time.clock()
                 iter_count += 1
@@ -298,6 +313,8 @@ class PolicyInference(object):
                     plt2.ylabel('Theta '+str(int(u/6))+'_'+str(u%6))
                     plt2.show()
 
+        if killer.kill_now is True:
+            print 'Search killed'
         if doing_monte_carlo:
             return (batch_L1_norm, batch_infer_time)
 
@@ -522,7 +539,9 @@ class PolicyInference(object):
         iter_count = 0
         delta_theta_mu_norm = np.inf
         delta_theta_sigma_norm = np.inf
-        while delta_theta_mu_norm > thresh or delta_theta_sigma_norm > thresh:
+        # Loop until convergence unless killed by Crtl-C
+        killer = GracefulKiller()
+        while (delta_theta_mu_norm > thresh or delta_theta_sigma_norm > thresh) and not killer.kill_now:
             if do_print:
                 iter_tic = time.clock()
             iter_count += 1
@@ -627,10 +646,11 @@ class PolicyInference(object):
                 plt2.ylabel('Theta '+str(int(u/6))+'_'+str(u%6))
                 plt2.show()
 
+        if killer.kill_now is True:
+            print 'Search killed'
         self.mdp.theta = theta_mean_vec
         self.mdp.theta_std_dev = theta_std_dev_vec
         return theta_mean_vec
-
 
     def printPolicyUncertainty(self, theta_std_dev, phis):
         empty_policy_dist = {act:np.array([[0.]]) for act in self.mdp.action_list}
