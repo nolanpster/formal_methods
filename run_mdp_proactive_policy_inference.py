@@ -280,7 +280,7 @@ if __name__=='__main__':
     kernel_count_increment_per_set = -1
     kernel_set_sample_count = 1
     batch_size_for_kernel_set = 1
-    num_theta_samples = 3000
+    num_theta_samples = 8000
     if inference_method is 'gradientAscentGaussianTheta':
         monte_carlo_size = num_theta_samples
     else:

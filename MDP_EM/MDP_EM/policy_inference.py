@@ -496,8 +496,8 @@ class PolicyInference(object):
         if theta_std_dev_0 is None:
             theta_std_dev_0 = np.ones(self.theta_size)
         theta_std_dev_vec = theta_std_dev_0 # Vector to compute SGD with.
-        theta_std_dev_min = 0.05
-        theta_std_dev_max = 100.
+        theta_std_dev_min = 0.04
+        theta_std_dev_max = 10.
 
         # Precompute feature vector at all states.
         phis = self.computePhis()
@@ -529,23 +529,28 @@ class PolicyInference(object):
         # theta vector as described here: https://en.wikipedia.org/wiki/Moving_average#Exponential_moving_average. Take
         # the difference between the new average @theta and the previous @theta. If the Euclidian norm of the difference
         # is less than @c thresh, the iteration exits.
-        theta_mu_avg = deepcopy(theta_0)
+        theta_mu_avg = deepcopy(theta_0[0])
         theta_sigma_avg = deepcopy(theta_std_dev_0)
+        max_log_prob_traj = np.log(0.8) * self.histories.size
+        log_prob_thresh = np.log(0.999) * self.histories.size
         thresh = 0.05
         eps = 0.0001
         inverse_temp_start = np.float16(1.0)
         inverse_temp = inverse_temp_start
         # Larger value of inverse_temp_rate causes the temperature to cool faster, reduces oscilation. Set to 0 to
         # remove effect of temperature cooling.
-        inverse_temp_rate =  np.float16(0.0)
+        inverse_temp_rate =  np.float16(0.000)
 
         # Loop until convergence
         iter_count = 0
+        theta_mu_old = np.inf
+        theta_sigma_old = np.inf
         delta_theta_mu_norm = np.inf
         delta_theta_sigma_norm = np.inf
+        log_prob_traj_given_mean_thetas  = -np.inf
         # Loop until convergence unless killed by Crtl-C
         killer = GracefulKiller()
-        while (delta_theta_mu_norm > thresh or delta_theta_sigma_norm > thresh) and not killer.kill_now:
+        while (log_prob_traj_given_mean_thetas < (log_prob_thresh + max_log_prob_traj)) and not killer.kill_now:
             if do_print:
                 iter_tic = time.clock()
             iter_count += 1
@@ -616,13 +621,16 @@ class PolicyInference(object):
             vector_diff = np.subtract(theta_sigma_avg_old, theta_sigma_avg)
             delta_theta_sigma_norm = inner1d(np.absolute(vector_diff), self.ones_length_theta)
 
+            log_prob_traj_given_mean_thetas = self.logProbOfDataSet(np.expand_dims(theta_mean_vec,axis=0), phis)
+
             if do_plot:
                 means2plot = np.vstack((means2plot, theta_mean_vec))
                 sigmas2plot = np.vstack((sigmas2plot, theta_std_dev_vec))
             if do_print:
                 infer_toc = time.clock() - iter_tic
-                pprint('Iter#: {}, delta_mu: {}, delta_sigma: {}, iter-time: {}sec.'
-                       .format(iter_count, delta_theta_mu_norm, delta_theta_sigma_norm, infer_toc),
+                pprint('Iter#: {}, delta_mu: {}, delta_sigma: {}, mean_LogLike: {}, iter-time: {}sec.'
+                       .format(iter_count, delta_theta_mu_norm, delta_theta_sigma_norm, log_prob_traj_given_mean_thetas,
+                               infer_toc),
                        indent=4)
                 if not iter_count % 10:
                     print(PolicyInference.six_tabs + ' Max Log-likelihood: {}.'
