@@ -98,7 +98,7 @@ act_prob = {'North': np.array([[0.0, 0.8, 0.0, 0.1, 0.1],
 ########################################################################################################################
 # Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
-grid_dim = [4, 4] # [num-rows, num-cols]
+grid_dim = [8, 8] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
 
 # Create a list of tuples where the tuples have length @c num_agents and represent the joint states of the agents.
@@ -112,14 +112,15 @@ red = LTL_plus('red')
 empty = LTL_plus('E')
 atom_prop = [green, red, empty]
 labels = {state: empty for state in states}
-labels[6] = red
-labels[7] = red
-labels[8] = red
-labels[0] = green
+labels[21] = red
+labels[29] = red
+labels[41] = red
+labels[42] = red
+labels[18] = green
 
 # Starting and final states
-initial_state = 15
-goal_state = 0 # Currently assumess only one goal.
+initial_state = 53
+goal_state = 18 # Currently assumess only one goal.
 
 # Action options.
 action_list = ['Empty', 'North', 'South', 'East', 'West']
@@ -127,7 +128,7 @@ action_list = ['Empty', 'North', 'South', 'East', 'West']
 # Set `solve_with_uniform_distribution` to True to have the initial distribution for EM and the history/demonstration
 # generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
 # _False_ to have EM and the MDP always start from the `initial_state` below.
-solve_with_uniform_distribution = True
+solve_with_uniform_distribution = False
 
 ########################################################################################################################
 def makeGridMDPxDRA(do_print=False):
@@ -249,7 +250,7 @@ def makeGridMDPxDRA(do_print=False):
 if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
     make_new_mdp = False
-    pickled_mdp_file_to_load  = 'robot_mdps_180221_1651'
+    pickled_mdp_file_to_load  = 'robot_mdps_180307_1424'
     write_mdp_policy_csv = False
 
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -258,14 +259,14 @@ if __name__=='__main__':
     gather_new_data = False
     num_episodes = 250
     steps_per_episode = 15
-    pickled_episodes_file_to_load = 'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306'
+    pickled_episodes_file_to_load = 'robot_mdps_180307_1424_HIST_250eps15steps_180307_1424'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
     # demonstration policy.
     perform_new_inference = True
     pickled_inference_mdps_file_to_load  = \
-        'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Policy_180221_1418'
+        'robot_mdps_180307_1424_HIST_250eps15steps_180307_1424_Policy_180307_1737'
     load_inference_statistics = (not perform_new_inference) & True
     pickled_inference_statistics_file_to_load  = \
         'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Inference_Stats_180221_1431'
@@ -276,7 +277,9 @@ if __name__=='__main__':
     # Gradient Ascent kernel configurations
     use_fixed_kernel_set = True
     if use_fixed_kernel_set is True:
-        kernel_centers = [frozenset([0, 2, 5, 7, 8, 10, 13, 15])]
+        kernel_centers = [frozenset(range(1,9,2) + range(8,16,2) + range(17,25,2) + range(24,32,2) + range(33,41,2)
+                                    + range(40,48,2) + range(49,57,2) + range(56,64,2))]
+        kernel_centers[0] |= frozenset([18, 21, 29, 41, 42])
         num_kernels_in_set = len(kernel_centers[0])
         kernel_sigmas = np.array([1.5]*num_kernels_in_set, dtype=np.float32)
     else:

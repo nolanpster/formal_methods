@@ -532,7 +532,7 @@ class PolicyInference(object):
         theta_mu_avg = deepcopy(theta_0[0])
         theta_sigma_avg = deepcopy(theta_std_dev_0)
         max_log_prob_traj = np.log(0.8) * self.histories.size
-        log_prob_thresh = np.log(0.999) * self.histories.size
+        log_prob_thresh = np.log(0.6) * self.histories.size
         thresh = 0.05
         eps = 0.0001
         inverse_temp_start = np.float16(1.0)
