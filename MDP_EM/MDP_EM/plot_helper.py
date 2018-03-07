@@ -87,6 +87,42 @@ class PlotKernel(PlotGrid):
         #plt.savefig('phi_idx_0_act_{}.tif'.format(act), dpi=400, transparent=False)
         return fig, ax1
 
+class UncertaintyPlot(PlotGrid):
+
+    def __init__(self, maze_cells, cmap, grid_map):
+        # Drop last row and column from maze_cells due to formatting decision for super class.
+        super(self.__class__, self).__init__(maze_cells[:-1, :-1], cmap)
+        self.grid_map = grid_map
+
+    def configurePlot(self, title, uncertainty_locations, uncertainty_magnitude, only_param_values=True, act_str=None):
+        """
+        """
+        fig, ax = super(self.__class__, self).configurePlot(title)
+        bar_height = np.zeros(self.maze_cells.size)
+        for cell, mag_val in zip(uncertainty_locations, uncertainty_magnitude):
+            bar_height[cell] = mag_val
+        bar_height.reshape(self.grid_dim)
+
+        print('Values of bars in {} uncertainty plot.'.format('parameter' if only_param_values else ''))
+        pprint(bar_height)
+        ax1 = fig.add_subplot(111, projection='3d')
+        ax1.view_init(elev=46, azim=-76)
+
+        num_cells = bar_height.size
+        zpos = np.zeros(num_cells)
+        dx = np.ones(num_cells)
+        dy = np.ones(num_cells)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, bar_height.ravel(), color='#00ceaa')
+            # Invert y-axis because we're plotting this like an image with origin in upper left corner.
+            ax1.invert_yaxis()
+        plt.axis('off')
+        plt.title(title+act_str, fontsize=self.fontsize)
+        #plt.savefig('phi_idx_0_act_{}.tif'.format(act_str), dpi=400, transparent=False)
+        return fig, ax1
+
 class PlotPolicy(PlotGrid):
 
     def __init__(self, maze_cells, cmap, center_offset):

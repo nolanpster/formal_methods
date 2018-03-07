@@ -651,7 +651,9 @@ class PolicyInference(object):
         if do_print:
             print("Infered-Policy as a {state: action-distribution} dictionary.")
             pprint(self.mdp.policy)
-            self.printPolicyUncertainty(theta_std_dev_vec, phis)
+
+        self.buildPolicyUncertainty(theta_std_dev_vec, phis, do_print)
+        self.mdp.policy_uncertainty_as_vec = self.mdp.getPolicyAsVec(policy_to_convert=self.mdp.policy_uncertainty)
 
         if do_plot:
             repeated_indeces = np.repeat(np.expand_dims(range(self.mdp.theta.size), 0), iter_count, 0).T
@@ -668,12 +670,15 @@ class PolicyInference(object):
         self.mdp.theta_std_dev = theta_std_dev_vec
         return theta_mean_vec
 
-    def printPolicyUncertainty(self, theta_std_dev, phis):
+
+    def buildPolicyUncertainty(self, theta_std_dev, phis, do_print=False):
         empty_policy_dist = {act:np.array([[0.]]) for act in self.mdp.action_list}
         policy_uncertainty = {state: deepcopy(empty_policy_dist) for state in self.mdp.states}
         for state in xrange(self.mdp.num_states):
             for act_idx, action in enumerate(self.mdp.action_list):
                 policy_uncertainty[state][action] = np.sqrt(np.dot(np.power(theta_std_dev,2),
                                                                    np.power(phis[state, act_idx],2)))
-        print('Policy Uncertainty')
-        pprint(policy_uncertainty)
+        if do_print:
+            print('Policy Uncertainty')
+            pprint(policy_uncertainty)
+        self.mdp.policy_uncertainty = policy_uncertainty

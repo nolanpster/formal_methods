@@ -399,20 +399,24 @@ class MDP(object):
                 prob_of_traj_given_policy[episode] *= self.policy[this_state][observed_action]
         return np.sum(np.multiply(episode_freq, np.log(np.divide(episode_freq, prob_of_traj_given_policy))))
 
-    def getPolicyAsVec(self, policy_keys_to_use=None):
+    def getPolicyAsVec(self, policy_keys_to_use=None, policy_to_convert=None):
         """
         @brief returns a numpy array representing the policy  with actions listed in the same order as self.action_list.
 
         @param policy_keys_to_use If supplied, policy vector will include only the states listed. Additionally, this
                assumes that the state structure is that of the MDPxDRA, ('grid_stat_num', 'qX'), and it will extract the
                first element of the tuple into the intermediate dictionary.
+        @param policy_to_convert If provided this policy is converted to a vector, if not this method converts
+               self.policy to a vector.
         """
+        if policy_to_convert is None:
+            policy_to_convert = self.policy
         if policy_keys_to_use is not None:
             policy_vec = np.empty(len(policy_keys_to_use) * self.num_actions)
-            policy_dict  = {state[0]: deepcopy(self.policy[state]) for state in policy_keys_to_use}
+            policy_dict  = {state[0]: deepcopy(policy_to_convert[state]) for state in policy_keys_to_use}
         else:
             policy_vec = np.empty(self.num_states * self.num_actions)
-            policy_dict = self.policy
+            policy_dict = policy_to_convert
         for state in xrange(len(policy_vec) / self.num_actions):
             for act_idx, act in enumerate(self.action_list):
                 policy_vec[state * self.num_actions+act_idx] = policy_dict[state][act]

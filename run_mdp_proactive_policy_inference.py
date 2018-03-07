@@ -299,13 +299,14 @@ if __name__=='__main__':
     plot_initial_mdp_grids = False
     plot_inferred_mdp_grids = False
     plot_demonstration = True
+    plot_uncertainty = False
     plot_new_phi = False
     plot_new_kernel = False
     plot_loaded_phi = False
     plot_loaded_kernel = False
     plot_inference_statistics = False
     plot_flags = [plot_all_grids, plot_initial_mdp_grids, plot_inferred_mdp_grids, plot_new_phi, plot_loaded_phi,
-                  plot_new_kernel, plot_loaded_kernel, plot_inference_statistics, plot_demonstration]
+                  plot_new_kernel, plot_loaded_kernel, plot_inference_statistics, plot_demonstration, plot_uncertainty]
     if plot_new_kernel and plot_loaded_kernel:
         raise ValueError('Can not plot both new and loaded kernel in same call.')
     if plot_new_kernel:
@@ -536,6 +537,19 @@ if __name__=='__main__':
         title=''
         for act in action_list:
             fig, ax = phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
+
+    if plot_uncertainty:
+        # Only for GaussianTheta
+        uncertainty_grid = PlotHelp.UncertaintyPlot(maze, cmap, grid_map)
+        policy_uncertainty = infer_mdp.policy_uncertainty_as_vec.reshape([infer_mdp.num_states, infer_mdp.num_actions])
+        for act_idx, act in enumerate(action_list):
+            param_vector_indeces = xrange(act_idx, len(infer_mdp.theta), len(action_list))
+            uncertainty_vals = infer_mdp.theta_std_dev[param_vector_indeces]
+            title='Param Uncertainty'
+            fig, ax = uncertainty_grid.configurePlot(title, infer_mdp.kernel_centers, uncertainty_vals, act_str=str(act))
+            # Plot aggregate uncertainty at states here
+            fig, ax = uncertainty_grid.configurePlot('Policy Uncertainty', infer_mdp.grid_map.ravel(),
+                                                     policy_uncertainty[:, act_idx], act_str=str(act))
 
     if plot_inference_statistics:
         infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=False)
