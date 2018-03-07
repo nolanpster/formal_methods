@@ -33,6 +33,9 @@ class PolicyInference(object):
 
     @pre Assumes the MDP instance has an instance variable .graph of type @ref GridGraph.
     """
+
+    six_tabs = '\t'*6
+
     def __init__(self, mdp=None, method=None, write_video=False):
         self.mdp = mdp
         self.setMethod(method)
@@ -514,7 +517,8 @@ class PolicyInference(object):
         velocity_sigma = np.zeros([self.theta_size], dtype=dtype)
 
         # Configure printing and plotting options.
-        vals2plot=[]
+        means2plot=np.empty(self.theta_size, dtype=dtype)
+        sigmas2plot=np.empty(self.theta_size, dtype=dtype)
         del2print=[]
 
         # This block configures the iteration parameters. The threshold at which to stop iteration, @c thresh, the
@@ -613,13 +617,17 @@ class PolicyInference(object):
             delta_theta_sigma_norm = inner1d(np.absolute(vector_diff), self.ones_length_theta)
 
             if do_plot:
-                vals2plot.append(theta_mean_vec.tolist())
-                del2print.append(delta_theta_mu_norm)
+                means2plot = np.vstack((means2plot, theta_mean_vec))
+                sigmas2plot = np.vstack((sigmas2plot, theta_std_dev_vec))
             if do_print:
                 infer_toc = time.clock() - iter_tic
                 pprint('Iter#: {}, delta_mu: {}, delta_sigma: {}, iter-time: {}sec.'
                        .format(iter_count, delta_theta_mu_norm, delta_theta_sigma_norm, infer_toc),
                        indent=4)
+                if not iter_count % 10:
+                    print(PolicyInference.six_tabs + ' Max Log-likelihood: {}.'
+                          .format(log_prob_traj_given_thetas.max()))
+
 
         # Prepare to exit.
         self.mdp.theta = np.expand_dims(theta_mean_vec, axis=0)
@@ -638,13 +646,13 @@ class PolicyInference(object):
             self.printPolicyUncertainty(theta_std_dev_vec, phis)
 
         if do_plot:
-            plt.plot(range(iter_count),del2print)
+            repeated_indeces = np.repeat(np.expand_dims(range(self.mdp.theta.size), 0), iter_count, 0).T
+            repeated_indeces = np.repeat(np.expand_dims(range(iter_count), 0), self.theta_size, 0).T
+            plt.figure()
+            plt.plot(repeated_indeces, means2plot[1:, :])
+            plt.figure()
+            plt.plot(repeated_indeces, sigmas2plot[1:, :])
             plt.show()
-
-            for u in range(self.mdp.theta.size):
-                plt2.plot(range(iter_count),[vals2plot[o][0][u] for o in range(len(vals2plot))])
-                plt2.ylabel('Theta '+str(int(u/6))+'_'+str(u%6))
-                plt2.show()
 
         if killer.kill_now is True:
             print 'Search killed'
