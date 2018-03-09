@@ -50,7 +50,10 @@ class InferenceMDP(MDP):
         # Theta is used as the policy parameter for inference.
         self.theta = None
 
-        # option to rebuild kernels here?
+        # cell_state_slicer: used to extract indeces from the tuple of states. The joint-state tuples are used as
+        # dictionary keys and this class wants to slice all states.
+        self.state_slice_length = None
+        self.cell_state_slicer = slice(None, self.state_slice_length, None)
 
     def buildKernels(self, gg_kernel_centers=None, og_kernel_centers=None, kernel_sigmas=None):
         """
@@ -72,13 +75,14 @@ class InferenceMDP(MDP):
             self.kernel_centers = list(self.gg_kernel_centers) + list(self.og_kernel_centers)
 
         self.phi = FeatureVector(self.action_list, self.T, self.graph, ggk_centers=self.gg_kernel_centers,
-                                 ogk_centers=self.og_kernel_centers, std_devs=self.kernel_sigmas)
+                                 ogk_centers=self.og_kernel_centers, std_devs=self.kernel_sigmas,
+                                 state_list=self.states)
         self.num_kern = self.phi.num_kernels
         self.precomputePhiAtState()
 
     def precomputePhiAtState(self):
         self.phi_at_state = {state: {act: self.phi(state, act) for act in self.action_list} for state in
-                             self.grid_cell_vec}
+                             self.observable_states}
 
     def updateSigmas(self, sigmas):
         self.phi.updateStdDevs(sigmas)
@@ -89,10 +93,10 @@ class InferenceMDP(MDP):
         @brief Method to build the policy during/after policy inference.
         """
         exp_Q = {state: {act: np.exp(np.dot(self.theta, self.phi_at_state[state][act])) for act in self.action_list}
-                 for state in self.state_vec}
-        sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.state_vec}
+                 for state in self.observable_states}
+        sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.observable_states}
         self.policy = {state: {act: exp_Q[state][act]/sum_exp_Q[state] for act in self.action_list}
-                       for state in self.states}
+                       for state in self.observable_states}
 
     def inferPolicy(self, method='gradientAscent', write_video=False, **kwargs):
         """

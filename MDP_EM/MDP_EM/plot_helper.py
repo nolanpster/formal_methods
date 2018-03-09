@@ -47,24 +47,28 @@ class PlotKernel(PlotGrid):
         self.action_list = action_list
         self.grid_map = grid_map
 
-    def configurePlot(self, title, cell, kernels=None, phi_at_cell=None, act=None):
+    def configurePlot(self, title, elem_idx, kernels=None, phi_at_state=None, act=None, states=None):
         """
         @param Title
-        @param cell The index of the kernel vector, or phi_at_cell to print; e.g., if there are kernels at cells
-               [0, 2, 3] then cell=1 will access the kernel (or coresponding phi values) centered at grid-cell 2.
-        @param action Used for plotting phi values.
+        @param elem_idx The index of the kernel vector, or phi_at_state to print; e.g., if there are kernels at cells
+               [0, 2, 3] then elem_idx=1 will access the kernel (or coresponding phi values) centered at grid-cell 2.
+        @param act Used for plotting phi values (they are a function the action taken).
+        @param states a list of states to use as keys in phi_at_state. If `None`, cell indeces in PlotKernel.GridMap
+               will be used.
         """
         fig, ax = super(self.__class__, self).configurePlot(title)
-        if phi_at_cell is not None:
+        if phi_at_state is not None:
+            if states is None:
+                states = range(self.grid_map.size)
             try:
-                bar_height = np.array([phi_at_cell[cell][act]
-                                      [len(self.action_list)*(cell) + self.action_list.index(act)] for cell in
-                                      range(self.grid_map.size)]).reshape(self.grid_dim)
+                bar_height = np.array([phi_at_state[state][act]
+                                       [len(self.action_list)*(elem_idx) + self.action_list.index(act)] for state in
+                                       states]).reshape(self.grid_dim)
             except:
-                # Determine type of error to raise when cell is invalid.
-                import pdb; pdb.set_trace()
+                raise KeyError('Invalid state-key in the phi_at_state dictionary.')
         elif kernels is not None:
-            bar_height = np.array([kernels[cell](cell) for cell in range(self.grid_map.size)]).reshape(self.grid_dim)
+            bar_height = np.array([kernels[elem_idx](state)
+                            for state in range(self.grid_map.size)]).reshape(self.grid_dim)
         else:
             raise ValueError('No input values to plot!')
         print('Values of bars in {} plot.'.format('kernels' if kernels is not None else 'phi'))
@@ -84,7 +88,7 @@ class PlotKernel(PlotGrid):
             ax1.invert_yaxis()
         plt.axis('off')
         plt.title(str(act))
-        #plt.savefig('phi_idx_0_act_{}.tif'.format(act), dpi=400, transparent=False)
+        #plt.savefig('elem_idx_0_act_{}.tif'.format(act), dpi=400, transparent=False)
         return fig, ax1
 
 class UncertaintyPlot(PlotGrid):
@@ -120,7 +124,7 @@ class UncertaintyPlot(PlotGrid):
             ax1.invert_yaxis()
         plt.axis('off')
         plt.title(title+act_str, fontsize=self.fontsize)
-        #plt.savefig('phi_idx_0_act_{}.tif'.format(act_str), dpi=400, transparent=False)
+        #plt.savefig('elem_idx_0_act_{}.tif'.format(act_str), dpi=400, transparent=False)
         return fig, ax1
 
 class PlotPolicy(PlotGrid):

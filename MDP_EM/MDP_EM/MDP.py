@@ -42,6 +42,13 @@ class MDP(object):
                 self.num_agents = 1
         self.num_states = len(self.states)
         self.current_state = None
+
+        # cell_state_slicer: used to extract indeces from the tuple of states. The joint-state tuples are used as
+        # dictionary keys and derived classes should change this value as necessary. Eg. A MDPxDRA with multiple agents
+        # might represent a state as ((s_r, s_e), q_i). This slice extracts ((s_r, s_e),).
+        self.state_slice_length = None
+        self.cell_state_slicer = slice(None, self.state_slice_length, None)
+
         self.gamma=gamma
         self.reward=reward
         self.grid_map=grid_map
@@ -70,6 +77,7 @@ class MDP(object):
         self.sink_action = sink_action
         self.setSinks(sink_list)
         self.setInitialProbDist()
+        self.observable_states = self.states
 
     def reconfigureConditionalInitialValues(self):
         """
@@ -86,6 +94,7 @@ class MDP(object):
             else:
                 self.num_agents = 1
         self.num_states = len(self.states)
+        self.observable_states = self.states
         if self.grid_map is not None:
             self.grid_cell_vec = self.grid_map.ravel()
         else:
@@ -253,6 +262,16 @@ class MDP(object):
         next_index= np.random.choice(self.num_states, num, p=self.prob[action][i,:])[0]
         return self.states[next_index]
 
+    def setObservableStates(self, observable_states):
+        """
+        @brief Set which states in the MDP are observed (returned) by MDP.step() and MDP.resetState().
+
+        @param observable_states A list of tuples where each tuple is a state that is available to observe. This list
+               will be used for creating indices of observed states. The indeces for this list do not match the indices
+               in the MDP.states property.
+        """
+        self.observable_states=observable_states
+
     def step(self):
         """
         @brief Given the current state and the policy, creates the joint distribution of
@@ -265,8 +284,7 @@ class MDP(object):
         this_trans_prob = np.zeros(self.num_states)
         this_policy = self.policy[self.current_state]
         for act in this_policy.keys():
-            this_trans_prob += this_policy[act] \
-                               * self.prob[act][self.states.index(self.current_state), :]
+            this_trans_prob += this_policy[act] * self.prob[act][self.states.index(self.current_state), :]
         # Renormalize distribution - need to deal with this in a better way.
         this_trans_prob /= this_trans_prob.sum()
         # Sample a new state given joint distribution of states and actions.
@@ -275,18 +293,19 @@ class MDP(object):
         except ValueError:
             import pdb; pdb.set_trace()
         self.current_state = self.states[next_index]
-        return self.current_state
+        observable_index = self.observable_states.index(self.current_state)
+        return self.current_state[self.cell_state_slicer][0], observable_index
 
     def resetState(self):
         """
         @brief Reset state to a random position in the grid.
         """
         if self.init_set is not None:
-            self.current_state = self.states[np.random.choice(self.num_states, 1,
-                                                              p=self.S)[0]]
+            self.current_state = self.states[np.random.choice(self.num_states, 1, p=self.S)[0]]
         elif self.init is not None:
             self.current_state = self.init
-        return self.current_state
+        observable_index = self.observable_states.index(self.current_state)
+        return self.current_state[self.cell_state_slicer][0], observable_index
 
     def timePrior(self, _t):
         """
@@ -455,13 +474,15 @@ class MDP(object):
             policy_to_convert = self.policy
         if policy_keys_to_use is not None:
             policy_vec = np.empty(len(policy_keys_to_use) * self.num_actions)
-            policy_dict  = {state[0]: deepcopy(policy_to_convert[state]) for state in policy_keys_to_use}
+            policy_dict  = {state: deepcopy(policy_to_convert[state])
+                            for state in policy_keys_to_use}
         else:
             policy_vec = np.empty(self.num_states * self.num_actions)
             policy_dict = policy_to_convert
-        for state in xrange(len(policy_vec) / self.num_actions):
+            policy_keys_to_use = self.states
+        for state_idx, state in enumerate(policy_keys_to_use):
             for act_idx, act in enumerate(self.action_list):
-                policy_vec[state * self.num_actions+act_idx] = policy_dict[state][act]
+                policy_vec[(state_idx * self.num_actions) + act_idx] = policy_dict[state][act]
         return policy_vec
 
     def solve(self, method='valueIteration', write_video=False, **kwargs):

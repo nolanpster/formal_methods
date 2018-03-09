@@ -23,6 +23,10 @@ class ProductMDPxDRA(MDP):
         # Set self to be an MDP instance. Build the product ontop of this, then call setSinks again now that the object
         # is fully populated.
         super(self.__class__, self).__init__()
+        # cell_state_slicer: used to extract indeces from the tuple of states. The joint-state tuples are used as
+        # dictionary keys and this class augments the state tuple from (mdp_state) to ((mdp_state),dra_state).
+        self.state_slice_length = 1
+        self.cell_state_slicer = slice(None, self.state_slice_length, None)
         self.computeProductMDPxDRA(mdp, dra)
         self.grid_map = deepcopy(mdp.grid_map)
         self.sink_action = sink_action
@@ -67,36 +71,3 @@ class ProductMDPxDRA(MDP):
             mdp_acc.append((Jmdp, Kmdp))
         self.acc = mdp_acc
         self.dra = deepcopy(dra)
-
-    def step(self):
-        """
-        @brief Given the current state and the policy, creates the joint distribution of next-states and actions. Then
-               samples from that distribution.
-
-        Returns the current state number as an integer.
-        """
-        #@TODO make work for all agents
-        # Creates a transition probability vector of the same dimesion as a row in the transition probability matrix.
-        this_trans_prob = np.zeros(self.num_states)
-        this_policy = self.policy[self.current_state]
-        for act in this_policy.keys():
-            this_trans_prob += this_policy[act] * self.prob[act][self.states.index(self.current_state), :]
-        # Renormalize distribution - need to deal with this in a better way.
-        this_trans_prob /= this_trans_prob.sum()
-        # Sample a new state given joint distribution of states and actions.
-        try:
-            next_index= np.random.choice(self.num_states, 1, p=this_trans_prob)[0]
-        except ValueError:
-            import pdb; pdb.set_trace()
-        self.current_state = self.states[next_index]
-        return self.current_state[0]
-
-    def resetState(self):
-        """
-        @brief Reset state to a random position in the grid.
-        """
-        if self.init_set is not None:
-            self.current_state = self.states[np.random.choice(self.num_states, 1, p=self.S)[0]]
-        elif self.init is not None:
-            self.current_state = self.init
-        return self.current_state[0]

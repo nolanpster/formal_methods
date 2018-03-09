@@ -104,7 +104,9 @@ grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
 
 # Create a list of tuples where the tuples have length @c num_agents and represent the joint states of the agents.
 num_agents = 1
-states = [state[0] for state in itertools.product(xrange(grid_map.size), repeat=num_agents)]
+states = [state for state in itertools.product(xrange(grid_map.size), repeat=num_agents)]
+num_states = len(states)
+state_indices = range(num_states)
 
 # Atomic Proposition and labels configuration. Note that 'empty' is the empty string/label/dfa-action. The empty action
 # for MDP incurrs a self loop.
@@ -113,14 +115,14 @@ red = LTL_plus('red')
 empty = LTL_plus('E')
 atom_prop = [green, red, empty]
 labels = {state: empty for state in states}
-labels[6] = red
-labels[7] = red
-labels[8] = red
-labels[0] = green
+labels[(6,)] = red
+labels[(7,)] = red
+labels[(8,)] = red
+labels[(0,)] = green
 
 # Starting and final states
-initial_state = 15
-goal_state = 0 # Currently assumess only one goal.
+initial_state = (15,)
+goal_state = (0,) # Currently assumess only one goal.
 
 # Action options.
 action_list = ['Empty', 'North', 'South', 'East', 'West']
@@ -209,20 +211,21 @@ def makeGridMDPxDRA(do_print=False):
 
     # @TODO Prune unreachable states from MDP.
 
-    # Create a dictionary of reachable states for printing.
+    # Create a dictionary of observable states for printing.
     policy_keys_to_print = deepcopy([(state[0], VI_game_mdp.dra.get_transition(VI_game_mdp.L[state], state[1])) for
                                      state in VI_game_mdp.states if 'q0' in state])
     if solve_with_uniform_distribution:
         initial_set = policy_keys_to_print
     else:
         initial_set = initial_state
+    VI_game_mdp.setInitialProbDist(initial_set)
+    VI_game_mdp.setObservableStates(observable_states=policy_keys_to_print)
 
     ##### SOLVE #####
     # To enable a solution of the MDP with multiple methods, copy the MDP, set the initial state likelihood
     # distributinos and then solve the MDPs.
     EM_game_mdp = deepcopy(VI_game_mdp)
     EM_game_mdp.setInitialProbDist(initial_set)
-    VI_game_mdp.setInitialProbDist(initial_set)
     VI_game_mdp.solve(do_print=do_print, method='valueIteration', write_video=False,
                       policy_keys_to_print=policy_keys_to_print)
     EM_game_mdp.solve(do_print=do_print, method='expectationMaximization', write_video=False,
@@ -242,7 +245,7 @@ def makeGridMDPxDRA(do_print=False):
 if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
     make_new_mdp = False
-    pickled_mdp_file_to_load  = 'robot_mdps_180221_1651'
+    pickled_mdp_file_to_load  = 'robot_mdps_180310_1124'
     write_mdp_policy_csv = False
 
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -251,7 +254,7 @@ if __name__=='__main__':
     gather_new_data = False
     num_episodes = 250
     steps_per_episode = 15
-    pickled_episodes_file_to_load = 'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306'
+    pickled_episodes_file_to_load = 'robot_mdps_180309_2256_HIST_250eps15steps_180309_2256'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
@@ -344,9 +347,9 @@ if __name__=='__main__':
         run_histories = np.zeros([num_episodes, steps_per_episode], dtype=hist_dtype)
         for episode in range(num_episodes):
             # Create time-history for this episode.
-            run_histories[episode, 0] = mdp.resetState()
+            _, run_histories[episode, 0] = mdp.resetState()
             for t_step in range(1, steps_per_episode):
-                run_histories[episode, t_step] = mdp.step()
+                _, run_histories[episode, t_step] = mdp.step()
         pickled_episodes_file = DataHelp.pickleEpisodes(variables_to_save=[run_histories], name_prefix=pickled_mdp_file,
                                                         num_episodes=num_episodes, steps_per_episode=steps_per_episode)
     else:
@@ -355,7 +358,7 @@ if __name__=='__main__':
         num_episodes = run_histories.shape[0]
         steps_per_episode = run_histories.shape[1]
 
-    DataHelp.printHistoryAnalysis(run_histories, states, labels, empty, goal_state)
+    DataHelp.printHistoryAnalysis(run_histories, state_indices, labels, empty, goal_state)
 
     if plot_new_phi or  plot_new_kernel or perform_new_inference:
         tic = time.clock()
@@ -496,7 +499,7 @@ if __name__=='__main__':
             if use_print_keys: # VI and EM policies have DRA states in policy keys.
                 list_of_tuples = [(key, policy[key]) for key in policy_keys_to_print]
             else: # Learned policy only has state numbers.
-                order_of_keys = [key for key in range(grid_map.size)]
+                order_of_keys = [key for key in states]
                 list_of_tuples = [(key, policy[key]) for key in order_of_keys]
             policy = OrderedDict(list_of_tuples)
             fig = base_policy_grid.configurePlot(title, policy, action_list, use_print_keys, policy_keys_to_print,
@@ -529,7 +532,8 @@ if __name__=='__main__':
         phi_idx = 0
         title=''
         for act in action_list:
-            fig, ax = phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act)
+            fig, ax = phi_grid.configurePlot(title, phi_idx, phi_at_state=phi_at_state, act=act,
+                                             states=infer_mdp.states)
 
     if plot_uncertainty:
         # Only for GaussianTheta

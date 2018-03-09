@@ -78,10 +78,10 @@ class PolicyInference(object):
     def computePhis(self):
         # Initialize arrays for intermediate computations.
         phis = np.zeros([self.mdp.num_states, self.mdp.num_actions, self.theta_size], dtype=self.dtype)
-        for state in self.mdp.grid_cell_vec:
+        for state_idx, state in enumerate(self.mdp.states):
             for act_idx, act in enumerate(self.mdp.action_list):
                 for kern_idx in xrange(self.theta_size):
-                    phis[state, act_idx, kern_idx] = self.mdp.phi_at_state[state][act][kern_idx]
+                    phis[state_idx, act_idx, kern_idx] = self.mdp.phi_at_state[state][act][kern_idx]
         return phis
 
     def estimateHessian(self, theta, phis, exp_Q, sum_exp_Q, sum_weighted_exp_Q):
@@ -171,7 +171,7 @@ class PolicyInference(object):
 
         # Initialize Weight vector, theta.
         if theta_0 is None:
-            test_phi = self.mdp.phi(1, 'East')
+            test_phi = self.mdp.phi(self.mdp.states[0], self.mdp.action_list[0])
             theta_0 = np.empty([test_phi.size, 1], dtype=dtype).T
             for kern_idx in xrange(self.mdp.num_kern):
                 for act_idx, act in enumerate(self.mdp.action_list):
@@ -505,7 +505,7 @@ class PolicyInference(object):
 
         # Initialize Weight vector, theta.
         if theta_0 is None:
-            test_phi = self.mdp.phi(1, 'East')
+            test_phi = self.mdp.phi(self.mdp.states[0], self.mdp.action_list[0])
             theta_0 = np.empty([test_phi.size, 1], dtype=dtype).T
             for kern_idx in xrange(self.mdp.num_kern):
                 for act_idx, act in enumerate(self.mdp.action_list):
@@ -694,10 +694,10 @@ class PolicyInference(object):
     def buildPolicyUncertainty(self, theta_std_dev, phis, do_print=False):
         empty_policy_dist = {act:np.array([[0.]]) for act in self.mdp.action_list}
         policy_uncertainty = {state: deepcopy(empty_policy_dist) for state in self.mdp.states}
-        for state in xrange(self.mdp.num_states):
+        for state_idx in xrange(self.mdp.num_states):
             for act_idx, action in enumerate(self.mdp.action_list):
-                policy_uncertainty[state][action] = np.sqrt(np.dot(np.power(theta_std_dev,2),
-                                                                   np.power(phis[state, act_idx],2)))
+                policy_uncertainty[self.mdp.states[state_idx]][action] = np.sqrt(np.dot(np.power(theta_std_dev,2),
+                                                                                 np.power(phis[state_idx, act_idx],2)))
         if do_print:
             print('Policy Uncertainty')
             pprint(policy_uncertainty)
