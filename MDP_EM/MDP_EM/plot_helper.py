@@ -157,7 +157,7 @@ class PlotKernel(PlotGrid):
             ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, bar_height.ravel(), color='#00ceaa')
             # Invert y-axis because we're plotting this like an image with origin in upper left corner.
             ax1.invert_yaxis()
-        plt.axis('off')
+        #plt.axis('off')
         plt.title(str(act))
         #plt.savefig('elem_idx_0_act_{}.tif'.format(act), dpi=400, transparent=False)
         return fig, ax1
@@ -193,7 +193,7 @@ class UncertaintyPlot(PlotGrid):
             ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, bar_height.ravel(), color='#00ceaa')
             # Invert y-axis because we're plotting this like an image with origin in upper left corner.
             ax1.invert_yaxis()
-        plt.axis('off')
+        #plt.axis('off')
         plt.title(title+act_str, fontsize=self.fontsize)
         #plt.savefig('elem_idx_0_act_{}.tif'.format(act_str), dpi=400, transparent=False)
         return fig, ax1
