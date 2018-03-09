@@ -47,7 +47,7 @@ class PlotKernel(PlotGrid):
         self.action_list = action_list
         self.grid_map = grid_map
 
-    def configurePlot(self, title, cell, kernels=None, phi_at_state=None, act=None):
+    def configurePlot(self, title, cell, kernels=None, phi_at_state=None, act=None, do_print=False):
         """
         @param Title
         @param cell The index of the kernel vector, or phi_at_state to print; e.g., if there are kernels at cells
@@ -67,8 +67,9 @@ class PlotKernel(PlotGrid):
             bar_height = np.array([kernels[cell](state) for state in range(self.grid_map.size)]).reshape(self.grid_dim)
         else:
             raise ValueError('No input values to plot!')
-        print('Values of bars in {} plot.'.format('kernels' if kernels is not None else 'phi'))
-        pprint(bar_height)
+        if do_print:
+            print('Values of bars in {} plot.'.format('kernels' if kernels is not None else 'phi'))
+            pprint(bar_height)
         ax1 = fig.add_subplot(111, projection='3d')
         ax1.view_init(elev=46, azim=-76)
 
@@ -85,6 +86,7 @@ class PlotKernel(PlotGrid):
         #plt.axis('off')
         plt.title(str(act))
         #plt.savefig('phi_idx_0_act_{}.tif'.format(act), dpi=400, transparent=False)
+        fig.tight_layout()
         return fig, ax1
 
 class UncertaintyPlot(PlotGrid):
@@ -94,7 +96,8 @@ class UncertaintyPlot(PlotGrid):
         super(self.__class__, self).__init__(maze_cells[:-1, :-1], cmap)
         self.grid_map = grid_map
 
-    def configurePlot(self, title, uncertainty_locations, uncertainty_magnitude, only_param_values=True, act_str=None):
+    def configurePlot(self, title, uncertainty_locations, uncertainty_magnitude, only_param_values=True, act_str=None,
+                      do_print=False):
         """
         """
         fig, ax = super(self.__class__, self).configurePlot(title)
@@ -103,8 +106,9 @@ class UncertaintyPlot(PlotGrid):
             bar_height[cell] = mag_val
         bar_height.reshape(self.grid_dim)
 
-        print('Values of bars in {} uncertainty plot.'.format('parameter' if only_param_values else ''))
-        pprint(bar_height)
+        if do_print:
+            print('Values of bars in {} uncertainty plot.'.format('parameter' if only_param_values else ''))
+            pprint(bar_height)
         ax1 = fig.add_subplot(111, projection='3d')
         ax1.view_init(elev=46, azim=-76)
 
@@ -121,6 +125,7 @@ class UncertaintyPlot(PlotGrid):
         #plt.axis('off')
         plt.title(title+act_str, fontsize=self.fontsize)
         #plt.savefig('phi_idx_0_act_{}.tif'.format(act_str), dpi=400, transparent=False)
+        fig.tight_layout()
         return fig, ax1
 
 class PlotPolicy(PlotGrid):
@@ -137,7 +142,7 @@ class PlotPolicy(PlotGrid):
         self.prob_disp_thresh = 0.02
 
     def configurePlot(self, title, policy, action_list, use_print_keys, policy_keys_to_print, decimals,
-                       kernel_locations=None):
+                       kernel_locations=None, do_print=False):
         fig, ax = super(self.__class__, self).configurePlot(title)
         policy = deepcopy(policy)
         # Stay probabilies - plot with dots.
@@ -188,6 +193,7 @@ class PlotPolicy(PlotGrid):
             ax.add_collection(circle_collection)
 
         plt.gca().invert_yaxis()
+        fig.tight_layout()
         return fig
 
 class PlotDemonstration(PlotGrid):
@@ -197,7 +203,7 @@ class PlotDemonstration(PlotGrid):
         self.x_cent = self.x[:-1,:-1].ravel()+center_offset
         self.y_cent = self.y[:-1,:-1].ravel()+center_offset
 
-    def configurePlot(self, title, histories):
+    def configurePlot(self, title, histories, do_print=False):
 
         fig, ax = super(self.__class__, self).configurePlot(title)
         cells_visited, times_in_demo = np.unique(histories, return_counts=True)
@@ -209,6 +215,7 @@ class PlotDemonstration(PlotGrid):
         for x, y, count in zip(this_x_cent, this_y_cent, times_in_demo):
             plt.text(x, y, str(count), fontsize=self.fontsize)
         plt.gca().invert_yaxis()
+        fig.tight_layout()
 
 def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set, title, mle_L1_norm=None):
     """
@@ -239,4 +246,5 @@ def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set
         ax.axhline(y=mle_L1_norm, color='navy', linestyle='--', linewidth=3)
     #plt.savefig('error_bars_large_skinny.tif', dpi=400, transparent=False)
 
-    return fig, ax
+    fig.tight_layout()
+    return fig,self. ax
