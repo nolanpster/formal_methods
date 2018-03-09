@@ -56,36 +56,6 @@ class PolicyInference(object):
             else:
                 self.algorithm = None
 
-    def buildPolicy(self):
-        """
-        @brief Method to build the policy during/after policy inference.
-        """
-        if 'gradientAscent' in self.method:
-            exp_Q = {state: {act: np.exp(np.dot(self.mdp.theta, self.mdp.phi_at_state[state][act])) for act in
-                             self.mdp.action_list} for state in self.mdp.state_vec}
-            sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.mdp.state_vec}
-            self.mdp.policy = {state: {act: exp_Q[state][act]/sum_exp_Q[state] for act in self.mdp.action_list}
-                               for state in self.mdp.states}
-
-    def buildPolicyVectors(self, phis, theta):
-        """
-        @brief Given Q(s,a) = <phi, theta>, this build the Boltzman policy as a vector.
-
-        Vector indeces are [s_0_a_0, s_0_a_1, ... s_0_a_N, ... s_M_a_N-1, s_M_a_N] for M states and N actions.
-
-        @param phis A Num-states--by--num-actions--by--num-kernels numpy array.
-        @param theta A KxNum-kernels numpy array. Where K is the number of samples of the theta vector.
-
-        @return policy_matrix  A matrix of action probabilities of shape K-by-(num-actions*num-states).
-        """
-        # See note about numpy.einsum axes in PolicyInference.gradientAscent(). In this case, 'h' is used to referce the
-        # rows (number of samples) of theta.
-        if 'gradientAscent' in self.method:
-            exp_Q = np.exp(np.einsum('ijk,hk->hij', phis, theta))
-            reciprocal_sum_exp_Q = np.reciprocal(np.einsum('hij->hi', exp_Q))
-            policy_matrix = np.einsum('hij,hi->hij', exp_Q, reciprocal_sum_exp_Q)
-            return policy_matrix.reshape(theta.shape[0], self.policy_vec_length)
-
     def getObservedActionIndeces(self):
         """
         @brief Precompute the observed action indeces for the instance's demonstration set.
@@ -353,7 +323,7 @@ class PolicyInference(object):
                 parameter_variance = np.diag(np.dot(H_est_inv, np.dot(G_estimate, H_est_inv)))
 
             if is_last_trial:
-                self.buildPolicy()
+                self.mdp.buildGibbsPolicy()
 
             if doing_monte_carlo:
                 batch_infer_time[trial] = time.clock() - trial_tic
@@ -364,7 +334,7 @@ class PolicyInference(object):
 
             if do_print:
                 print("Infered-Policy as a {state: action-distribution} dictionary.")
-                self.buildPolicy()
+                self.mdp.buildGibbsPolicy()
                 pprint(self.mdp.policy)
 
             if do_plot:
@@ -454,32 +424,24 @@ class PolicyInference(object):
         for trial in xrange(10):
             self.historyMLE(histories, do_weighted_update=True)
 
-
-    @staticmethod
-    def actionProbGivenStatePair(s_0, s_1, policy, trans_prob_func, action_list):
+    def buildPolicyVectors(self, phis, theta):
         """
-        @param policy A policy in dictionary representation used by MDP.py.
-        @param trans_prob_func A reference to the MDP.P() method.
+        @brief Given Q(s,a) = <phi, theta>, this build the Boltzman policy as a vector.
+
+        Vector indeces are [s_0_a_0, s_0_a_1, ... s_0_a_N, ... s_M_a_N-1, s_M_a_N] for M states and N actions.
+
+        @param phis A Num-states--by--num-actions--by--num-kernels numpy array.
+        @param theta A KxNum-kernels numpy array. Where K is the number of samples of the theta vector.
+
+        @return policy_matrix  A matrix of action probabilities of shape K-by-(num-actions*num-states).
         """
-        total_prob_of_s_1 = np.sum([trans_prob_func(s_0, act, s_1) for act in action_list])
-        policy_at_state = np.array([policy[s_0][act][0][0] for act in action_list])
-        transition_prob_to_s_1 = np.array([trans_prob_func(s_0, act, s_1) for act in action_list])
-
-        return (transition_prob_to_s_1 * policy_at_state) / total_prob_of_s_1
-
-    @staticmethod
-    def evalGibbsPolicy(theta, phi, action, action_list):
-        """
-        @brief Returns an approximated policy update.
-
-        @param theta vector of weights.
-        @param phi vector of basis functions.
-        @param action
-        @param action_list
-        """
-        exp_Q = {act:np.exp(np.dot(theta, phi)) for act in action_list}
-
-        return exp_Q[action]/sum(exp_Q.values())
+        # See note about numpy.einsum axes in PolicyInference.gradientAscent(). In this case, 'h' is used to referce the
+        # rows (number of samples) of theta.
+        if 'gradientAscent' in self.method:
+            exp_Q = np.exp(np.einsum('ijk,hk->hij', phis, theta))
+            reciprocal_sum_exp_Q = np.reciprocal(np.einsum('hij->hi', exp_Q))
+            policy_matrix = np.einsum('hij,hi->hij', exp_Q, reciprocal_sum_exp_Q)
+            return policy_matrix.reshape(theta.shape[0], self.policy_vec_length)
 
     def logProbOfDataSet(self, theta_mat, phis):
         """
@@ -696,7 +658,6 @@ class PolicyInference(object):
                     print(PolicyInference.six_tabs + ' Max Log-likelihood: {}.'
                           .format(log_prob_traj_given_thetas.max()))
 
-
         # Prepare to exit.
         self.mdp.theta = np.expand_dims(theta_mean_vec, axis=0)
 
@@ -706,7 +667,7 @@ class PolicyInference(object):
             pprint('Covariance:')
             pprint(theta_std_dev_vec)
 
-        self.buildPolicy()
+        self.mdp.buildGibbsPolicy()
 
         if do_print:
             print("Infered-Policy as a {state: action-distribution} dictionary.")
@@ -730,7 +691,6 @@ class PolicyInference(object):
         self.mdp.theta_std_dev = theta_std_dev_vec
         return theta_mean_vec
 
-
     def buildPolicyUncertainty(self, theta_std_dev, phis, do_print=False):
         empty_policy_dist = {act:np.array([[0.]]) for act in self.mdp.action_list}
         policy_uncertainty = {state: deepcopy(empty_policy_dist) for state in self.mdp.states}
@@ -742,3 +702,29 @@ class PolicyInference(object):
             print('Policy Uncertainty')
             pprint(policy_uncertainty)
         self.mdp.policy_uncertainty = policy_uncertainty
+
+    @staticmethod
+    def actionProbGivenStatePair(s_0, s_1, policy, trans_prob_func, action_list):
+        """
+        @param policy A policy in dictionary representation used by MDP.py.
+        @param trans_prob_func A reference to the MDP.P() method.
+        """
+        total_prob_of_s_1 = np.sum([trans_prob_func(s_0, act, s_1) for act in action_list])
+        policy_at_state = np.array([policy[s_0][act][0][0] for act in action_list])
+        transition_prob_to_s_1 = np.array([trans_prob_func(s_0, act, s_1) for act in action_list])
+
+        return (transition_prob_to_s_1 * policy_at_state) / total_prob_of_s_1
+
+    @staticmethod
+    def evalGibbsPolicy(theta, phi, action, action_list):
+        """
+        @brief Returns an approximated policy update.
+
+        @param theta vector of weights.
+        @param phi vector of basis functions.
+        @param action
+        @param action_list
+        """
+        exp_Q = {act:np.exp(np.dot(theta, phi)) for act in action_list}
+
+        return exp_Q[action]/sum(exp_Q.values())

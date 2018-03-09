@@ -71,9 +71,6 @@ class MDP(object):
         self.sink_act = None
         self.sink_list = []
         self.setInitialProbDist()
-        # GridGraph class is used for path searching. Assigned externally.
-        self.graph = None
-        self.theta = None
 
     def T(self, state, action):
         """
@@ -402,7 +399,6 @@ class MDP(object):
         num_unique_episodes = len(episode_count)
         episode_freq = episode_count / float(num_episodes)
 
-
         # Start probability of traj_given_policy as probability of state_0, initial distribution `S`.
         prob_of_traj_given_policy = deepcopy(self.S[[unique_episodes[:,0]]])
         for episode in xrange(num_unique_episodes):
@@ -436,6 +432,15 @@ class MDP(object):
             for act_idx, act in enumerate(self.action_list):
                 policy_vec[state * self.num_actions+act_idx] = policy_dict[state][act]
         return policy_vec
+
+    def solve(self, method='valueIteration', write_video=False, **kwargs):
+        """
+        @brief Solves a given MDP. Defaults to the Value Iteration method.
+
+        @param an instance of @ref MDP.
+        @param a string matching a method name in @ref MDP_solvers.py.
+        """
+        MDP_solvers(self, method=method, write_video=write_video).solve(**kwargs)
 
     @staticmethod
     def productMDP(mdp, dra):
@@ -482,7 +487,6 @@ class MDP(object):
             pmdp.setInitialProbDist(pmdp.init)
         pmdp.dra = deepcopy(dra)
         return pmdp
-
 
     @staticmethod
     def get_NFA(mdp):
@@ -659,22 +663,3 @@ class MDP(object):
 
         kl_divergence = np.sum(reference_vec * log_vec)
         return kl_divergence
-
-
-    def solve(self, method='valueIteration', write_video=False, **kwargs):
-        """
-        @brief Solves a given MDP. Defaults to the Value Iteration method.
-
-        @param an instance of @ref MDP.
-        @param a string matching a method name in @ref MDP_solvers.py.
-        """
-        MDP_solvers(self, method=method, write_video=write_video).solve(**kwargs)
-
-    def inferPolicy(self, method='gradientAscent', write_video=False, **kwargs):
-        """
-        @brief Infers the policy of a given MDP. Defaults to the Gradient Ascent method.
-
-        @param an instance of @ref MDP.
-        @param a string matching a method name in @ref policy_solvers.py.
-        """
-        return PolicyInference(self, method=method, write_video=write_video).infer(**kwargs)

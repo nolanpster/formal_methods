@@ -48,6 +48,8 @@ class InferenceMDP(MDP):
         self.kernel_centers = list(self.gg_kernel_centers) + list(self.og_kernel_centers)
         self.kernel_sigmas = kernel_sigmas
         self.buildKernels()
+        # Theta is used as the policy parameter for inference.
+        self.theta = None
 
         # option to rebuild kernels here?
 
@@ -82,6 +84,16 @@ class InferenceMDP(MDP):
     def updateSigmas(self, sigmas):
         self.phi.updateStdDevs(sigmas)
         self.precomputePhiAtState()
+
+    def buildGibbsPolicy(self):
+        """
+        @brief Method to build the policy during/after policy inference.
+        """
+        exp_Q = {state: {act: np.exp(np.dot(self.theta, self.phi_at_state[state][act])) for act in self.action_list}
+                 for state in self.state_vec}
+        sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.state_vec}
+        self.policy = {state: {act: exp_Q[state][act]/sum_exp_Q[state] for act in self.action_list}
+                       for state in self.states}
 
     def inferPolicy(self, method='gradientAscent', write_video=False, **kwargs):
         """
