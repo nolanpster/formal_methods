@@ -83,7 +83,7 @@ class MDP_solvers(object):
         # Set zero-likly-hood states to take empty action.
         for state in self.mdp.states:
             if sum(policy[state].values()) == 0:
-                policy[state][self.mdp.sink_act] = 1
+                policy[state][self.mdp.sink_action] = 1
         self.mdp.values = {state: value for state, value in zip(self.mdp.states, values)}
         self.mdp.policy = policy
 

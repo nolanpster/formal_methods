@@ -17,7 +17,7 @@ class InferenceMDP(MDP):
     state.  The input transitions is a dictionary: (state,action): list of next state and probability tuple.  AP: a set
     of atomic propositions. Each proposition is identified by an index between 0 -N.  L: the labeling function,
     implemented as a dictionary: state: a subset of AP."""
-    def __init__(self, init=None, action_list=[], states=[], prob=dict([]), acc=None, gamma=.9, AP=set([]), L=dict([]),
+    def __init__(self, init=None, action_list=[], states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
                  reward=dict([]), grid_map=None, act_prob=dict([]), gg_kernel_centers=frozenset([]),
                  og_kernel_centers=frozenset([]), kernel_sigmas=None):
         """
@@ -37,9 +37,8 @@ class InferenceMDP(MDP):
         @param ogk_centers a list of length O of Ordinary Gaussian Kernel locations in the grid.
         @param kernel_sigmas a @ref numpy.array() of length G+O of standard deviations.
         """
-        super(self.__class__, self).__init__(init=init, action_list=action_list, states=states, prob=prob, acc=acc,
-                                             gamma=gamma, AP=AP, L=L, reward=reward, grid_map=grid_map,
-                                             act_prob=act_prob)
+        super(self.__class__, self).__init__(init=init, action_list=action_list, states=states, prob=prob, gamma=gamma,
+                                             AP=AP, L=L, reward=reward, grid_map=grid_map, act_prob=act_prob)
 
         self.graph = GridGraph(grid_map=grid_map, neighbor_dict=self.neighbor_dict, label_dict=self.L)
 

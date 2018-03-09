@@ -26,8 +26,8 @@ class MDP(object):
         tuple.  AP: a set of atomic propositions. Each proposition is
         identified by an index between 0 -N.  L: the labeling
         function, implemented as a dictionary: state: a subset of AP."""
-    def __init__(self, init=None, action_list=[], states=[], prob=dict([]), acc=None, gamma=.9, AP=set([]), L=dict([]),
-                 reward=dict([]), grid_map=None, act_prob=dict([])):
+    def __init__(self, init=None, action_list=[], states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
+                 reward=dict([]), grid_map=None, act_prob=dict([]), sink_action=None, sink_list=[]):
         self.init=init # Initial state
         self.action_list=action_list
         self.num_actions = len(self.action_list)
@@ -42,7 +42,6 @@ class MDP(object):
                 self.num_agents = 1
         self.num_states = len(self.states)
         self.current_state = None
-        self.acc=acc
         self.gamma=gamma
         self.reward=reward
         self.grid_map=grid_map
@@ -68,9 +67,40 @@ class MDP(object):
         if self.num_actions > 0:
             self.makeUniformPolicy()
         self.init_set = None
-        self.sink_act = None
-        self.sink_list = []
+        self.sink_action = sink_action
+        self.setSinks(sink_list)
         self.setInitialProbDist()
+
+    def reconfigureConditionalInitialValues(self):
+        """
+        @brief Redo initial configuration calculatios based on properties.
+
+        Useful for derived classes that want to initialize some values later in the __init__ method.
+        """
+        self.num_actions = len(self.action_list)
+        if not self.states:
+            self.num_agents = 0
+        else:
+            if type(self.states[0]) is tuple:
+                self.num_agents = len(self.states[0])
+            else:
+                self.num_agents = 1
+        self.num_states = len(self.states)
+        if self.grid_map is not None:
+            self.grid_cell_vec = self.grid_map.ravel()
+        else:
+            self.grid_cell_vec = np.array([])
+        self.num_cells = len(self.grid_cell_vec)
+        self.act_prob_row_idx_of_grid_cell = dict.fromkeys(self.grid_cell_vec.tolist())
+        self.precomputeGridCellActProbMatRows()
+
+        # Only rebuild 'prob' if it's an empty dictionary and we have information to build it from the action
+        # probabilities ('act_prob').
+        if not any(self.prob) and any(self.act_prob):
+            self.buildProbDict()
+
+        if self.num_states > 0:
+            self.setInitialProbDist(self.init if self.init_set is None else self.init_set)
 
     def T(self, state, action):
         """
@@ -245,7 +275,7 @@ class MDP(object):
         except ValueError:
             import pdb; pdb.set_trace()
         self.current_state = self.states[next_index]
-        return self.current_state[0]
+        return self.current_state
 
     def resetState(self):
         """
@@ -256,7 +286,7 @@ class MDP(object):
                                                               p=self.S)[0]]
         elif self.init is not None:
             self.current_state = self.init
-        return self.current_state[0]
+        return self.current_state
 
     def timePrior(self, _t):
         """
@@ -325,25 +355,26 @@ class MDP(object):
         self.policy = {state: uniform_policy_dist.copy() for state in
                        self.states}
 
-    def setSinks(self, sink_frag):
+    def setSinks(self, sink_list):
         """
-        @brief Finds augmented states that contain @c sink_frag and updates
-               the row corresponding to their transition probabilities so that
-               all transitions take a self loop with probability 1.
+        @brief Finds augmented states that contain @c sink_frag and updates the row corresponding to their transition
+               probabilities so that all transitions take a self loop with probability 1.
 
-        Used for product MDPs (see @ref productMDP), to identify augmented
-        states that include @c sink_frag. @c sink_frag is the DRA/DFA
-        component of an augmented state that is terminal.
+        Used for product MDPs (see @ref productMDP), to identify augmented states that include @c sink_frag. @c
+        sink_frag is the DRA/DFA component of an augmented state that is terminal.
         """
-        for state in self.states:
-            if sink_frag in state:
-                # Set the transition probability of this state to always self
-                # loop.
-                self.sink_list.append(state)
-                s_idx = self.states.index(state)
-                for act in self.action_list:
-                    self.prob[act][s_idx, :] = np.zeros((1, self.num_states))
-                    self.prob[act][s_idx, s_idx] = 1.0
+        if any(sink_list):
+            for sink_frag in sink_list:
+                for state in self.states:
+                    if sink_frag in state:
+                        # Set the transition probability of this state to always self loop.
+                        self.sink_list.append(state)
+                        s_idx = self.states.index(state)
+                        for act in self.action_list:
+                            self.prob[act][s_idx, :] = np.zeros((1, self.num_states))
+                            self.prob[act][s_idx, s_idx] = 1.0
+        else:
+            self.sink_list = []
 
     def removeNaNValues(self):
         """
@@ -356,7 +387,7 @@ class MDP(object):
             this_total_prob = 0
             for act, prob in action_dict.items():
                 if np.isnan(prob):
-                    if state in self.sink_list and act==self.sink_act:
+                    if state in self.sink_list and act==self.sink_action:
                         for zero_act in self.action_list:
                             if not(zero_act==act):
                                 self.policy[state][zero_act] = 0
@@ -369,7 +400,7 @@ class MDP(object):
                     this_total_prob += prob
             if this_total_prob == 0:
                 # Zero policy, just pick sink_action.
-                self.policy[state][self.sink_act] = 1
+                self.policy[state][self.sink_action] = 1
             elif this_total_prob > 1.0+sys.float_info.epsilon:
                 pass
                 #import pdb; pdb.set_trace()
@@ -441,52 +472,6 @@ class MDP(object):
         @param a string matching a method name in @ref MDP_solvers.py.
         """
         MDP_solvers(self, method=method, write_video=write_video).solve(**kwargs)
-
-    @staticmethod
-    def productMDP(mdp, dra):
-        pmdp=deepcopy(MDP())
-        if mdp.init is not None:
-            init=(mdp.init, dra.get_transition(mdp.L[mdp.init],
-                                               dra.initial_state))
-        if mdp.init_set is not None:
-            pmdp.init_set = [(m_i, dra.get_transition(mdp.L[m_i], dra.initial_state))
-                             for m_i in mdp.init_set]
-        states=[]
-        for _s in mdp.states:
-            for _q in dra.states:
-                states.append((_s, _q))
-        N=len(states)
-        pmdp.init=init
-        pmdp.action_list=list(mdp.action_list)
-        pmdp.states=list(states)
-        for _a in pmdp.action_list:
-            pmdp.prob[_a]=np.zeros((N, N))
-            for i in range(N):
-                (_s,_q)=pmdp.states[i]
-                pmdp.L[(_s,_q)]=mdp.L[_s]
-                for _j in range(N):
-                    (next_s,next_q)=pmdp.states[_j]
-                    if next_q == dra.get_transition(mdp.L[next_s], _q):
-                        _p=mdp.P(_s,_a,next_s)
-                        pmdp.prob[_a][i, _j]= _p
-        mdp_acc=[]
-        for (J,K) in dra.acc:
-            Jmdp=set([])
-            Kmdp=set([])
-            for _s in states:
-                if _s[1] in J:
-                    Jmdp.add(_s)
-                if _s[1] in K:
-                    Kmdp.add(_s)
-            mdp_acc.append((Jmdp, Kmdp))
-        pmdp.acc=mdp_acc
-        pmdp.num_states = len(pmdp.states)
-        pmdp.num_actions = len(pmdp.action_list)
-        pmdp.makeUniformPolicy()
-        if pmdp.num_states > 0 and pmdp.init is not None:
-            pmdp.setInitialProbDist(pmdp.init)
-        pmdp.dra = deepcopy(dra)
-        return pmdp
 
     @staticmethod
     def get_NFA(mdp):

@@ -5,6 +5,7 @@ __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 from NFA_DFA_Module.DFA import DRA
 from NFA_DFA_Module.DFA import LTL_plus
 from MDP_EM.MDP_EM.MDP import MDP
+from MDP_EM.MDP_EM.product_mdp_x_dra import ProductMDPxDRA
 from MDP_EM.MDP_EM.inference_mdp import InferenceMDP
 import MDP_EM.MDP_EM.plot_helper as PlotHelp
 import MDP_EM.MDP_EM.data_helper as DataHelp
@@ -174,12 +175,10 @@ def makeGridMDPxDRA(do_print=False):
         pprint(vars(co_safe_dra))
 
     #### Create the Product MPDxDRA ####
-    # Note that this isn't actually a "game" as define in Automata literature.
-    VI_game_mdp = MDP.productMDP(grid_mdp, co_safe_dra)
-    VI_game_mdp.grid_map = grid_map
-
-    # Define the reward function for the VI_game_mdp. Get a reward when leaving
-    # the winning state 'q1' to 'q3'.
+    # Note that this isn't actually a "game" as define in Automata literature. Note that an MDPxDRA receives a binary
+    # reward upon completion of the specification so define the reward function to re given when leaving the winning
+    # state on the winning action (from 'q1' to 'q3').
+    VI_game_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='Empty', sink_list=['q2', 'q3'])
     pos_reward = {
                  'North': 0.0,
                  'South': 0.0,
@@ -207,12 +206,6 @@ def makeGridMDPxDRA(do_print=False):
             # No reward when leaving current state.
             reward_dict[state] = no_reward
     VI_game_mdp.reward = reward_dict
-
-    # Then I set up all sink states so all transition probabilities from a sink
-    # states take a self loop with probability 1.
-    VI_game_mdp.sink_act = 'Empty'
-    VI_game_mdp.setSinks('q3')
-    VI_game_mdp.setSinks('q2')
 
     # @TODO Prune unreachable states from MDP.
 
