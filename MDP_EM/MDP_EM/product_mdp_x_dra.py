@@ -28,6 +28,7 @@ class ProductMDPxDRA(MDP):
         self.state_slice_length = 1
         self.cell_state_slicer = slice(None, self.state_slice_length, None)
         self.computeProductMDPxDRA(mdp, dra)
+        self.gamma=mdp.gamma
         self.grid_map = deepcopy(mdp.grid_map)
         self.sink_action = sink_action
         self.reconfigureConditionalInitialValues()

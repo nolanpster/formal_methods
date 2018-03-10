@@ -2,13 +2,12 @@
 __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 
 
-from NFA_DFA_Module.DFA import DRA
 from NFA_DFA_Module.DFA import LTL_plus
 from MDP_EM.MDP_EM.MDP import MDP
-from MDP_EM.MDP_EM.product_mdp_x_dra import ProductMDPxDRA
 from MDP_EM.MDP_EM.inference_mdp import InferenceMDP
 import MDP_EM.MDP_EM.plot_helper as PlotHelp
 import MDP_EM.MDP_EM.data_helper as DataHelp
+import experiment_configs as ExperimentConfigs
 
 import time
 import numpy as np
@@ -27,75 +26,8 @@ np.set_printoptions(threshold=np.inf)
 np.set_printoptions(precision=4)
 
 ########################################################################################################################
-# Transition Probability matricies
-
-# Transition probabilities for each action in each cell  explodes with the number of states so we build the transition
-# probabilites based on relative position based on grid walls.
-#
-# Row transition probabilites are:
-# 0) Transition prob from Normal Grid cell to another normal grid cell.
-# 1) Transition prob when adjacent to North Wall
-# 2) Transition prob when adjacent to South Wall
-# 3) Transition prob when adjacent to East Wall
-# 4) Transition prob when adjacent to West Wall
-# 5) Transition prob when in NE corner cell.
-# 6) Transition prob when in NW corner cell.
-# 7) Transition prob when in SE corner cell.
-# 8) Transition prob when in SW corner cell.
-#
-# Column values are probabilities of ['Empty', 'north', 'south', 'east', 'west'] actions.
-act_prob = {'North': np.array([[0.0, 0.8, 0.0, 0.1, 0.1],
-                               [0.8, 0.0, 0.0, 0.1, 0.1],
-                               [0.0, 0.8, 0.0, 0.1, 0.1],
-                               [0.1, 0.8, 0.0, 0.0, 0.1],
-                               [0.1, 0.8, 0.0, 0.1, 0.0],
-                               [0.9, 0.0, 0.0, 0.0, 0.1],
-                               [0.9, 0.0, 0.0, 0.1, 0.0],
-                               [0.1, 0.8, 0.0, 0.0, 0.1],
-                               [0.1, 0.8, 0.0, 0.1, 0.0]]
-                               ),
-            'South': np.array([[0.0, 0.0, 0.8, 0.1, 0.1],
-                               [0.0, 0.0, 0.8, 0.1, 0.1],
-                               [0.8, 0.0, 0.0, 0.1, 0.1],
-                               [0.1, 0.0, 0.8, 0.0, 0.1],
-                               [0.1, 0.0, 0.8, 0.1, 0.0],
-                               [0.1, 0.0, 0.8, 0.0, 0.1],
-                               [0.1, 0.0, 0.8, 0.1, 0.0],
-                               [0.9, 0.0, 0.0, 0.0, 0.1],
-                               [0.9, 0.0, 0.0, 0.1, 0.0]]
-                               ),
-            'East': np.array([[0.0, 0.1, 0.1, 0.8, 0.0],
-                              [0.1, 0.0, 0.1, 0.8, 0.0],
-                              [0.1, 0.1, 0.0, 0.8, 0.0],
-                              [0.8, 0.1, 0.1, 0.0, 0.0],
-                              [0.0, 0.1, 0.1, 0.8, 0.0],
-                              [0.9, 0.0, 0.1, 0.0, 0.0],
-                              [0.1, 0.0, 0.1, 0.8, 0.0],
-                              [0.9, 0.1, 0.0, 0.0, 0.0],
-                              [0.1, 0.1, 0.0, 0.8, 0.0]]
-                              ),
-            'West': np.array([[0.0, 0.1, 0.1, 0.0, 0.8],
-                              [0.1, 0.0, 0.1, 0.0, 0.8],
-                              [0.1, 0.1, 0.0, 0.0, 0.8],
-                              [0.0, 0.1, 0.1, 0.0, 0.8],
-                              [0.8, 0.1, 0.1, 0.0, 0.0],
-                              [0.1, 0.0, 0.1, 0.0, 0.8],
-                              [0.9, 0.0, 0.1, 0.0, 0.0],
-                              [0.1, 0.1, 0.0, 0.0, 0.8],
-                              [0.9, 0.1, 0.0, 0.0, 0.0]]
-                              ),
-            'Empty': np.array([[1.0, 0.0, 0.0, 0.0, 0.0],
-                               [1.0, 0.0, 0.0, 0.0, 0.0],
-                               [1.0, 0.0, 0.0, 0.0, 0.0],
-                               [1.0, 0.0, 0.0, 0.0, 0.0],
-                               [1.0, 0.0, 0.0, 0.0, 0.0],
-                               [1.0, 0.0, 0.0, 0.0, 0.0],
-                               [1.0, 0.0, 0.0, 0.0, 0.0],
-                               [1.0, 0.0, 0.0, 0.0, 0.0],
-                               [1.0, 0.0, 0.0, 0.0, 0.0]]
-                               )
-            }
-
+# Load Transition Probability matricies
+act_prob = ExperimentConfigs.getActionProbabilityDictionary()
 ########################################################################################################################
 # Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
@@ -109,11 +41,11 @@ num_states = len(states)
 state_indices = range(num_states)
 
 # Atomic Proposition and labels configuration. Note that 'empty' is the empty string/label/dfa-action. The empty action
-# for MDP incurrs a self loop.
+# for MDP incurrs a self loop. The alphabet dictionary is made of LTL_pluss atomic propositions.
 green = LTL_plus('green')
 red = LTL_plus('red')
-empty = LTL_plus('E')
-atom_prop = [green, red, empty]
+empty = LTL_plus('E') # <-- 'E' is defined to be 'empty' in LTL_plus class.
+alphabet_dict = {'empty': empty, 'green': green, 'red': red}
 labels = {state: empty for state in states}
 labels[(6,)] = red
 labels[(7,)] = red
@@ -130,115 +62,7 @@ action_list = ['Empty', 'North', 'South', 'East', 'West']
 # Set `solve_with_uniform_distribution` to True to have the initial distribution for EM and the history/demonstration
 # generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
 # _False_ to have EM and the MDP always start from the `initial_state` below.
-solve_with_uniform_distribution = True
-
-########################################################################################################################
-def makeGridMDPxDRA(do_print=False):
-    """
-    @brief Configure the product MDP and DRA.
-
-    Constructs an MDP based on the global variables. Then constructs a "4" state DRA, but two of the states are sink
-    states.
-    """
-    # For the simple 6-state gridworld, see slide 8 of Lecture 7, write the specification automata for the following:
-    # visit all green cells and avoid the red cell.
-    #
-    # Note shared atomic propositions:
-    # Note that input gamma is overwritten in DRA/MDP product method, so we'll need to set it again later.
-    grid_mdp = MDP(init=initial_state, action_list=action_list, states=states, act_prob=deepcopy(act_prob), gamma=0.9,
-                   AP=atom_prop, L=labels, grid_map=grid_map)
-    if solve_with_uniform_distribution:
-        # Leave MDP.init_set unset (=None) if you want to solve the system from a single initial_state.
-        grid_mdp.init_set = grid_mdp.states
-
-    ##### Add DRA for co-safe spec #####
-    # Define a Deterministic (finitie) Raban Automata to match the sketch on slide 7 of lecture 8. Note that state 'q2'
-    # is is the red, 'sink' state.
-    co_safe_dra = DRA(initial_state='q0', alphabet=atom_prop, rabin_acc=[({'q1'},{})])
-    # Self-loops = Empty transitions
-    co_safe_dra.add_transition(empty, 'q0', 'q0') # Initial state
-    co_safe_dra.add_transition(empty, 'q2', 'q2') # Losing sink.
-    co_safe_dra.add_transition(empty, 'q3', 'q3') # Winning sink.
-    # Labeled transitions:
-    # If the DRA reaches state 'q1' we win. Therefore I do not define a transition from 'q1' to 'q2'. Note that 'q2' and
-    # 'q3' are a sink states due to the self loop.
-    #
-    # Also, I define a winning 'sink' state, 'q3'. I do this so that there is only one out-going transition from 'q1'
-    # and it's taken only under the empty action. This action, is the winning action. This is a little bit of a hack,
-    # but it was the way that I thought of to prevent the system from repeatedly taking actions that earned a reward.
-    co_safe_dra.add_transition(green, 'q0', 'q1')
-    co_safe_dra.add_transition(green, 'q1', 'q1') # State where winning action is available.
-    co_safe_dra.add_transition(red, 'q0', 'q2')
-    co_safe_dra.add_transition(empty, 'q1', 'q3')
-
-    # Optional saving of DRA visualization file (can convert '.dot' file to PDF from terminal).
-    if False:
-        co_safe_dra.toDot('visitGreensAndNoRed.dot')
-        pprint(vars(co_safe_dra))
-
-    #### Create the Product MPDxDRA ####
-    # Note that this isn't actually a "game" as define in Automata literature. Note that an MDPxDRA receives a binary
-    # reward upon completion of the specification so define the reward function to re given when leaving the winning
-    # state on the winning action (from 'q1' to 'q3').
-    VI_game_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='Empty', sink_list=['q2', 'q3'])
-    pos_reward = {
-                 'North': 0.0,
-                 'South': 0.0,
-                 'East': 0.0,
-                 'West': 0.0,
-                 'Empty': 1.0
-                 }
-    no_reward = {
-                 'North': 0.0,
-                 'South': 0.0,
-                 'East': 0.0,
-                 'West': 0.0,
-                 'Empty': 0.0
-                 }
-    # Go through each state and if it is a winning state, assign it's reward
-    # to be the positive reward dictionary. I have to remove the state
-    # ('5', 'q3') because there are conflicting actions due to the label of '4'
-    # being 'red'.
-    reward_dict = {}
-    for state in VI_game_mdp.states:
-        if state in VI_game_mdp.acc[0][0] and not VI_game_mdp.L[state]==red:
-            # Winning state
-            reward_dict[state] = pos_reward
-        else:
-            # No reward when leaving current state.
-            reward_dict[state] = no_reward
-    VI_game_mdp.reward = reward_dict
-
-    # @TODO Prune unreachable states from MDP.
-
-    # Create a dictionary of observable states for printing.
-    policy_keys_to_print = deepcopy([(state[0], VI_game_mdp.dra.get_transition(VI_game_mdp.L[state], state[1])) for
-                                     state in VI_game_mdp.states if 'q0' in state])
-    if solve_with_uniform_distribution:
-        initial_set = policy_keys_to_print
-    else:
-        initial_set = initial_state
-    VI_game_mdp.setInitialProbDist(initial_set)
-    VI_game_mdp.setObservableStates(observable_states=policy_keys_to_print)
-
-    ##### SOLVE #####
-    # To enable a solution of the MDP with multiple methods, copy the MDP, set the initial state likelihood
-    # distributinos and then solve the MDPs.
-    EM_game_mdp = deepcopy(VI_game_mdp)
-    EM_game_mdp.setInitialProbDist(initial_set)
-    VI_game_mdp.solve(do_print=do_print, method='valueIteration', write_video=False,
-                      policy_keys_to_print=policy_keys_to_print)
-    EM_game_mdp.solve(do_print=do_print, method='expectationMaximization', write_video=False,
-                      policy_keys_to_print=policy_keys_to_print)
-
-    # Compare the two solution methods.
-    policy_difference, policy_KL_divergence  = MDP.comparePolicies(VI_game_mdp.policy, EM_game_mdp.policy,
-                                                                   policy_keys_to_print, compare_to_decimals=3,
-                                                                   do_print=do_print, compute_kl_divergence=True,
-                                                                   reference_policy_has_augmented_states=True,
-                                                                   compare_policy_has_augmented_states=True)
-
-    return EM_game_mdp, VI_game_mdp, policy_keys_to_print, policy_difference
+solve_with_uniform_distribution = False
 
 #######################################################################################################################
 # Entry point when called from Command line.
@@ -317,15 +141,22 @@ if __name__=='__main__':
         # Configure kernel set iterations.
         num_kernels_in_set = np.arange(kernel_count_start, kernel_count_end, kernel_count_increment_per_set)
         num_kernel_sets = len(num_kernels_in_set)
-        kernel_centers = {set_idx: frozenset(np.random.choice(len(states), num_kernels_in_set[set_idx] , replace=False)) for
-                          set_idx in range(num_kernel_sets)}
+        kernel_centers = {set_idx: frozenset(np.random.choice(len(states), num_kernels_in_set[set_idx] , replace=False))
+                          for set_idx in range(num_kernel_sets)}
     kernel_set_L1_err = np.empty([num_kernel_sets, kernel_set_sample_count])
     kernel_set_infer_time = np.empty([num_kernel_sets, kernel_set_sample_count])
 
     if make_new_mdp:
-        (EM_mdp, VI_mdp, policy_keys_to_print, policy_difference) = makeGridMDPxDRA(do_print=True)
-        pickled_mdp_file = DataHelp.pickleMDP(
-            variables_to_save=[EM_mdp, VI_mdp, policy_keys_to_print, policy_difference], name_prefix="robot_mdps")
+        if solve_with_uniform_distribution:
+            init_set = states
+        else:
+            # Leave MDP.init_set unset (=None) to solve the system from a single initial_state.
+            init_set = None
+        (EM_mdp, VI_mdp, policy_keys_to_print, policy_difference) = \
+            ExperimentConfigs.makeGridMDPxDRA(states, initial_state, action_list, alphabet_dict, labels, grid_map,
+                                              do_print=True, init_set=init_set)
+        variables_to_save = [EM_mdp, VI_mdp, policy_keys_to_print, policy_difference]
+        pickled_mdp_file = DataHelp.pickleMDP(variables_to_save, name_prefix="robot_mdps")
     else:
         (EM_mdp, VI_mdp, policy_keys_to_print, policy_difference, pickled_mdp_file) = \
             DataHelp.loadPickledMDP(pickled_mdp_file_to_load)
