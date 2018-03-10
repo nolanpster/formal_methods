@@ -16,7 +16,7 @@ class ProductMDPxDRA(MDP):
     state.  The input transitions is a dictionary: (state,action): list of next state and probability tuple.  AP: a set
     of atomic propositions. Each proposition is identified by an index between 0 -N.  L: the labeling function,
     implemented as a dictionary: state: a subset of AP."""
-    def __init__(self, mdp, dra, sink_action=None, sink_list=[]):
+    def __init__(self, mdp, dra, sink_action=None, sink_list=[], losing_sink_label=None, winning_reward=None):
         """
         @brief
         """
@@ -32,6 +32,9 @@ class ProductMDPxDRA(MDP):
         self.sink_action = sink_action
         self.reconfigureConditionalInitialValues()
         self.setSinks(sink_list)
+        self.losing_sink_label=losing_sink_label
+        if winning_reward is not None:
+            self.configureReward(winning_reward)
 
     def computeProductMDPxDRA(self, mdp, dra):
         # Create product MDP-times-DRA
@@ -71,3 +74,37 @@ class ProductMDPxDRA(MDP):
             mdp_acc.append((Jmdp, Kmdp))
         self.acc = mdp_acc
         self.dra = deepcopy(dra)
+
+    def configureReward(self, winning_reward):
+        """
+        @breif Configure the reward dictionary for the MDPxDRA.
+
+        A MDPxDRA emits a binary reward upon taking a 'winning action' at a 'winning state'. Upon taking this action,
+        the MDPxDRA state transitions to a winning sink state. Once the specification of the DRA is completed, the
+        winning state/action is available. Winning states are listed in ProductMDPxDRA.acc. By convention, if a state
+        included in ProductMDPxDRA.acc but is labeled with the ProductMDPxDRA.losing_sink label, it is not given the
+        winning action.
+
+        @param winning_reward A dictionary specifiying the reward value for the winning action at the 'winning state'. Keys
+        should include the entirety of ProductMDPxDRA.action_list.
+
+        @note It is assumed that all actions are available at all states. This method generates a 'no_reward' dictionary
+        from the keys in 'winning_reward' which is assigned to all states not in `acc`.
+
+        @note This method assigns the same dictionary _reference_ to each winning state, so if you change one, you change
+        them all.
+        """
+        no_reward = {act: 0.0 for act in self.action_list}
+        # Go through each state and if it is a winning state, assign it's reward
+        # to be the positive reward dictionary. I have to remove the state
+        # ('5', 'q3') because there are conflicting actions due to the label of '4'
+        # being 'red'.
+        reward_dict = {}
+        for state in self.states:
+            if state in self.acc[0][0] and not self.L[state]==self.losing_sink_label:
+                # Winning state
+                reward_dict[state] = winning_reward
+            else:
+                # No reward when leaving current state.
+                reward_dict[state] = no_reward
+        self.reward = reward_dict

@@ -317,6 +317,12 @@ class MDP(object):
         """
         return (1-self.gamma) * self.gamma**_t
 
+    def configureReward(self):
+        """
+        @breif Intended to be implemented by a derived class.
+        """
+        raise NotImplementedError('Unsure of best way to configure the reward dictionary in the base class. Any ideas?')
+
     def probRewardGivenX_T(self, state, policy=None):
         """
         @brief The probability of a reward given a final state x at final time
