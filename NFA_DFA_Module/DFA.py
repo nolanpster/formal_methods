@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__author__ = 'Jie Fu, jfu2@wpi.edu'
+__author__ = 'Jie Fu, jfu2@wpi.edu, Nolan Poulin, nipoulin@wpi.edu'
 
 from copy import deepcopy
 import itertools
@@ -73,7 +73,7 @@ class LTL_plus(str):
 
     def eval(self, label):
         """
-        @brief Gien a label from a TS, evaluate if the proposition is true.
+        @brief Gien a label from a TS, evaluate if the proposition (self) is true.
 
         Only works (currently) with one connector.
         """
