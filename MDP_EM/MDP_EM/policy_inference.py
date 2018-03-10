@@ -119,7 +119,8 @@ class PolicyInference(object):
         return hessian_objective_func
 
     def gradientAscent(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False, dtype=np.float64,
-                       monte_carlo_size=None, reference_policy_vec=None, precomputed_observed_action_indeces=None):
+                       monte_carlo_size=None, reference_policy_vec=None, precomputed_observed_action_indeces=None,
+                       **kwargs):
         """
         @brief Performs Policy inference using Gradient Ascent from Section 7.2.1 of
                Sugiyama, 2015.
@@ -351,7 +352,7 @@ class PolicyInference(object):
         if doing_monte_carlo:
             return (batch_L1_norm, batch_infer_time)
 
-    def historyMLE(self, histories, do_print=False, do_weighted_update=False, reference_policy_vec=None):
+    def historyMLE(self, histories, do_print=False, do_weighted_update=False, reference_policy_vec=None, **kwargs):
         """
         @brief Given the set of demonstrated histories, use Maximum Likelihood Estimation to compute a tabular policy
                for each state.
@@ -410,7 +411,7 @@ class PolicyInference(object):
             pprint(self.mdp.policy)
 
 
-    def iterativeBayes(self, histories, do_print=False, reference_policy_vec=None):
+    def iterativeBayes(self, histories, do_print=False, reference_policy_vec=None, **kwargs):
         self.histories = histories
         states_in_history = set(self.histories.ravel())
         if states_in_history != set(self.mdp.grid_cell_vec):
@@ -463,7 +464,7 @@ class PolicyInference(object):
 
     def gradientAscentGaussianTheta(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False,
                                     dtype=np.float64, monte_carlo_size=10, reference_policy_vec=None,
-                                    precomputed_observed_action_indeces=None, theta_std_dev_0=None):
+                                    precomputed_observed_action_indeces=None, theta_std_dev_0=None, **kwargs):
         """
         @brief Performs Policy inference using gradient ascent on the distribution theta_i ~ (mu_i, sigma_i).
 
