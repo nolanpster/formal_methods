@@ -12,22 +12,23 @@ import sys # For float_info.epsilon.
 
 
 class MDP(object):
-    """A Markov Decision Process, defined by an initial state,
-        transition model --- the probability transition matrix, np.array
-        prob[a][0,1] -- the probability of going from 0 to 1 with action a.
-        and reward function. We also keep track of a gamma value, for
-        use by algorithms. The transition model is represented
-        somewhat differently from the text.  Instead of T(s, a, s')
-        being probability number for each state/action/state triplet,
-        we instead have T(s, a) return a list of (p, s') pairs.  We
-        also keep track of the possible states, terminal states, and
-        actions for each state.  The input transitions is a
-        dictionary: (state,action): list of next state and probability
-        tuple.  AP: a set of atomic propositions. Each proposition is
-        identified by an index between 0 -N.  L: the labeling
-        function, implemented as a dictionary: state: a subset of AP."""
+    """
+    @brief Construct a Markov Decision Process.
+
+    An MDP isdefined by an initial state, transition model --- the probability transition matrix, np.array prob[a][0,1]
+    -- the probability of going from 0 to 1 with action a.  and reward function. We also keep track of a gamma value,
+    for use by algorithms. The transition model is represented somewhat differently from the text.  Instead of T(s, a,
+    s') being probability number for each state/action/state triplet, we instead have T(s, a) return a list of (p, s')
+    pairs.  We also keep track of the possible states, terminal states, and actions for each state.  The input
+    transitions is a dictionary: (state,action): list of next state and probability tuple.  AP: a set of atomic
+    propositions. Each proposition is identified by an index between 0 -N.  L: the labeling function, implemented as a
+    dictionary: state: a subset of AP.
+
+    @param init_set Overrides the initial state value from a state to a list of initial states. see
+           @c MDP.setInitialProbDist.
+    """
     def __init__(self, init=None, action_list=[], states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
-                 reward=dict([]), grid_map=None, act_prob=dict([]), sink_action=None, sink_list=[]):
+                 reward=dict([]), grid_map=None, act_prob=dict([]), sink_action=None, sink_list=[], init_set=None):
         self.init=init # Initial state
         self.action_list=action_list
         self.num_actions = len(self.action_list)
@@ -73,10 +74,12 @@ class MDP(object):
         # For EM Solving
         if self.num_actions > 0:
             self.makeUniformPolicy()
-        self.init_set = None
+        self.init_set = init_set
         self.sink_action = sink_action
         self.setSinks(sink_list)
-        self.setInitialProbDist()
+        # Configure a uniform distribution across the states listed in init_set if that input is not None, otherwise
+        # MDP.resetState will always return the `current_state` to self.init.
+        self.setInitialProbDist(self.init if self.init_set is None else self.init_set)
         self.observable_states = self.states
 
     def reconfigureConditionalInitialValues(self):
