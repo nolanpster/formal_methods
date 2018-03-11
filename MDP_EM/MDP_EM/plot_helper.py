@@ -136,7 +136,7 @@ class PlotPolicy(PlotGrid):
         self.zero_mag = np.zeros(np.array(self.grid_dim))
         # Make these configurable eventually.
         self.quiv_angs = {'North': np.pi/2, 'South': -np.pi/2, 'East': 0, 'West': np.pi}
-        self.quiv_scale = 20
+        self.quiv_scale = 15
         self.stay_scale = 250
         self.prob_disp_thresh = 0.02
 
