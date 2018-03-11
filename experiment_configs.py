@@ -3,6 +3,7 @@ __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 
 from NFA_DFA_Module.DFA import DRA
 from MDP_EM.MDP_EM.MDP import MDP
+from MDP_EM.MDP_EM.multi_agent_mdp import MultiAgentMDP
 from MDP_EM.MDP_EM.product_mdp_x_dra import ProductMDPxDRA
 
 import numpy as np
@@ -109,8 +110,8 @@ def getDRAAvoidRedGetToGreen(alphabet_dict, save_dra_to_dot_file=False):
 
     return co_safe_dra
 
-def makeGridMDPxDRA(states, initial_state, action_list, alphabet_dict, labels, grid_map, gamma=0.9, act_prob=dict([]),
-                    do_print=False, init_set=None, prob_dtype=np.float64):
+def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, grid_map, gamma=0.9, act_prob=dict([]),
+                    do_print=False, init_set=None,prob_dtype=np.float64):
     """
     @brief Configure the product MDP and DRA.
 
@@ -122,8 +123,14 @@ def makeGridMDPxDRA(states, initial_state, action_list, alphabet_dict, labels, g
     if not any(act_prob):
         act_prob = getActionProbabilityDictionary(prob_dtype)
 
-    grid_mdp = MDP(init=initial_state, action_list=action_list, states=states, act_prob=deepcopy(act_prob), gamma=gamma,
-                   AP=alphabet_dict.items(), L=labels, grid_map=grid_map, init_set=init_set, prob_dtype=prob_dtype)
+    if type(states[0]) is tuple and len(states[0]) > 1:
+        grid_mdp = MultiAgentMDP(init=initial_state, action_dict=action_set, states=states,
+                                 act_prob=deepcopy(act_prob), gamma=gamma, AP=alphabet_dict.items(), L=labels,
+                                 grid_map=grid_map, init_set=init_set, prob_dtype=prob_dtype)
+    else:
+        grid_mdp = MDP(init=initial_state, action_list=action_set, states=states, act_prob=deepcopy(act_prob),
+                       gamma=gamma, AP=alphabet_dict.items(), L=labels, grid_map=grid_map, init_set=init_set,
+                       prob_dtype=prob_dtype)
 
     ##### Add DRA for co-safe spec #####
     co_safe_dra = getDRAAvoidRedGetToGreen(alphabet_dict)
@@ -165,3 +172,52 @@ def makeGridMDPxDRA(states, initial_state, action_list, alphabet_dict, labels, g
                                                                    compare_policy_has_augmented_states=True)
 
     return EM_mdp, VI_mdp, policy_keys_to_print, policy_difference
+
+def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, grid_map, gamma=0.9,
+                              act_prob=dict([]), do_print=False, init_set=None,prob_dtype=np.float64):
+    """
+    @brief Configure the product MDP and DRA.
+
+    @param act_prob Transition probabilities given _executed_ actions in location class in grid. If an empty-dict
+           (default) is provided, this will be populated with getActionProbabilityDictionary().
+
+    By default this will be constructed to satisfy the specification: visit the green cell and avoid all red cell.
+    """
+    if not any(act_prob):
+        act_prob = getActionProbabilityDictionary(prob_dtype)
+
+    if type(states[0]) is tuple and len(states[0]) > 1:
+        grid_mdp = MultiAgentMDP(init=initial_state, action_dict=action_set, states=states,
+                                 act_prob=deepcopy(act_prob), gamma=gamma, AP=alphabet_dict.items(), L=labels,
+                                 grid_map=grid_map, init_set=init_set, prob_dtype=prob_dtype)
+    else:
+        grid_mdp = MDP(init=initial_state, action_list=action_set, states=states, act_prob=deepcopy(act_prob),
+                       gamma=gamma, AP=alphabet_dict.items(), L=labels, grid_map=grid_map, init_set=init_set,
+                       prob_dtype=prob_dtype)
+
+    ##### Add DRA for co-safe spec #####
+    co_safe_dra = getDRAAvoidRedGetToGreen(alphabet_dict)
+    #### Create the Product MPDxDRA ####
+    # Note that an MDPxDRA receives a binary reward upon completion of the specification so define the reward function
+    # to re given when leaving the winning state on the winning action (from 'q1' to 'q3'). 'VI' implies this is to be
+    # solved with Value Iteration.
+    winning_reward = {act: 0.0 for act in grid_mdp.action_list}
+    winning_reward['0_Empty'] = 1.0
+    VI_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='0_Empty', sink_list=['q2', 'q3'],
+                                 losing_sink_label=alphabet_dict['red'], winning_reward=winning_reward,
+                                 prob_dtype=prob_dtype)
+
+    # @TODO Prune unreachable states from MDP.
+
+    # Create a dictionary of observable states for printing.
+    policy_keys_to_print = deepcopy([(state[0], VI_mdp.dra.get_transition(VI_mdp.L[state], state[1])) for state in
+                                     VI_mdp.states if 'q0' in state])
+    VI_mdp.setObservableStates(observable_states=policy_keys_to_print)
+
+    ##### SOLVE #####
+    # To enable a solution of the MDP with multiple methods, copy the MDP, set the initial state likelihood
+    # distributions and then solve the MDPs.
+    VI_mdp.solve(do_print=do_print, method='valueIteration', write_video=False,
+                 policy_keys_to_print=policy_keys_to_print)
+
+    return VI_mdp, policy_keys_to_print

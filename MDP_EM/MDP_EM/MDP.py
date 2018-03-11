@@ -33,7 +33,9 @@ class MDP(object):
                  prob_dtype=np.float64):
         self.prob_dtype = prob_dtype
         self.init=init # Initial state
-        self.action_list=action_list
+        self.action_list = action_list
+        self.controllable_agent_idx = 0
+        self.executable_action_dict = {self.controllable_agent_idx: self.action_list}
         self.num_actions = len(self.action_list)
         self.states=states
         # Determine Number of agents based on length of state elements.
@@ -81,6 +83,7 @@ class MDP(object):
             self.makeUniformPolicy()
         self.init_set = init_set
         self.sink_action = sink_action
+        self.sink_list=[]
         self.setSinks(sink_list)
         # Configure a uniform distribution across the states listed in init_set if that input is not None, otherwise
         # MDP.resetState will always return the `current_state` to self.init.

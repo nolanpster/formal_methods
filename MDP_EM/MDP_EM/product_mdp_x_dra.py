@@ -4,7 +4,10 @@ from policy_inference import PolicyInference
 from feature_vector import FeatureVector
 from copy import deepcopy
 from MDP import MDP
+from multi_agent_mdp import MultiAgentMDP
+
 import numpy as np
+from scipy import sparse
 
 
 class ProductMDPxDRA(MDP):
@@ -21,13 +24,16 @@ class ProductMDPxDRA(MDP):
         """
         @brief
         """
+        self.dra = deepcopy(dra)
+        self.mdp = deepcopy(mdp)
         # Set self to be an MDP instance. Build the product ontop of this, then call setSinks again now that the object
         # is fully populated.
         super(self.__class__, self).__init__(prob_dtype=prob_dtype)
-        # cell_state_slicer: used to extract indeces from the tuple of states. The joint-state tuples are used as
+        # cell_state_slicer: used to extract indices from the tuple of states. The joint-state tuples are used as
         # dictionary keys and this class augments the state tuple from (mdp_state) to ((mdp_state),dra_state).
         self.state_slice_length = 1
         self.cell_state_slicer = slice(None, self.state_slice_length, None)
+
         self.computeProductMDPxDRA(mdp, dra)
         self.gamma=mdp.gamma
         self.grid_map = deepcopy(mdp.grid_map)
@@ -37,6 +43,22 @@ class ProductMDPxDRA(MDP):
         self.losing_sink_label=losing_sink_label
         if winning_reward is not None:
             self.configureReward(winning_reward)
+        self.makeUniformPolicy()
+
+    def reconfigureConditionalInitialValues(self):
+
+        super(self.__class__, self).reconfigureConditionalInitialValues()
+        # I'm so sorry for this hack, in too much of a rush to figure out multiple inheritance. <3 Nolan
+        self.controllable_agent_idx = self.mdp.controllable_agent_idx
+        self.executable_action_dict = self.mdp.executable_action_dict
+        if type(self.mdp) is MultiAgentMDP:
+            self.uncontrollable_agent_indices = self.mdp.uncontrollable_agent_indices
+            self.env_policy = self.mdp.env_policy
+
+            # Hacky shit: change self.mdp! self.mdp is going to be handed _augmented_ MDPxDRA states to deal with, so we
+            # need to update it's slice operator.
+            #self.mdp.cell_state_slicer = self.cell_state_slicer
+            #self.mdp.prob = self.prob
 
     def computeProductMDPxDRA(self, mdp, dra):
         # Create product MDP-times-DRA
@@ -75,7 +97,6 @@ class ProductMDPxDRA(MDP):
                     Kmdp.add(prod_state)
             mdp_acc.append((Jmdp, Kmdp))
         self.acc = mdp_acc
-        self.dra = deepcopy(dra)
 
     def configureReward(self, winning_reward):
         """
@@ -110,3 +131,79 @@ class ProductMDPxDRA(MDP):
                 # No reward when leaving current state.
                 reward_dict[state] = no_reward
         self.reward = reward_dict
+
+    def makeUniformPolicy(self):
+        # I'm so sorry for this hack, in too much of a rush to figure out multiple inheritance. <3 Nolan
+        if type(self.mdp) is MultiAgentMDP:
+            uninform_prob = 1.0 / len(self.executable_action_dict[self.controllable_agent_idx])
+            uniform_policy_dist = {act: uninform_prob for act in
+                                   self.executable_action_dict[self.controllable_agent_idx]}
+            self.policy = {state: uniform_policy_dist.copy() for state in
+                           self.states}
+        else:
+            super(self.__class__, self).makeUniformPolicy()
+
+    def T(self, state, action):
+        """
+        Transition model.  From a state and an action, return a row in the matrix for next-state probability.
+        """
+        # I'm so sorry for this hack, in too much of a rush to figure out multiple inheritance. <3 Nolan
+        if type(self.mdp) is MultiAgentMDP:
+            trans_prob = self.multiAgentTransDistribution(state, action)
+        else:
+            trans_prob = super(self.__class__, self).T(state, action)
+        return trans_prob
+
+    def multiAgentTransDistribution(self, state, robot_action):
+        """
+        Transition model.  From a state and an action, return a row in the matrix for next-state probability.
+
+        @note Assumes only one environmental agent.
+        @note Returns ESTIMATED transition probabilities.
+        """
+        env_agent_idx = 0
+        state_idx = self.states.index(state)
+        # Creates a transition probability vector of the same dimesion as a row in the
+        # transition probability matrix.
+        intermediate_trans_prob = np.zeros(self.num_states, self.prob_dtype)
+        this_env_policy = self.env_policy[self.uncontrollable_agent_indices[env_agent_idx]] \
+                                         [state[self.cell_state_slicer]]
+        for act in this_env_policy.keys():
+            intermediate_trans_prob += this_env_policy[act] * self.prob[act][state_idx, :]
+        # Renormalize distribution (sometimes sum of elements is a wee bit more or less than one) - need to deal with
+        # this in a better way.
+        intermediate_trans_prob /= intermediate_trans_prob.sum()
+        _, next_state_indices, env_trans_probs = sparse.find(intermediate_trans_prob)
+
+        final_trans_prob = np.zeros(self.num_states, self.prob_dtype)
+        for next_state_idx, env_trans_prob in zip(next_state_indices, env_trans_probs):
+            #weighted_robot_policy = self.policy[self.states[next_state_idx]][robot_action] * env_trans_prob
+            final_trans_prob += np.multiply(env_trans_prob, self.prob[robot_action][next_state_idx, :])
+        # Renormalize, again.
+        final_trans_prob /= final_trans_prob.sum()
+        return final_trans_prob
+
+    def setSinks(self, sink_list):
+        """
+        @brief Finds augmented states that contain @c sink_frag and updates the row corresponding to their transition
+               probabilities so that all transitions take a self loop with probability 1.
+
+        Used for product MDPs (see @ref productMDP), to identify augmented states that include @c sink_frag. @c
+        sink_frag is the DRA/DFA component of an augmented state that is terminal.
+        """
+        if type(self.mdp) is MultiAgentMDP:
+            if any(sink_list):
+                for sink_frag in sink_list:
+                    for state in self.states:
+                        if sink_frag in state:
+                            # Set the transition probability of this state to always self loop.
+                            self.sink_list.append(state)
+                            s_idx = self.states.index(state)
+                            for act in self.executable_action_dict[self.controllable_agent_idx]:
+                                self.prob[act][s_idx, :] = np.zeros((1, self.num_states), self.prob_dtype)
+                                self.prob[act][s_idx, s_idx] = 1.0
+            else:
+                self.sink_list = []
+        else:
+            super(self.__class__, self).setSinks(sink_list)
+
