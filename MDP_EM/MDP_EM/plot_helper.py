@@ -139,16 +139,19 @@ class PlotPolicy(PlotGrid):
         self.quiv_scale = 15
         self.stay_scale = 250
         self.prob_disp_thresh = 0.02
+        self.predefined_action_set = frozenset(self.quiv_angs.keys())
 
     def configurePlot(self, title, policy, action_list, use_print_keys, policy_keys_to_print, decimals,
-                       kernel_locations=None):
+                       kernel_locations=None, stay_action='Empty'):
         fig, ax = super(self.__class__, self).configurePlot(title)
+        if not any(frozenset(action_list) & self.predefined_action_set):
+            self.setQuivActions(action_list)
         policy = deepcopy(policy)
         # Stay probabilies - plot with dots.
         if use_print_keys:
-            stay_probs = [np.round(policy[state]['Empty'], decimals) for state in policy_keys_to_print]
+            stay_probs = [np.round(policy[state][stay_action], decimals) for state in policy_keys_to_print]
         else:
-            stay_probs = [np.round(policy[state]['Empty'][0], decimals) for state in policy.keys()]
+            stay_probs = [np.round(policy[state][stay_action][0], decimals) for state in policy.keys()]
         # Deepcopy allows for each action not to plot cells when there is probability of the action rounds to zero.
         this_x_cent = deepcopy(self.x_cent)
         this_y_cent = deepcopy(self.y_cent)
@@ -165,7 +168,7 @@ class PlotPolicy(PlotGrid):
                      cmap='gray', legend=None)
         # Motion actions - plot with arrows.
         for act in action_list:
-            if act=='Empty':
+            if act==stay_action:
                 continue # Alraedy plotted
             # Deepcopy allows for each action not to plot cells when there is probability of the action rounds to zero.
             this_x_cent = deepcopy(self.x_cent)
@@ -193,6 +196,20 @@ class PlotPolicy(PlotGrid):
 
         plt.gca().invert_yaxis()
         return fig
+
+    def setQuivActions(self, action_list):
+        for act in action_list:
+            for preset_action in self.predefined_action_set:
+                if preset_action in act:
+                    self.quiv_angs[act] = self.quiv_angs[preset_action]
+
+    def updateCellColors(self, maze_cells=None, cmap=None):
+        if maze_cells is not None:
+            self.maze_cells = maze_cells
+            self.grid_dim = maze_cells.shape
+            self.x, self.y = np.meshgrid(np.arange(self.grid_dim[1]), np.arange(self.grid_dim[0]))
+        if cmap is not None:
+            self.cmap = cmap
 
 class PlotDemonstration(PlotGrid):
 
@@ -244,3 +261,48 @@ def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set
     #plt.savefig('error_bars_large_skinny.tif', dpi=400, transparent=False)
 
     return fig, ax
+
+def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_grids=False,
+                   plot_inferred_mdp_grids=False, VI_mdp=None, EM_mdp=None, infer_mdp=None, robot_action_list=None,
+                   env_action_list=None):
+
+    mdp_list = []
+    plot_policies = []
+    only_use_print_keys = []
+    titles = []
+    kernel_locations = []
+    action_lists = []
+    if plot_all_grids or (plot_VI_mdp_grids and plot_EM_mdp_grids and plot_inferred_mdp_grids):
+        mdp_list = [VI_mdp, EM_mdp, infer_mdp]
+        plot_policies = [VI_mdp.policy, EM_mdp.policy, infer_mdp.policy]
+        titles = ['Value Iteration', 'Expecation Maximization', 'Learned']
+        only_use_print_keys = [True, True, False]
+        kernel_locations = [None, None, infer_mdp.kernel_centers]
+        action_lists = [robot_action_list, robot_action_list, env_action_list]
+        return mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations
+
+    if plot_VI_mdp_grids:
+        mdp_list.append(VI_mdp)
+        plot_policies.append(VI_mdp.policy)
+        titles.append('Value Iteration')
+        kernel_locations.append(None)
+        only_use_print_keys.append(True)
+        action_lists.append(robot_action_list)
+
+    if plot_EM_mdp_grids:
+        mdp_list.append(EM_mdp)
+        plot_policies.append(EM_mdp.policy)
+        titles.append('Expectation Maximization')
+        kernel_locations.append(None)
+        only_use_print_keys.append(True)
+        action_lists.append(robot_action_list)
+
+    if plot_inferred_mdp_grids:
+        mdp_list.append(infer_mdp)
+        plot_policies.append(infer_mdp.policy)
+        titles.append('Learned')
+        only_use_print_keys.append(False)
+        kernel_locations.append(infer_mdp.kernel_centers)
+        action_lists.append(env_action_list)
+
+    return mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations, action_lists
