@@ -16,13 +16,14 @@ class ProductMDPxDRA(MDP):
     state.  The input transitions is a dictionary: (state,action): list of next state and probability tuple.  AP: a set
     of atomic propositions. Each proposition is identified by an index between 0 -N.  L: the labeling function,
     implemented as a dictionary: state: a subset of AP."""
-    def __init__(self, mdp, dra, sink_action=None, sink_list=[], losing_sink_label=None, winning_reward=None):
+    def __init__(self, mdp, dra, sink_action=None, sink_list=[], losing_sink_label=None, winning_reward=None,
+                 prob_dtype=np.float64):
         """
         @brief
         """
         # Set self to be an MDP instance. Build the product ontop of this, then call setSinks again now that the object
         # is fully populated.
-        super(self.__class__, self).__init__()
+        super(self.__class__, self).__init__(prob_dtype=prob_dtype)
         # cell_state_slicer: used to extract indeces from the tuple of states. The joint-state tuples are used as
         # dictionary keys and this class augments the state tuple from (mdp_state) to ((mdp_state),dra_state).
         self.state_slice_length = 1
@@ -54,7 +55,7 @@ class ProductMDPxDRA(MDP):
         self.action_list = list(mdp.action_list)
         self.states = list(prod_states)
         for act in self.action_list:
-            self.prob[act] = np.zeros((N, N))
+            self.prob[act] = np.zeros((N, N), self.prob_dtype)
             for prod_state in range(N):
                 (_s,_q) = self.states[prod_state]
                 self.L[(_s, _q)] = mdp.L[_s]

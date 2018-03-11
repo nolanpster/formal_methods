@@ -9,7 +9,7 @@ import numpy as np
 
 from copy import deepcopy
 
-def getActionProbabilityDictionary():
+def getActionProbabilityDictionary(dtype=np.float64):
     # Transition probabilities for each action in each cell  explodes with the number of states so we build the transition
     # probabilites based on relative position based on grid walls.
     #
@@ -34,7 +34,7 @@ def getActionProbabilityDictionary():
                                    [0.9, 0.0, 0.0, 0.1, 0.0],
                                    [0.1, 0.8, 0.0, 0.0, 0.1],
                                    [0.1, 0.8, 0.0, 0.1, 0.0]]
-                                   ),
+                                  , dtype=dtype),
                 'South': np.array([[0.0, 0.0, 0.8, 0.1, 0.1],
                                    [0.0, 0.0, 0.8, 0.1, 0.1],
                                    [0.8, 0.0, 0.0, 0.1, 0.1],
@@ -44,7 +44,7 @@ def getActionProbabilityDictionary():
                                    [0.1, 0.0, 0.8, 0.1, 0.0],
                                    [0.9, 0.0, 0.0, 0.0, 0.1],
                                    [0.9, 0.0, 0.0, 0.1, 0.0]]
-                                   ),
+                                  , dtype=dtype),
                 'East': np.array([[0.0, 0.1, 0.1, 0.8, 0.0],
                                   [0.1, 0.0, 0.1, 0.8, 0.0],
                                   [0.1, 0.1, 0.0, 0.8, 0.0],
@@ -54,7 +54,7 @@ def getActionProbabilityDictionary():
                                   [0.1, 0.0, 0.1, 0.8, 0.0],
                                   [0.9, 0.1, 0.0, 0.0, 0.0],
                                   [0.1, 0.1, 0.0, 0.8, 0.0]]
-                                  ),
+                                 , dtype=dtype),
                 'West': np.array([[0.0, 0.1, 0.1, 0.0, 0.8],
                                   [0.1, 0.0, 0.1, 0.0, 0.8],
                                   [0.1, 0.1, 0.0, 0.0, 0.8],
@@ -64,7 +64,7 @@ def getActionProbabilityDictionary():
                                   [0.9, 0.0, 0.1, 0.0, 0.0],
                                   [0.1, 0.1, 0.0, 0.0, 0.8],
                                   [0.9, 0.1, 0.0, 0.0, 0.0]]
-                                  ),
+                                 , dtype=dtype),
                 'Empty': np.array([[1.0, 0.0, 0.0, 0.0, 0.0],
                                    [1.0, 0.0, 0.0, 0.0, 0.0],
                                    [1.0, 0.0, 0.0, 0.0, 0.0],
@@ -74,7 +74,7 @@ def getActionProbabilityDictionary():
                                    [1.0, 0.0, 0.0, 0.0, 0.0],
                                    [1.0, 0.0, 0.0, 0.0, 0.0],
                                    [1.0, 0.0, 0.0, 0.0, 0.0]]
-                                   )
+                                  , dtype=dtype),
                 }
     return act_prob
 
@@ -110,7 +110,7 @@ def getDRAAvoidRedGetToGreen(alphabet_dict, save_dra_to_dot_file=False):
     return co_safe_dra
 
 def makeGridMDPxDRA(states, initial_state, action_list, alphabet_dict, labels, grid_map, gamma=0.9, act_prob=dict([]),
-                    do_print=False, init_set=None):
+                    do_print=False, init_set=None, prob_dtype=np.float64):
     """
     @brief Configure the product MDP and DRA.
 
@@ -123,7 +123,7 @@ def makeGridMDPxDRA(states, initial_state, action_list, alphabet_dict, labels, g
         act_prob = getActionProbabilityDictionary(prob_dtype)
 
     grid_mdp = MDP(init=initial_state, action_list=action_list, states=states, act_prob=deepcopy(act_prob), gamma=gamma,
-                   AP=alphabet_dict.items(), L=labels, grid_map=grid_map, init_set=init_set)
+                   AP=alphabet_dict.items(), L=labels, grid_map=grid_map, init_set=init_set, prob_dtype=prob_dtype)
 
     ##### Add DRA for co-safe spec #####
     co_safe_dra = getDRAAvoidRedGetToGreen(alphabet_dict)
@@ -138,7 +138,8 @@ def makeGridMDPxDRA(states, initial_state, action_list, alphabet_dict, labels, g
                       'Empty': 1.0
         }
     VI_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='Empty', sink_list=['q2', 'q3'],
-                                 losing_sink_label=alphabet_dict['red'], winning_reward=winning_reward)
+                            losing_sink_label=alphabet_dict['red'], winning_reward=winning_reward,
+                            prob_dtype=prob_dtype)
 
     # @TODO Prune unreachable states from MDP.
 

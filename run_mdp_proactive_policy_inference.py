@@ -26,9 +26,6 @@ np.set_printoptions(threshold=np.inf)
 np.set_printoptions(precision=4)
 
 ########################################################################################################################
-# Load Transition Probability matricies
-act_prob = ExperimentConfigs.getActionProbabilityDictionary()
-########################################################################################################################
 # Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
 grid_dim = [4, 4] # [num-rows, num-cols]
@@ -56,8 +53,18 @@ labels[(0,)] = green
 initial_state = (15,)
 goal_state = (0,) # Currently assumess only one goal.
 
+# Numpy Data type to use for transition probability matrices (affects speed / precision)
+prob_dtype = np.float32
+
+# Numpy Data type to use for policy inference calculations (affects speed / precision). Less than 32 bits can result in
+# 'NaN' values.
+infer_dtype = np.float32
+
 # Action options.
 action_list = ['Empty', 'North', 'South', 'East', 'West']
+
+# Load Transition Probability matricies
+act_prob = ExperimentConfigs.getActionProbabilityDictionary(prob_dtype)
 
 # Set `solve_with_uniform_distribution` to True to have the initial distribution for EM and the history/demonstration
 # generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
@@ -98,11 +105,12 @@ if __name__=='__main__':
     if use_fixed_kernel_set is True:
         kernel_centers = [frozenset([0, 2, 5, 7, 8, 10, 13, 15])]
         num_kernels_in_set = len(kernel_centers[0])
-        kernel_sigmas = np.array([1.5]*num_kernels_in_set, dtype=np.float32)
+        kernel_sigmas = np.array([1.]*num_kernels_in_set, dtype=infer_dtype)
+        batch_size_for_kernel_set = 1
     else:
         kernel_count_start = 10
         kernel_count_end = 9
-        kernel_sigmas = np.array([1]*kernel_count_start, dtype=np.float32)
+        kernel_sigmas = np.array([1.]*kernel_count_start, dtype=infer_dtype)
         kernel_count_increment_per_set = -1
         kernel_set_sample_count = 1
         batch_size_for_kernel_set = 1
@@ -154,7 +162,7 @@ if __name__=='__main__':
             init_set = None
         (EM_mdp, VI_mdp, policy_keys_to_print, policy_difference) = \
             ExperimentConfigs.makeGridMDPxDRA(states, initial_state, action_list, alphabet_dict, labels, grid_map,
-                                              do_print=True, init_set=init_set)
+                                              do_print=True, init_set=init_set, prob_dtype=prob_dtype)
         variables_to_save = [EM_mdp, VI_mdp, policy_keys_to_print, policy_difference]
         pickled_mdp_file = DataHelp.pickleMDP(variables_to_save, name_prefix="robot_mdps")
     else:
@@ -220,7 +228,7 @@ if __name__=='__main__':
         if inference_method in ['historyMLE', 'iterativeBayes', 'gradientAscentGaussianTheta']:
            theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,
                                              do_print=True, reference_policy_vec=reference_policy_vec,
-                                             monte_carlo_size=monte_carlo_size)
+                                             monte_carlo_size=monte_carlo_size, dtype=infer_dtype)
         else:
             if batch_size_for_kernel_set > 1:
                 print_inference_iterations = False
@@ -232,7 +240,7 @@ if __name__=='__main__':
 
                 batch_L1_err = np.empty([kernel_set_sample_count, batch_size_for_kernel_set])
                 batch_infer_time = np.empty([kernel_set_sample_count, batch_size_for_kernel_set])
-                batch_kernel_sigmas = np.array([1]*num_kernels_in_set[kernel_set_idx], dtype=np.float32)
+                batch_kernel_sigmas = np.array([1]*num_kernels_in_set[kernel_set_idx], dtype=infer_dtype)
                 for trial in xrange(kernel_set_sample_count):
                     trial_kernel_set = frozenset(np.random.choice(len(states), num_kernels_in_set[kernel_set_idx],
                                                  replace=False))
@@ -245,7 +253,7 @@ if __name__=='__main__':
                         infer_mdp.inferPolicy(histories=run_histories,
                                               do_print=print_inference_iterations,
                                               use_precomputed_phi=True,
-                                              dtype=np.float32,
+                                              dtype=infer_dtype,
                                               monte_carlo_size=monte_carlo_size,
                                               reference_policy_vec=reference_policy_vec,
                                               precomputed_observed_action_indeces=observed_action_indeces)

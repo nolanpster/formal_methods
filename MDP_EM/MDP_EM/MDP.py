@@ -3,6 +3,7 @@ __author__ = 'Jie Fu, jfu2@wpi.edu, Nolan Poulin, nipoulin@wpi.edu'
 from NFA_DFA_Module.NFA import NFA
 from MDP_solvers import MDP_solvers
 from policy_inference import PolicyInference
+import MDP_EM.MDP_EM.data_helper as DataHelp
 
 from scipy import stats
 from copy import deepcopy
@@ -28,7 +29,9 @@ class MDP(object):
            @c MDP.setInitialProbDist.
     """
     def __init__(self, init=None, action_list=[], states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
-                 reward=dict([]), grid_map=None, act_prob=dict([]), sink_action=None, sink_list=[], init_set=None):
+                 reward=dict([]), grid_map=None, act_prob=dict([]), sink_action=None, sink_list=[], init_set=None,
+                 prob_dtype=np.float64):
+        self.prob_dtype = prob_dtype
         self.init=init # Initial state
         self.action_list=action_list
         self.num_actions = len(self.action_list)
@@ -54,10 +57,12 @@ class MDP(object):
         self.reward=reward
         self.grid_map=grid_map
         if self.grid_map is not None:
+            self.num_cells = self.grid_map.size
+            self.grid_dtype = DataHelp.getSmallestNumpyUnsignedIntType(self.num_cells)
             self.grid_cell_vec = self.grid_map.ravel()
         else:
-            self.grid_cell_vec = np.array([])
-        self.num_cells = len(self.grid_cell_vec)
+            self.grid_dtype = self.prob_dtype
+            self.grid_cell_vec = np.array([], self.grid_dtype)
         self.act_prob_row_idx_of_grid_cell = dict.fromkeys(self.grid_cell_vec.tolist())
         self.precomputeGridCellActProbMatRows()
         self.neighbor_dict = None
@@ -99,10 +104,12 @@ class MDP(object):
         self.num_states = len(self.states)
         self.observable_states = self.states
         if self.grid_map is not None:
+            self.num_cells = self.grid_map.size
+            self.grid_dtype = DataHelp.getSmallestNumpyUnsignedIntType(self.num_cells)
             self.grid_cell_vec = self.grid_map.ravel()
         else:
-            self.grid_cell_vec = np.array([])
-        self.num_cells = len(self.grid_cell_vec)
+            self.grid_dtype = self.prob_dtype
+            self.grid_cell_vec = np.array([], self.grid_dtype)
         self.act_prob_row_idx_of_grid_cell = dict.fromkeys(self.grid_cell_vec.tolist())
         self.precomputeGridCellActProbMatRows()
 
@@ -284,7 +291,7 @@ class MDP(object):
         """
         # Creates a transition probability vector of the same dimesion as a row in the
         # transition probability matrix.
-        this_trans_prob = np.zeros(self.num_states)
+        this_trans_prob = np.zeros(self.num_states, self.prob_dtype)
         this_policy = self.policy[self.current_state]
         for act in this_policy.keys():
             this_trans_prob += this_policy[act] * self.prob[act][self.states.index(self.current_state), :]
@@ -365,15 +372,15 @@ class MDP(object):
         # distribution.
         if initial_state is None:
             # Default to uniform distribution.
-            self.S = np.ones(self.num_states)/self.num_states
+            self.S = np.ones(self.num_states, self.prob_dtype)/self.num_states
         elif type(initial_state) is list:
             init_prob = 1.0/len(initial_state)
-            self.S = np.zeros(self.num_states)
+            self.S = np.zeros(self.num_states, self.prob_dtype)
             for state in initial_state:
                 state_idx = self.states.index(state)
                 self.S[state_idx] = init_prob
         else:
-            self.S = np.zeros(self.num_states)
+            self.S = np.zeros(self.num_states, self.prob_dtype)
             init_idx = self.states.index(self.init)
             self.S[init_idx] = 1
 
@@ -399,7 +406,7 @@ class MDP(object):
                         self.sink_list.append(state)
                         s_idx = self.states.index(state)
                         for act in self.action_list:
-                            self.prob[act][s_idx, :] = np.zeros((1, self.num_states))
+                            self.prob[act][s_idx, :] = np.zeros((1, self.num_states), self.prob_dtype)
                             self.prob[act][s_idx, s_idx] = 1.0
         else:
             self.sink_list = []
@@ -482,11 +489,11 @@ class MDP(object):
         if policy_to_convert is None:
             policy_to_convert = self.policy
         if policy_keys_to_use is not None:
-            policy_vec = np.empty(len(policy_keys_to_use) * self.num_actions)
+            policy_vec = np.empty(len(policy_keys_to_use) * self.num_actions, self.prob_dtype)
             policy_dict  = {state: deepcopy(policy_to_convert[state])
                             for state in policy_keys_to_use}
         else:
-            policy_vec = np.empty(self.num_states * self.num_actions)
+            policy_vec = np.empty(self.num_states * self.num_actions, self.prob_dtype)
             policy_dict = policy_to_convert
             policy_keys_to_use = self.states
         for state_idx, state in enumerate(policy_keys_to_use):
@@ -538,8 +545,8 @@ class MDP(object):
         submdp.states.append(-1) # -1 is the sink state.
         N=len(submdp.states)
         submdp.action_list=list(mdp.action_list)
-        submdp.prob={_a:np.zeros((N, N)) for _a in submdp.action_list}
-        temp=np.zeros(len(mdp.states))
+        submdp.prob={_a:np.zeros((N, N), self.prob_dtype) for _a in submdp.action_list}
+        temp=np.zeros(len(mdp.states), self.prob_dtype)
         for k in set(mdp.states) - H:
             temp[mdp.states.index(k)]=1
         for _a in submdp.action_list:
@@ -581,7 +588,7 @@ class MDP(object):
         mdp.prob=dict([])
         N=len(mdp.states)
         for _a in mdp.action_list:
-            mdp.prob[_a]=np.zeros((N, N))
+            mdp.prob[_a]=np.zeros((N, N), self.prob_dtype)
         for line in array[2: len(array)]:
             trans_str=line.split(",")
             state=int(trans_str[0])
