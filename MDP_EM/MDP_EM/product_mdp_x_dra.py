@@ -99,6 +99,30 @@ class ProductMDPxDRA(MDP):
             mdp_acc.append((Jmdp, Kmdp))
         self.acc = mdp_acc
 
+    def setSinks(self, sink_list):
+        """
+        @brief Finds augmented states that contain @c sink_frag and updates the row corresponding to their transition
+               probabilities so that all transitions take a self loop with probability 1.
+
+        Used for product MDPs (see @ref productMDP), to identify augmented states that include @c sink_frag. @c
+        sink_frag is the DRA/DFA component of an augmented state that is terminal.
+        """
+        if type(self.mdp) is MultiAgentMDP:
+            if any(sink_list):
+                for sink_frag in sink_list:
+                    for state in self.states:
+                        if sink_frag in state:
+                            # Set the transition probability of this state to always self loop.
+                            self.sink_list.append(state)
+                            s_idx = self.states.index(state)
+                            for act in self.executable_action_dict[self.controllable_agent_idx]:
+                                self.prob[act][s_idx, :] = np.zeros((1, self.num_states), self.prob_dtype)
+                                self.prob[act][s_idx, s_idx] = 1.0
+            else:
+                self.sink_list = []
+        else:
+            super(self.__class__, self).setSinks(sink_list)
+
     def configureReward(self, winning_reward):
         """
         @breif Configure the reward dictionary for the MDPxDRA.
@@ -150,26 +174,53 @@ class ProductMDPxDRA(MDP):
         """
         # I'm so sorry for this hack, in too much of a rush to figure out multiple inheritance. <3 Nolan
         if type(self.mdp) is MultiAgentMDP:
-            trans_prob = self.multiAgentTransDistribution(state, action)
+            est_env_policy = self.infer_env_mdp.policy[state[self.cell_state_slicer][0]]
+            trans_prob = self.getMultiAgentTransDistribution(state, action, est_env_policy)
         else:
             trans_prob = super(self.__class__, self).T(state, action)
         return trans_prob
 
-    def multiAgentTransDistribution(self, state, robot_action):
+    def step(self):
         """
-        Transition model.  From a state and an action, return a row in the matrix for next-state probability.
+        @brief Given the current state and the policy, creates the joint distribution of
+            next-states and actions. Then samples from that distribution.
 
-        @note Assumes only one environmental agent.
-        @note Returns ESTIMATED transition probabilities.
+        Returns the current state number as an integer.
         """
-        env_agent_idx = 0
+        if type(self.mdp) is MultiAgentMDP:
+            true_env_policy = self.env_policy[self.uncontrollable_agent_indices[0]] \
+                                             [self.current_state[self.cell_state_slicer][0]]
+            # Creates a transition probability vector of the same dimesion as a row in the
+            # transition probability matrix.
+            this_trans_prob = np.zeros(self.num_states, self.prob_dtype)
+            robot_policy = self.policy[self.current_state]
+            for act in robot_policy.keys():
+                joint_trans_prob = self.getMultiAgentTransDistribution(self.current_state, act, true_env_policy)
+                this_trans_prob += robot_policy[act] * joint_trans_prob
+            # Renormalize distribution - need to deal with this in a better way.
+            this_trans_prob /= this_trans_prob.sum()
+            # Sample a new state given joint distribution of states and actions.
+            try:
+                next_index= np.random.choice(self.num_states, 1, p=this_trans_prob)[0]
+            except ValueError:
+                import pdb; pdb.set_trace()
+            self.current_state = self.states[next_index]
+            observable_index = self.observable_states.index(self.current_state[self.cell_state_slicer])
+            return self.current_state[self.cell_state_slicer], observable_index
+
+        else:
+            return super(self.__class__, self).step()
+
+    def getMultiAgentTransDistribution(self, state, robot_action, env_policy):
+        """
+        @param env_policy A reference to the true or estimated policy to use for calculating the transition probability.
+        """
         state_idx = self.states.index(state)
         # Creates a transition probability vector of the same dimesion as a row in the
         # transition probability matrix.
         intermediate_trans_prob = np.zeros(self.num_states, self.prob_dtype)
-        est_env_policy = self.infer_env_mdp.policy[state[self.cell_state_slicer][0]]
-        for act in est_env_policy.keys():
-            intermediate_trans_prob += est_env_policy[act] * self.prob[act][state_idx, :]
+        for act in env_policy.keys():
+            intermediate_trans_prob += env_policy[act] * self.prob[act][state_idx, :]
         # Renormalize distribution (sometimes sum of elements is a wee bit more or less than one) - need to deal with
         # this in a better way.
         intermediate_trans_prob /= intermediate_trans_prob.sum()
@@ -177,33 +228,9 @@ class ProductMDPxDRA(MDP):
 
         final_trans_prob = np.zeros(self.num_states, self.prob_dtype)
         for next_state_idx, env_trans_prob in zip(next_state_indices, env_trans_probs):
-            #weighted_robot_policy = self.policy[self.states[next_state_idx]][robot_action] * env_trans_prob
             final_trans_prob += np.multiply(env_trans_prob, self.prob[robot_action][next_state_idx, :])
         # Renormalize, again.
         final_trans_prob /= final_trans_prob.sum()
         return final_trans_prob
 
-    def setSinks(self, sink_list):
-        """
-        @brief Finds augmented states that contain @c sink_frag and updates the row corresponding to their transition
-               probabilities so that all transitions take a self loop with probability 1.
-
-        Used for product MDPs (see @ref productMDP), to identify augmented states that include @c sink_frag. @c
-        sink_frag is the DRA/DFA component of an augmented state that is terminal.
-        """
-        if type(self.mdp) is MultiAgentMDP:
-            if any(sink_list):
-                for sink_frag in sink_list:
-                    for state in self.states:
-                        if sink_frag in state:
-                            # Set the transition probability of this state to always self loop.
-                            self.sink_list.append(state)
-                            s_idx = self.states.index(state)
-                            for act in self.executable_action_dict[self.controllable_agent_idx]:
-                                self.prob[act][s_idx, :] = np.zeros((1, self.num_states), self.prob_dtype)
-                                self.prob[act][s_idx, s_idx] = 1.0
-            else:
-                self.sink_list = []
-        else:
-            super(self.__class__, self).setSinks(sink_list)
 

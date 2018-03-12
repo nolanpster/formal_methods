@@ -197,7 +197,8 @@ if __name__=='__main__':
         num_episodes = run_histories.shape[0]
         steps_per_episode = run_histories.shape[1]
 
-    DataHelp.printHistoryAnalysis(run_histories, state_indices, labels, empty, goal_state)
+    DataHelp.printHistoryAnalysis(run_histories, states, labels, empty, goal_state)
+    DataHelp.printStateHistories(run_histories, VI_mdp.observable_states)
 
     if plot_new_phi or  plot_new_kernel or perform_new_inference:
         tic = time.clock()

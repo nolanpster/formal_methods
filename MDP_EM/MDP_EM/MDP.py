@@ -88,7 +88,7 @@ class MDP(object):
         # Configure a uniform distribution across the states listed in init_set if that input is not None, otherwise
         # MDP.resetState will always return the `current_state` to self.init.
         self.setInitialProbDist(self.init if self.init_set is None else self.init_set)
-        self.observable_states = self.states
+        self.setObservableStates(self.states)
 
     def reconfigureConditionalInitialValues(self):
         """
@@ -105,7 +105,7 @@ class MDP(object):
             else:
                 self.num_agents = 1
         self.num_states = len(self.states)
-        self.observable_states = self.states
+        self.setObservableStates(self.states)
         if self.grid_map is not None:
             self.num_cells = self.grid_map.size
             self.grid_dtype = DataHelp.getSmallestNumpyUnsignedIntType(self.num_cells)
@@ -282,8 +282,11 @@ class MDP(object):
         @param observable_states A list of tuples where each tuple is a state that is available to observe. This list
                will be used for creating indices of observed states. The indeces for this list do not match the indices
                in the MDP.states property.
+
+        @note states are sliced by instance `cell_state_slicer` before being saved
         """
-        self.observable_states=observable_states
+        self.observable_states= [obs_state[self.cell_state_slicer] for obs_state in observable_states]
+        self.num_observable_states = len(self.observable_states)
 
     def step(self):
         """
@@ -306,8 +309,8 @@ class MDP(object):
         except ValueError:
             import pdb; pdb.set_trace()
         self.current_state = self.states[next_index]
-        observable_index = self.observable_states.index(self.current_state)
-        return self.current_state[self.cell_state_slicer][0], observable_index
+        observable_index = self.observable_states.index(self.current_state[self.cell_state_slicer])
+        return self.current_state[self.cell_state_slicer], observable_index
 
     def resetState(self):
         """
@@ -317,7 +320,7 @@ class MDP(object):
             self.current_state = self.states[np.random.choice(self.num_states, 1, p=self.S)[0]]
         elif self.init is not None:
             self.current_state = self.init
-        observable_index = self.observable_states.index(self.current_state)
+        observable_index = self.observable_states.index(self.current_state[self.cell_state_slicer])
         return self.current_state[self.cell_state_slicer][0], observable_index
 
     def timePrior(self, _t):

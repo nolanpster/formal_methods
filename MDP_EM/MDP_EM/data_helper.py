@@ -10,6 +10,8 @@ import pickle
 import dill
 import time
 
+from copy import deepcopy
+
 # Paths used for loading and saving variables.
 mdp_obj_path = os.path.abspath('pickled_mdps')
 episode_path = os.path.abspath('pickled_episodes')
@@ -211,29 +213,44 @@ def getSmallestNumpyUnsignedIntType(max_value):
     return smallest_dtype
 
 
-def printHistoryAnalysis(run_histories, cells, labels, empty, goal_state):
+def printHistoryAnalysis(run_histories, states, labels, empty, goal_state):
+    #@TODO Add kwarg for mapping cell___INDICIES__ (input from MultiAgent case)?? Or map beforehand?
 
-    num_episodes = run_histories.shape[0]
-    steps_per_episode = run_histories.shape[1]
-
-    # Determine which cells are goals or obstacles.
-    normal_cells = {cell: True if label==empty else False for cell, label in labels.items()}
+    # Determine how many times a history was started from each state-index and how many times a state is visited.
+    state_indices = range(len(states))
+    zero_counts_at_state_idx = {state_idx:0 for state_idx in state_indices}
     unique, starting_counts = np.unique(run_histories[:,0], return_counts=True)
-    num_trials_from_cell = {cell:0 for cell in cells}
-    num_trials_from_cell.update(dict(zip(unique, starting_counts)))
-    num_rewards_from_cell = {cell:0 for cell in cells}
+    num_starts_from_idx = deepcopy(zero_counts_at_state_idx)
+    num_starts_from_idx.update(dict(zip(unique, starting_counts)))
+
+    # If the last State is a goal-state, then record that as a reward.
+    num_episodes = run_histories.shape[0]
+    num_rewards_from_starting_idx = deepcopy(zero_counts_at_state_idx)
     for run_idx in range(num_episodes):
-        starting_cell = run_histories[run_idx][0]
-        final_cell = run_histories[run_idx][-1]
-        if final_cell==goal_state:
-            num_rewards_from_cell[starting_cell] += 1
-    print("In this demonstration 'history' there are  {} episodes, each with {} moves.".format(num_episodes,
-          steps_per_episode))
-    for cell in range(len(cells)):
-        reward_likelihood = float(num_rewards_from_cell[cell]) / float(num_trials_from_cell[cell]) if \
-            num_trials_from_cell[cell] > 0 else np.nan
-        print("Cell {}: Num starts = {}, Num Rewards = {}, likelihood = {}.".format(cell,
-                                                                                     num_trials_from_cell[cell],
-                                                                                     num_rewards_from_cell[cell],
-                                                                                     reward_likelihood))
+        starting_idx = run_histories[run_idx][0]
+        final_idx = run_histories[run_idx][-1]
+        if type(goal_state) is list:
+            if states[final_idx][0] in goal_state:
+                num_rewards_from_starting_idx[starting_idx] += 1
+        else:
+            if final_idx==goal_state:
+                num_rewards_from_starting_idx[starting_idx] += 1
+
+    # Print Analysis
+    steps_per_episode = run_histories.shape[1]
+    print("In this demonstration 'history' there are  {} episodes, each with {} moves."
+          .format(num_episodes, steps_per_episode))
+    for state_idx in range(len(state_indices)):
+        reward_likelihood = float(num_rewards_from_starting_idx[state_idx]) / float(num_starts_from_idx[state_idx]) \
+                                if num_starts_from_idx[state_idx] > 0 else np.nan
+        print("State {}: Num starts = {}, Num Rewards = {}, likelihood = {}.".format(states[state_idx],
+              num_starts_from_idx[state_idx], num_rewards_from_starting_idx[state_idx], reward_likelihood))
+
+def printStateHistories(run_histories, states):
+    num_episodes = run_histories.shape[0]
+    state_indices = range(len(states))
+    print("Observed Trajectories:")
+
+    for episode_idx in xrange(num_episodes):
+        print("Ep. {}: {}.".format(episode_idx, ([states[state_idx] for state_idx in run_histories[episode_idx]])))
 

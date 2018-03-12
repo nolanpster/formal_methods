@@ -96,13 +96,21 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 # Flags for script control
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
-make_new_mdp = True
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180311_2255'
+make_new_mdp = False
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180312_1232'
 
+
+# Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
+# load the @c pickled_episodes_file. If @c gather_new_data is true, use @c num_episodes and @c steps_per_episode to
+# determine how large the demonstration set should be.
+gather_new_data = False
+num_episodes = 250
+steps_per_episode = 15
+pickled_episodes_file_to_load = 'multi_agent_mdps_180312_1232_HIST_250eps15steps_180312_1232'
 
 # Plotting flags
 plot_all_grids = False
-plot_VI_mdp_grids = True
+plot_VI_mdp_grids = False
 plot_EM_mdp_grids = False
 plot_inferred_mdp_grids = False
 plot_flags = [plot_all_grids, plot_VI_mdp_grids, plot_EM_mdp_grids, plot_inferred_mdp_grids]
@@ -123,7 +131,32 @@ if make_new_mdp:
     pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps")
 else:
     (VI_mdp, policy_keys_to_print, pickled_mdp_file) = DataHelper.loadPickledMDP(pickled_mdp_file_to_load)
+    reference_policy_vec = VI_mdp.getPolicyAsVec(policy_keys_to_print)
 
+########################################################################################################################
+# Demonstrate Trajectories
+########################################################################################################################
+if gather_new_data:
+    # Use policy to simulate and record results.
+    #
+    # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
+    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(VI_mdp.num_observable_states)
+    run_histories = np.zeros([num_episodes, steps_per_episode], dtype=hist_dtype)
+    for episode in range(num_episodes):
+        # Create time-history for this episode.
+        _, run_histories[episode, 0] = VI_mdp.resetState()
+        for t_step in range(1, steps_per_episode):
+            _, run_histories[episode, t_step] = VI_mdp.step()
+    pickled_episodes_file = DataHelper.pickleEpisodes(variables_to_save=[run_histories], name_prefix=pickled_mdp_file,
+                                                    num_episodes=num_episodes, steps_per_episode=steps_per_episode)
+else:
+    # Load pickled episodes. Note that trailing comma on assignment automatically unpacks run_histories from a list.
+    (run_histories, pickled_episodes_file) = DataHelper.loadPickledEpisodes(pickled_episodes_file_to_load)
+    num_episodes = run_histories.shape[0]
+    steps_per_episode = run_histories.shape[1]
+
+DataHelper.printHistoryAnalysis(run_histories, VI_mdp.observable_states, labels, empty, robot_goal_states)
+DataHelper.printStateHistories(run_histories, VI_mdp.observable_states)
 
 ########################################################################################################################
 # Plot Results
