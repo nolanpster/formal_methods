@@ -367,15 +367,15 @@ class PolicyInference(object):
         @note If a state is not visited in the history, it will be given a policy of zeros.
         """
         self.histories = histories
-        states_in_history = set(self.histories.ravel())
-        if states_in_history != set(self.mdp.grid_cell_vec):
+        states_in_history = set([self.mdp.states[state_idx] for state_idx in self.histories.ravel()])
+        if states_in_history != set(self.mdp.states):
             warnings.warn('The following states were not visited in the history: {}. Their policies will be `nan` for '
-                          'all actions.'.format(set(self.mdp.grid_cell_vec) - states_in_history))
+                          'all actions.'.format(set(self.mdp.states) - states_in_history))
 
         # Initialize decision of each state to take first action in MDP's @c action_list.
         if do_weighted_update:
             prior_policy = deepcopy(self.mdp.policy)
-        if not do_weighted_update:
+        else:
             empty_policy_dist = {act:np.array([[0.]]) for act in self.mdp.action_list}
             self.mdp.policy = {state: deepcopy(empty_policy_dist) for state in self.mdp.states}
 
@@ -383,10 +383,13 @@ class PolicyInference(object):
         (num_episodes, num_steps) = self.histories.shape
         for episode in xrange(num_episodes):
             for t_step in xrange(1, num_steps):
-                this_state = self.histories[episode, t_step-1]
-                next_state = self.histories[episode, t_step]
-                observed_action = self.mdp.graph.getObservedAction(this_state, next_state)
+                this_state_idx = self.histories[episode, t_step-1]
+                this_state = self.mdp.observable_states[this_state_idx]
+                next_state_idx = self.histories[episode, t_step]
+                next_state = self.mdp.observable_states[next_state_idx]
+                observed_action = self.mdp.graph.getObservedAction((this_state,), (next_state,))
                 if do_weighted_update:
+                    import pdb; pdb.set_trace() # Check actionProbGi... for state/state_idx changes
                     action_weights = PolicyInference.actionProbGivenStatePair(this_state, next_state, prior_policy,
                                                                               self.mdp.P, self.mdp.action_list)
                     for act_idx, act in enumerate(self.mdp.action_list):
@@ -421,8 +424,11 @@ class PolicyInference(object):
         # Solve for initial guess of policy.
         self.historyMLE(histories, do_weighted_update=False)
         current_policy = self.mdp.getPolicyAsVec()
+
         # Improve the guess using the probability of an action given the observed states.
         for trial in xrange(10):
+            L1Norm = self.mdp.getPolicyL1Norm(reference_policy_vec, self.mdp.getPolicyAsVec())
+            print('L1:{}'.format(L1Norm))
             self.historyMLE(histories, do_weighted_update=True)
 
     def buildPolicyVectors(self, phis, theta):
@@ -714,7 +720,12 @@ class PolicyInference(object):
         policy_at_state = np.array([policy[s_0][act][0][0] for act in action_list])
         transition_prob_to_s_1 = np.array([trans_prob_func(s_0, act, s_1) for act in action_list])
 
-        return (transition_prob_to_s_1 * policy_at_state) / total_prob_of_s_1
+        if total_prob_of_s_1 > 0.0:
+            act_prob_given_state_pair = (transition_prob_to_s_1 * policy_at_state) / total_prob_of_s_1
+        else:
+            import pdb; pdb.set_trace()
+            act_prob_given_state_pair = np.zeros(len(action_list))
+        return act_prob_given_state_pair
 
     @staticmethod
     def evalGibbsPolicy(theta, phi, action, action_list):

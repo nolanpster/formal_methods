@@ -221,8 +221,10 @@ if __name__=='__main__':
         observed_action_indeces = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
         for episode in xrange(num_episodes):
             for t_step in xrange(1, steps_per_episode):
-                this_state = run_histories[episode, t_step-1]
-                next_state = run_histories[episode, t_step]
+                this_state_idx = run_histories[episode, t_step-1]
+                this_state = VI_mdp.observable_states[this_state_idx]
+                next_state_idx = run_histories[episode, t_step]
+                next_state = VI_mdp.observable_states[next_state_idx]
                 observed_action = infer_mdp.graph.getObservedAction(this_state, next_state)
                 observed_action_indeces[episode, t_step] = action_list.index(observed_action)
 

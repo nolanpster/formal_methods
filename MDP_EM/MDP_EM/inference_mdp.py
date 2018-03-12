@@ -19,13 +19,13 @@ class InferenceMDP(MDP):
     implemented as a dictionary: state: a subset of AP."""
     def __init__(self, init=None, action_list=[], states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
                  reward=dict([]), grid_map=None, act_prob=dict([]), gg_kernel_centers=frozenset([]),
-                 og_kernel_centers=frozenset([]), kernel_sigmas=None, prob_dtype=np.float64):
+                 og_kernel_centers=frozenset([]), kernel_sigmas=None, prob_dtype=np.float64, state_idx_to_observe=0):
         """
         @brief Construct an MDP meant to perform inference.
         @param init @todo
         @param action_list @todo
         @param states @todo
-        @param prob @todo
+        @param prob A list of tuples of states.
         @param acc @todo
         @param gamma @todo
         @param AP @todo
@@ -36,13 +36,18 @@ class InferenceMDP(MDP):
         @param ggk_centers a list of length G of Geodesic Gaussian Kernel locations in the grid.
         @param ogk_centers a list of length O of Ordinary Gaussian Kernel locations in the grid.
         @param kernel_sigmas a @ref numpy.array() of length G+O of standard deviations.
+        @param prob_dtype Data type to use for storing transition probabilities.
+        @param state_idx_to_observe The indices of a state tuple that are "observations". Primarily used by
+               GridGraph.getOvservedAction().
         """
         super(self.__class__, self).__init__(init=init, action_list=action_list, states=states, prob=prob, gamma=gamma,
                                              AP=AP, L=L, reward=reward, grid_map=grid_map, act_prob=act_prob,
                                              prob_dtype=prob_dtype)
 
+        self.state_idx_to_observe = state_idx_to_observe
         if (grid_map is not None) and (self.L) and (self.neighbor_dict):
-            self.graph = GridGraph(grid_map=grid_map, neighbor_dict=self.neighbor_dict, label_dict=self.L)
+            self.graph = GridGraph(grid_map=grid_map, neighbor_dict=self.neighbor_dict, label_dict=self.L,
+                                   state_idx_to_observe=self.state_idx_to_observe)
         else:
             self.graph = None
 

@@ -21,7 +21,7 @@ class GridGraph(object):
     OBSTACLE_VAL = 1
 
     def __init__(self, paths={}, distances={}, grid_map=None, neighbor_dict=None, label_dict=None,
-                 obstacle_label=red):
+                 obstacle_label=red, state_idx_to_observe=0):
         # Shortest Path dictionary structure = {{s_0, s_N}: (s_0, ... s_N)}
         self.paths = paths
         self.distances = distances
@@ -29,6 +29,7 @@ class GridGraph(object):
         self.astar_map = np.zeros(self.grid_map.shape, dtype=np.int8)
         self.astar_no_obstacle_map = np.zeros(self.grid_map.shape, dtype=np.int8)
         self.obstacle_label = obstacle_label
+        self.state_idx_to_observe = state_idx_to_observe
 
         # The longest path length is returned if no path is found (the state is inside an obstacle). Since these values
         # are used in the gaussian kernel functions, exp(-746) is the first value that returns 0.0, which is desired for
@@ -126,7 +127,7 @@ class GridGraph(object):
         @brief Returns the action taken to go between two neighboring states from s_0 to s_N.
         """
         # Test if _key_ is in dictionary.
-        if (s_0, s_N) in self.state_transition_actions:
-            return self.state_transition_actions[(s_0, s_N)]
+        if (s_0[0][self.state_idx_to_observe], s_N[0][self.state_idx_to_observe]) in self.state_transition_actions:
+            return self.state_transition_actions[(s_0[0][self.state_idx_to_observe], s_N[0][self.state_idx_to_observe])]
         else:
             return None
