@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
+
+from MDP_EM.MDP_EM.inference_mdp import InferenceMDP
+
 from copy import deepcopy
 from MDP import MDP
 import numpy as np
@@ -23,7 +26,7 @@ class MultiAgentMDP(MDP):
     """
     def __init__(self, init=None, action_dict={}, states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
                  reward=dict([]), grid_map=None, act_prob=dict([]), init_set=None, prob_dtype=np.float64,
-                 index_of_controllable_agent=0):
+                 index_of_controllable_agent=0, infer_dtype=np.float64):
         """
         @brief Construct an MDP meant to perform inference.
         @param init @todo
@@ -85,7 +88,19 @@ class MultiAgentMDP(MDP):
         self.executable_action_dict.update(
             {unc_agent_idx: [str(unc_agent_idx) + '_' + act for act in self.action_dict[unc_agent_idx]]
              for unc_agent_idx in self.uncontrollable_agent_indices})
+        #### !!! This is the container for the TRUE environmental policy !!! ####
         self.env_policy = {agent_idx:{} for agent_idx in self.uncontrollable_agent_indices}
+        ####                                                                 ####
+        kernel_centers = [frozenset([0, 2, 4, 6, 8])]
+        num_kernels_in_set = len(kernel_centers[0])
+        kernel_sigmas = np.array([1.]*num_kernels_in_set, dtype=infer_dtype)
+        self.infer_env_mdp = InferenceMDP(init=self.init,
+            action_list=self.executable_action_dict[self.uncontrollable_agent_indices[0]], states=states,
+            prob=deepcopy(self.prob), grid_map=self.grid_map, L=None, gg_kernel_centers=kernel_centers,
+            kernel_sigmas=kernel_sigmas)
+
+        self.env_policy = {agent_idx:{} for agent_idx in self.uncontrollable_agent_indices}
+
         # ------------- ------------ ----------- ------ end mandatory copy ------ ------------ ------------ -----------#
 
         # Initialize environmental policies.

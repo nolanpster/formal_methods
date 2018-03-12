@@ -53,7 +53,8 @@ class ProductMDPxDRA(MDP):
         self.executable_action_dict = self.mdp.executable_action_dict
         if type(self.mdp) is MultiAgentMDP:
             self.uncontrollable_agent_indices = self.mdp.uncontrollable_agent_indices
-            self.env_policy = self.mdp.env_policy
+            self.env_policy = self.mdp.env_policy # TRUE Env Policy
+            self.infer_env_mdp = self.mdp.infer_env_mdp # Contains ESTIMATED Env Policy
 
             # Hacky shit: change self.mdp! self.mdp is going to be handed _augmented_ MDPxDRA states to deal with, so we
             # need to update it's slice operator.
@@ -166,10 +167,9 @@ class ProductMDPxDRA(MDP):
         # Creates a transition probability vector of the same dimesion as a row in the
         # transition probability matrix.
         intermediate_trans_prob = np.zeros(self.num_states, self.prob_dtype)
-        this_env_policy = self.env_policy[self.uncontrollable_agent_indices[env_agent_idx]] \
-                                         [state[self.cell_state_slicer]]
-        for act in this_env_policy.keys():
-            intermediate_trans_prob += this_env_policy[act] * self.prob[act][state_idx, :]
+        est_env_policy = self.infer_env_mdp.policy[state[self.cell_state_slicer][0]]
+        for act in est_env_policy.keys():
+            intermediate_trans_prob += est_env_policy[act] * self.prob[act][state_idx, :]
         # Renormalize distribution (sometimes sum of elements is a wee bit more or less than one) - need to deal with
         # this in a better way.
         intermediate_trans_prob /= intermediate_trans_prob.sum()

@@ -41,13 +41,22 @@ class InferenceMDP(MDP):
                                              AP=AP, L=L, reward=reward, grid_map=grid_map, act_prob=act_prob,
                                              prob_dtype=prob_dtype)
 
-        self.graph = GridGraph(grid_map=grid_map, neighbor_dict=self.neighbor_dict, label_dict=self.L)
+        if (grid_map is not None) and (self.L) and (self.neighbor_dict):
+            self.graph = GridGraph(grid_map=grid_map, neighbor_dict=self.neighbor_dict, label_dict=self.L)
+        else:
+            self.graph = None
 
         self.gg_kernel_centers = gg_kernel_centers
         self.og_kernel_centers = og_kernel_centers
         self.kernel_centers = list(self.gg_kernel_centers) + list(self.og_kernel_centers)
         self.kernel_sigmas = kernel_sigmas
-        self.buildKernels()
+        if (self.graph is not None) and (self.kernel_centers):
+            # Graph is not none and kernel centers is not an empty list:
+            self.buildKernels()
+        else:
+            self.phi = None
+            self.num_kern = None
+            self.phi_at_state = None
         # Theta is used as the policy parameter for inference.
         self.theta = None
 
