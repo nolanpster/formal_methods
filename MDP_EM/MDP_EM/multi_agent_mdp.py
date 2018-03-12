@@ -26,7 +26,7 @@ class MultiAgentMDP(MDP):
     """
     def __init__(self, init=None, action_dict={}, states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
                  reward=dict([]), grid_map=None, act_prob=dict([]), init_set=None, prob_dtype=np.float64,
-                 index_of_controllable_agent=0, infer_dtype=np.float64):
+                 index_of_controllable_agent=0, infer_dtype=np.float64, fixed_obstacle_labels=dict([])):
         """
         @brief Construct an MDP meant to perform inference.
         @param init @todo
@@ -43,6 +43,7 @@ class MultiAgentMDP(MDP):
         @param ggk_centers a list of length G of Geodesic Gaussian Kernel locations in the grid.
         @param ogk_centers a list of length O of Ordinary Gaussian Kernel locations in the grid.
         @param kernel_sigmas a @ref numpy.array() of length G+O of standard deviations.
+        @param fixed_obstacle_labels Passed to InferenceMDP.GridGraph object.
         """
         self.action_dict = action_dict
         self.num_agents = len(action_dict)
@@ -59,13 +60,18 @@ class MultiAgentMDP(MDP):
         self.executable_action_dict.update(
             {unc_agent_idx: [str(unc_agent_idx) + '_' + act for act in self.action_dict[unc_agent_idx]]
              for unc_agent_idx in self.uncontrollable_agent_indices})
-# Perform super call with just one agent's action list (assumes the agents have same actions for now). Then
+        # Perform super call with just one agent's action list (assumes the agents have same actions for now). Then
         # update self.action_list to be joint action space.
         super(self.__class__, self).__init__(init=init, action_list=self.action_dict[0], states=states, prob=prob,
                                              gamma=gamma, AP=AP, L=L, reward=reward, grid_map=grid_map,
                                              act_prob=act_prob, init_set=init_set, prob_dtype=prob_dtype)
 
         self.action_list = self.joint_action_list
+
+        if not fixed_obstacle_labels:
+            self.fixed_obstacle_labels = self.L
+        else:
+            self.fixed_obstacle_labels = fixed_obstacle_labels
 
         # Reset any values 'uninitialize' by base-class constructor. @TODO These variables are manually copied in
         # ProductMDPxDRA.reconfigureConditionalInitialValues(). That's a shitty hack. Fix that. xoxo Nolan
@@ -97,7 +103,8 @@ class MultiAgentMDP(MDP):
         self.infer_env_mdp = InferenceMDP(init=self.init,
             action_list=self.executable_action_dict[self.uncontrollable_agent_indices[0]], states=states,
             prob=deepcopy(self.prob), grid_map=self.grid_map, L=None, gg_kernel_centers=kernel_centers,
-            kernel_sigmas=kernel_sigmas)
+            kernel_sigmas=kernel_sigmas, state_idx_to_observe=self.uncontrollable_agent_indices[0],
+            fixed_obstacle_labels=self.fixed_obstacle_labels)
 
         self.env_policy = {agent_idx:{} for agent_idx in self.uncontrollable_agent_indices}
 

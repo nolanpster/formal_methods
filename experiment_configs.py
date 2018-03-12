@@ -174,7 +174,8 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
     return EM_mdp, VI_mdp, policy_keys_to_print, policy_difference
 
 def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, grid_map, gamma=0.9,
-                              act_prob=dict([]), do_print=False, init_set=None,prob_dtype=np.float64):
+                              act_prob=dict([]), do_print=False, init_set=None,prob_dtype=np.float64,
+                              fixed_obstacle_labels=dict([])):
     """
     @brief Configure the product MDP and DRA.
 
@@ -189,7 +190,8 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
     if type(states[0]) is tuple and len(states[0]) > 1:
         grid_mdp = MultiAgentMDP(init=initial_state, action_dict=action_set, states=states,
                                  act_prob=deepcopy(act_prob), gamma=gamma, AP=alphabet_dict.items(), L=labels,
-                                 grid_map=grid_map, init_set=init_set, prob_dtype=prob_dtype)
+                                 grid_map=grid_map, init_set=init_set, prob_dtype=prob_dtype,
+                                 fixed_obstacle_labels=fixed_obstacle_labels)
     else:
         grid_mdp = MDP(init=initial_state, action_list=action_set, states=states, act_prob=deepcopy(act_prob),
                        gamma=gamma, AP=alphabet_dict.items(), L=labels, grid_map=grid_map, init_set=init_set,

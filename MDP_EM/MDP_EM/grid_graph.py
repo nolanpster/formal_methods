@@ -39,7 +39,7 @@ class GridGraph(object):
         if label_dict is not None:
             for state, label in label_dict.iteritems():
                 if label==self.obstacle_label:
-                    grid_row, grid_col = np.where(self.grid_map==state)
+                    grid_row, grid_col = np.where(self.grid_map==state[self.state_idx_to_observe])
                     self.astar_map[grid_row, grid_col] = GridGraph.OBSTACLE_VAL
         self.neighbor_dict = neighbor_dict
         if self.grid_map is not None and self.neighbor_dict is not None:

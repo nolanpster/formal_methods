@@ -69,11 +69,13 @@ robot_goal_states = [(robot_goal_cell, cell) for cell in cell_indeces]
 fixed_obstacle_cells = [5]
 
 labels = {state: empty for state in states}
+fixed_obs_labels = {state: empty for state in states}
 for state in states:
     if state in robot_goal_states:
         labels[state] = green
     elif state[robot_idx] in fixed_obstacle_cells:
         labels[state] = red
+        fixed_obs_labels[state] = red
     elif state[robot_idx] == state[env_idx]:
         labels[state] = red
 
@@ -126,7 +128,8 @@ if make_new_mdp:
     VI_mdp, policy_keys_to_print = ExperimentConfigs.makeMultiAgentGridMDPxDRA(states, initial_state, action_dict,
                                                                                alphabet_dict, labels, grid_map,
                                                                                do_print=True, init_set=init_set,
-                                                                               prob_dtype=prob_dtype)
+                                                                               prob_dtype=prob_dtype,
+                                                                               fixed_obstacle_labels=fixed_obs_labels)
     variables_to_save = [VI_mdp, policy_keys_to_print]
     pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps")
 else:
