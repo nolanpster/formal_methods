@@ -225,8 +225,7 @@ if __name__=='__main__':
                 this_state = VI_mdp.observable_states[this_state_idx]
                 next_state_idx = run_histories[episode, t_step]
                 next_state = VI_mdp.observable_states[next_state_idx]
-                observed_action = infer_mdp.graph.getObservedAction(this_state, next_state)
-                observed_action_indeces[episode, t_step] = action_list.index(observed_action)
+                observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(this_state, next_state)
 
         if inference_method in ['historyMLE', 'iterativeBayes', 'gradientAscentGaussianTheta']:
            theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,

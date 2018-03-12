@@ -125,9 +125,9 @@ class MultiAgentMDP(MDP):
         for act in self.action_list:
             grid_prob[act]=np.zeros((self.num_cells, self.num_cells), self.prob_dtype)
             for starting_cell in self.grid_cell_vec:
-                for next_cell, act_to_next_state in self.neighbor_dict[starting_cell].iteritems():
+                for next_cell, act_idx_to_next_state in self.neighbor_dict[starting_cell].iteritems():
                     grid_prob[act][starting_cell, next_cell] = self.act_prob[act]\
-                        [self.act_prob_row_idx_of_grid_cell[starting_cell], self.action_list.index(act_to_next_state)]
+                        [self.act_prob_row_idx_of_grid_cell[starting_cell], act_idx_to_next_state]
 
         self.prob = {}
         for acting_agent in xrange(self.num_agents):

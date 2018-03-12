@@ -119,12 +119,12 @@ class GridGraph(object):
         """
         self.state_transition_actions = {}
         for start_state in range(self.grid_map.size):
-            for neighbor_state, action in self.neighbor_dict[start_state].iteritems():
-                self.state_transition_actions[(start_state, neighbor_state)] = action
+            for neighbor_state, action_idx in self.neighbor_dict[start_state].iteritems():
+                self.state_transition_actions[(start_state, neighbor_state)] = action_idx
 
     def getObservedAction(self, s_0, s_N):
         """
-        @brief Returns the action taken to go between two neighboring states from s_0 to s_N.
+        @brief Returns the action index taken to go between two neighboring states from s_0 to s_N.
         """
         # Test if _key_ is in dictionary.
         if (s_0[0][self.state_idx_to_observe], s_N[0][self.state_idx_to_observe]) in self.state_transition_actions:

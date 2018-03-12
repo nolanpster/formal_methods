@@ -71,8 +71,7 @@ class PolicyInference(object):
             for t_step in xrange(1, num_steps):
                 this_state = self.histories[episode, t_step-1]
                 next_state = self.histories[episode, t_step]
-                observed_action = self.mdp.graph.getObservedAction(this_state, next_state)
-                observed_action_indeces[episode, t_step] = self.mdp.action_list.index(observed_action)
+                observed_action_indeces[episode, t_step] = self.mdp.graph.getObservedAction(this_state, next_state)
         return observed_action_indeces
 
     def computePhis(self):
@@ -387,7 +386,7 @@ class PolicyInference(object):
                 this_state = self.mdp.observable_states[this_state_idx]
                 next_state_idx = self.histories[episode, t_step]
                 next_state = self.mdp.observable_states[next_state_idx]
-                observed_action = self.mdp.graph.getObservedAction((this_state,), (next_state,))
+                observed_action_idx = self.mdp.graph.getObservedAction((this_state,), (next_state,))
                 if do_weighted_update:
                     import pdb; pdb.set_trace() # Check actionProbGi... for state/state_idx changes
                     action_weights = PolicyInference.actionProbGivenStatePair(this_state, next_state, prior_policy,
@@ -395,6 +394,7 @@ class PolicyInference(object):
                     for act_idx, act in enumerate(self.mdp.action_list):
                         self.mdp.policy[this_state][act] += action_weights[act_idx]
                 else:
+                    observed_action = self.mdp.action_list[observed_action_idx]
                     self.mdp.policy[this_state][observed_action][0][0] += 1
 
         # Weight each action by the number of times the state was visited.

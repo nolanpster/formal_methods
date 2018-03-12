@@ -13,6 +13,9 @@ import sys # For float_info.epsilon.
 
 
 class MDP(object):
+
+    primitive_actions = ['North', 'South', 'East', 'West', 'Empty']
+
     """
     @brief Construct a Markov Decision Process.
 
@@ -37,6 +40,7 @@ class MDP(object):
         self.controllable_agent_idx = 0
         self.executable_action_dict = {self.controllable_agent_idx: self.action_list}
         self.num_actions = len(self.action_list)
+        self.updatePrimitiveActionIndices()
         self.states=states
         # Determine Number of agents based on length of state elements.
         if not self.states:
@@ -90,6 +94,20 @@ class MDP(object):
         self.setInitialProbDist(self.init if self.init_set is None else self.init_set)
         self.setObservableStates(self.states)
 
+    def updatePrimitiveActionIndices(self):
+        # Deal with motion privmities for any actions with leading agent indices, e.g., '0_North'.
+        for act_idx, act in enumerate(self.action_list):
+            if 'Empty' in act:
+                self.empty_idx = act_idx
+            if 'North' in act:
+                self.north_idx = act_idx
+            if 'South' in act:
+                self.south_idx = act_idx
+            if 'East' in act:
+                self.east_idx = act_idx
+            if 'West' in act:
+                self.west_idx = act_idx
+
     def reconfigureConditionalInitialValues(self):
         """
         @brief Redo initial configuration calculatios based on properties.
@@ -97,6 +115,7 @@ class MDP(object):
         Useful for derived classes that want to initialize some values later in the __init__ method.
         """
         self.num_actions = len(self.action_list)
+        self.updatePrimitiveActionIndices()
         if not self.states:
             self.num_agents = 0
         else:
@@ -204,8 +223,8 @@ class MDP(object):
         """
         @brief Builds a neighbor dictionary of grid cells.
 
-        The formmat is {this_cell: next_cell: necessary_action} where the necessary_action is the cardinal motion
-        primitive from this_cell to next_cell. Assumes connect-4 not connect-8 (king's move).
+        The formmat is {this_cell: next_cell: necessary_action_idx} where the necessary_action_idx is the cardinal
+        motion primitive from this_cell to next_cell. Assumes connect-4 not connect-8 (king's move).
         """
         self.neighbor_dict = {} # {this_cell: next_cell: Action}
         for cell_0 in self.grid_cell_vec:
@@ -213,40 +232,41 @@ class MDP(object):
             (this_row, this_col) = np.where(self.grid_map==cell_0)
             # ID valid actions from this cell.
             this_act_prob_row_idx_of_grid_cell = self.act_prob_row_idx_of_grid_cell[cell_0]
-            valid_acts = ['Empty']
+
+            valid_acts = [self.empty_idx]
             if this_act_prob_row_idx_of_grid_cell == 0:
-                valid_acts = self.action_list
+                valid_acts += [self.action_list.index(action) for action in self.action_list[1:]]
             elif this_act_prob_row_idx_of_grid_cell == 1:
-                valid_acts += ['South', 'East', 'West']
+                valid_acts += [self.south_idx, self.east_idx, self.west_idx]
             elif this_act_prob_row_idx_of_grid_cell == 2:
-                valid_acts += ['North', 'East', 'West']
+                valid_acts += [self.north_idx, self.east_idx, self.west_idx]
             elif this_act_prob_row_idx_of_grid_cell == 3:
-                valid_acts += ['North', 'South', 'West']
+                valid_acts += [self.north_idx, self.south_idx, self.west_idx]
             elif this_act_prob_row_idx_of_grid_cell == 4:
-                valid_acts += ['North', 'South', 'East']
+                valid_acts += [self.north_idx, self.south_idx, self.east_idx]
             elif this_act_prob_row_idx_of_grid_cell == 5:
-                valid_acts += ['South', 'West']
+                valid_acts += [self.west_idx, self.south_idx]
             elif this_act_prob_row_idx_of_grid_cell == 6:
-                valid_acts += ['South', 'East']
+                valid_acts += [self.east_idx, self.south_idx]
             elif this_act_prob_row_idx_of_grid_cell == 7:
-                valid_acts += ['North', 'West']
+                valid_acts += [self.north_idx, self.west_idx]
             elif this_act_prob_row_idx_of_grid_cell == 8:
-                valid_acts += ['North', 'East']
+                valid_acts += [self.north_idx, self.east_idx]
 
             # +/- Correspond to "row/col" motions for cardinal directions.
-            if 'North' in valid_acts:
+            if self.north_idx in valid_acts:
                 next_row = this_row - 1
-                self.neighbor_dict[cell_0][self.gridCellRowColToNum(next_row, this_col)] = 'North'
-            if 'South' in valid_acts:
+                self.neighbor_dict[cell_0][self.gridCellRowColToNum(next_row, this_col)] = self.north_idx
+            if self.south_idx in valid_acts:
                 next_row = this_row + 1
-                self.neighbor_dict[cell_0][self.gridCellRowColToNum(next_row, this_col)] = 'South'
-            if 'East' in valid_acts:
+                self.neighbor_dict[cell_0][self.gridCellRowColToNum(next_row, this_col)] = self.south_idx
+            if self.east_idx in valid_acts:
                 next_col = this_col + 1
-                self.neighbor_dict[cell_0][self.gridCellRowColToNum(this_row, next_col)] = 'East'
-            if 'West' in valid_acts:
+                self.neighbor_dict[cell_0][self.gridCellRowColToNum(this_row, next_col)] = self.east_idx
+            if self.west_idx in valid_acts:
                 next_col = this_col - 1
-                self.neighbor_dict[cell_0][self.gridCellRowColToNum(this_row, next_col)] = 'West'
-            self.neighbor_dict[cell_0][self.gridCellRowColToNum(this_row, this_col)] = 'Empty'
+                self.neighbor_dict[cell_0][self.gridCellRowColToNum(this_row, next_col)] = self.west_idx
+            self.neighbor_dict[cell_0][self.gridCellRowColToNum(this_row, this_col)] = self.empty_idx
 
     def buildProbDict(self):
         """
@@ -258,9 +278,9 @@ class MDP(object):
         for act in self.action_list:
             self.prob[act]=np.zeros((self.num_cells, self.num_cells))
             for starting_cell in self.grid_cell_vec:
-                for next_cell, act_to_next_state in self.neighbor_dict[starting_cell].iteritems():
+                for next_cell, act_idx_to_next_state in self.neighbor_dict[starting_cell].iteritems():
                     self.prob[act][starting_cell, next_cell] = self.act_prob[act]\
-                        [self.act_prob_row_idx_of_grid_cell[starting_cell], self.action_list.index(act_to_next_state)]
+                        [self.act_prob_row_idx_of_grid_cell[starting_cell], act_idx_to_next_state]
 
     def sample(self, state, action, num=1):
         """
@@ -477,8 +497,9 @@ class MDP(object):
             for t_step in xrange(2, num_steps):
                 this_state = unique_episodes[episode, t_step-1]
                 next_state = unique_episodes[episode, t_step]
-                observed_action = self.graph.getObservedAction(this_state, next_state)
-                prob_of_traj_given_policy[episode] *= self.P(this_state, observed_action, next_state)
+                observed_action_idx = self.graph.getObservedAction(this_state, next_state)
+                prob_of_traj_given_policy[episode] *= self.P(this_state, self.action_list[observed_action_idx],
+                                                             next_state)
                 prob_of_traj_given_policy[episode] *= self.policy[this_state][observed_action]
         return np.sum(np.multiply(episode_freq, np.log(np.divide(episode_freq, prob_of_traj_given_policy))))
 

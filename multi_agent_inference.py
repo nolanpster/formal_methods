@@ -187,8 +187,7 @@ if perform_new_inference:
             this_state = demo_mdp.observable_states[this_state_idx]
             next_state_idx = run_histories[episode, t_step]
             next_state = demo_mdp.observable_states[next_state_idx]
-            observed_action = infer_mdp.graph.getObservedAction(this_state, next_state)
-            observed_action_indeces[episode, t_step] = action_list.index(observed_action)
+            observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(this_state, next_state)
 
     theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=True,
                                      reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True)
