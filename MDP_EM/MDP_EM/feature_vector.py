@@ -14,7 +14,8 @@ class FeatureVector(object):
     np_all = np.s_[:] # Slice operator for all values.
 
     def __init__(self, action_list, trans_prob_function, graph, ggk_centers=frozenset([]), ogk_centers=frozenset([]),
-                 std_devs=None, dtype=np.float64, ggk_mobile_indices=[], ogk_mobile_indices=[], state_list=[]):
+                 std_devs=None, dtype=np.float64, ggk_mobile_indices=[], ogk_mobile_indices=[], state_list=[],
+                 state_idx_to_infer=0, mobile_kernel_state_idx=None):
         """
         @brief Creates and instance of a feature vector class.
 
@@ -43,6 +44,8 @@ class FeatureVector(object):
         self.trans_prob_func = trans_prob_function
         self.graph = graph
         self.dtype = dtype
+        self.state_idx_to_infer = state_idx_to_infer
+        self.mobile__kernel_state_idx = None
 
         # Prepare Geodesic Gaussian Kernels
         self.ggk_centers = ggk_centers
@@ -111,18 +114,17 @@ class FeatureVector(object):
         if self.has_mobile_kernels:
             self.updateKernelWeights(self.mobile_indices)
 
-        state_idx = self.states.index(state)
         action_idx = self.action_list.index(action)
         phi_mat = np.zeros([self.num_actions, self.num_kernels])
-        phi_mat[action_idx, :] = self.weighted_prob_kernel_sum[:, state_idx, action_idx]
+        phi_mat[action_idx, :] = self.weighted_prob_kernel_sum[:, state[self.state_idx_to_infer], action_idx]
 
         return phi_mat.transpose().ravel().transpose()
 
     def buildTransProbMat(self):
-        self.prob_mat = np.empty([self.num_states, self.num_states, self.num_actions], dtype=self.dtype)
-        for state_idx, state in enumerate(self.states):
+        self.prob_mat = np.empty([self.num_cells, self.num_cells, self.num_actions], dtype=self.dtype)
+        for cell in self.grid_cell_vec:
             for act_idx, action in enumerate(self.action_list):
-                self.prob_mat[state_idx, :, act_idx] = self.trans_prob_func(state, action)
+                self.prob_mat[cell, :, act_idx] = self.trans_prob_func(cell, action)
 
     def updateStdDevs(self, std_devs=None, also_update_kernel_weights=True):
         if std_devs is not None:
@@ -188,6 +190,6 @@ class FeatureVector(object):
         # Below, the prob-mat has dimsion |S|x|S|x|A|, the first axis of states is indexed with 'i'.
         for kernel_idx in selected_kernel_indices:
             for act_idx in xrange(self.num_actions):
-                for state_idx in xrange(self.num_states):
-                    self.weighted_prob_kernel_sum[kernel_idx, state_idx, act_idx] = \
-                        np.inner(self.kernel_values[kernel_idx], self.prob_mat[state_idx, :, act_idx])
+                for cell in self.grid_cell_vec:
+                    self.weighted_prob_kernel_sum[kernel_idx, cell, act_idx] = \
+                        np.inner(self.kernel_values[kernel_idx], self.prob_mat[cell, :, act_idx])

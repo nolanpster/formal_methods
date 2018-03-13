@@ -69,9 +69,12 @@ class PolicyInference(object):
                                            dtype=DataHelp.getSmallestNumpyUnsignedIntType(self.mdp.num_actions))
         for episode in xrange(num_episodes):
             for t_step in xrange(1, num_steps):
-                this_state = self.histories[episode, t_step-1]
-                next_state = self.histories[episode, t_step]
-                observed_action_indeces[episode, t_step] = self.mdp.graph.getObservedAction(this_state, next_state)
+                this_state_idx = self.histories[episode, t_step-1]
+                this_state = self.mdp.observable_states[this_state_idx]
+                next_state_idx = self.histories[episode, t_step]
+                next_state = self.mdp.observable_states[next_state_idx]
+                observed_action_indeces[episode, t_step] = self.mdp.graph.getObservedAction((this_state,),
+                                                                                            (next_state,))
         return observed_action_indeces
 
     def computePhis(self):

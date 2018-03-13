@@ -78,6 +78,13 @@ class InferenceMDP(MDP):
         self.state_slice_length = None
         self.cell_state_slicer = slice(None, self.state_slice_length, None)
 
+    def T(self, state, action):
+        """
+        Transition model.  From a state and an action, return a row in the
+        matrix for next-state probability.
+        """
+        return self.prob[action][state, :]
+
     def buildKernels(self, gg_kernel_centers=None, og_kernel_centers=None, kernel_sigmas=None):
         """
         @brief @todo
@@ -99,7 +106,7 @@ class InferenceMDP(MDP):
 
         self.phi = FeatureVector(self.action_list, self.T, self.graph, ggk_centers=self.gg_kernel_centers,
                                  ogk_centers=self.og_kernel_centers, std_devs=self.kernel_sigmas,
-                                 state_list=self.states)
+                                 state_list=self.states, state_idx_to_infer=self.state_idx_to_observe)
         self.num_kern = self.phi.num_kernels
         self.precomputePhiAtState()
 

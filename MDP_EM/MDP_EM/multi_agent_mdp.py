@@ -94,15 +94,23 @@ class MultiAgentMDP(MDP):
         self.executable_action_dict.update(
             {unc_agent_idx: [str(unc_agent_idx) + '_' + act for act in self.action_dict[unc_agent_idx]]
              for unc_agent_idx in self.uncontrollable_agent_indices})
-        #### !!! This is the container for the TRUE environmental policy !!! ####
+
+        # Update the grid_probabilility transition matrices to have keys associated with the uncontrolable agent (for
+        # kernel transition functions). (Don't need to copy grid_prob.
+        for new_act_key, old_act_key in zip(self.executable_action_dict[self.uncontrollable_agent_indices[0]],
+                                            self.action_dict[self.uncontrollable_agent_indices[0]]):
+            self.grid_prob[new_act_key] = self.grid_prob.pop(old_act_key)
+
+       #### !!! This is the container for the TRUE environmental policy !!! ####
         self.env_policy = {agent_idx:{} for agent_idx in self.uncontrollable_agent_indices}
         ####                                                                 ####
-        kernel_centers = [frozenset([0, 2, 4, 6, 8])]
-        num_kernels_in_set = len(kernel_centers[0])
+        kernel_centers = [0, 2, 4, 6, 8]
+        num_kernels_in_set = len(kernel_centers)
         kernel_sigmas = np.array([1.]*num_kernels_in_set, dtype=infer_dtype)
+
         self.infer_env_mdp = InferenceMDP(init=self.init,
             action_list=self.executable_action_dict[self.uncontrollable_agent_indices[0]], states=states,
-            prob=deepcopy(self.prob), grid_map=self.grid_map, L=None, gg_kernel_centers=kernel_centers,
+            prob=deepcopy(self.grid_prob), grid_map=self.grid_map, L=None, gg_kernel_centers=kernel_centers,
             kernel_sigmas=kernel_sigmas, state_idx_to_observe=self.uncontrollable_agent_indices[0],
             fixed_obstacle_labels=self.fixed_obstacle_labels)
 
@@ -119,14 +127,14 @@ class MultiAgentMDP(MDP):
 
         @note This is built in a turn-based arena
         """
-        grid_prob = {}
+        self.grid_prob = {}
         if self.neighbor_dict is None:
             self.buildNeighborDict()
         for act in self.action_list:
-            grid_prob[act]=np.zeros((self.num_cells, self.num_cells), self.prob_dtype)
+            self.grid_prob[act]=np.zeros((self.num_cells, self.num_cells), self.prob_dtype)
             for starting_cell in self.grid_cell_vec:
                 for next_cell, act_idx_to_next_state in self.neighbor_dict[starting_cell].iteritems():
-                    grid_prob[act][starting_cell, next_cell] = self.act_prob[act]\
+                    self.grid_prob[act][starting_cell, next_cell] = self.act_prob[act]\
                         [self.act_prob_row_idx_of_grid_cell[starting_cell], act_idx_to_next_state]
 
         self.prob = {}
@@ -147,7 +155,7 @@ class MultiAgentMDP(MDP):
                             else:
                                 # Fill in transition probability for the acting agents motion.
                                 self.prob[joint_act][state_0_idx, state_N_idx] = \
-                                    grid_prob[grid_act][state_0[acting_agent], state_N[acting_agent]]
+                                    self.grid_prob[grid_act][state_0[acting_agent], state_N[acting_agent]]
 
     def buildUniformEnvironmentPolicy(self, agent_idx=None):
         uninform_prob = 1.0/self.num_actions
