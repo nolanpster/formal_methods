@@ -26,14 +26,9 @@ np.set_printoptions(threshold=np.inf)
 np.set_printoptions(precision=4)
 
 ########################################################################################################################
-# Load Transition Probability matricies
-robot_act_prob = ExperimentConfigs.getActionProbabilityDictionary()
-env_act_prob = ExperimentConfigs.getActionProbabilityDictionary()
-
-########################################################################################################################
 # Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
-grid_dim = [3, 3] # [num-rows, num-cols]
+grid_dim = [5, 5] # [num-rows, num-cols]
 num_cells = np.prod(grid_dim)
 cell_indeces = range(0, num_cells)
 grid_map = np.array(cell_indeces, dtype=np.int8).reshape(grid_dim)
@@ -49,7 +44,6 @@ state_indices = range(num_states)
 # Atomic Proposition and labels configuration. Note that 'empty' is the empty string/label/dfa-action. The empty action
 # for MDP incurrs a self loop. The alphabet dictionary is made of LTL_pluss atomic propositions.
 green = LTL_plus('green')
-orange = LTL_plus('orange')
 red = LTL_plus('red')
 empty = LTL_plus('E') # <-- 'E' is defined to be 'empty' in LTL_plus class.
 alphabet_dict = {'empty': empty, 'green': green, 'red': red}
@@ -58,15 +52,15 @@ alphabet_dict = {'empty': empty, 'green': green, 'red': red}
 # generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
 # _False_ to have EM and the MDP always start from the `initial_state` below.
 solve_with_uniform_distribution = False
-robot_initial_cell = 8
-env_initial_cell = 2
+robot_initial_cell = 24
+env_initial_cell = 4
 initial_state = (robot_initial_cell, env_initial_cell)
 
 # Currently assumes the robot only has one goal cell. Also, fixed obstacles only affect the robot.
-robot_goal_cell = 0 # Currently assumess only one goal.
+robot_goal_cell = 6 # Currently assumess only one goal.
 robot_goal_states = [(robot_goal_cell, cell) for cell in cell_indeces]
 
-fixed_obstacle_cells = [5]
+fixed_obstacle_cells = [13, 14, 20]
 
 labels = {state: empty for state in states}
 fixed_obs_labels = {state: empty for state in states}
@@ -99,7 +93,7 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180313_1910'
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180314_1508'
 
 
 # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -107,12 +101,12 @@ pickled_mdp_file_to_load  = 'multi_agent_mdps_180313_1910'
 # determine how large the demonstration set should be.
 gather_new_data = False
 print_history_analysis = False
-num_episodes = 1000
+num_episodes = 500
 steps_per_episode = 10
-pickled_episodes_file_to_load = 'multi_agent_mdps_180312_1952_HIST_250eps15steps_180312_2042'
+pickled_episodes_file_to_load = 'multi_agent_mdps_180314_1508_HIST_500eps10steps_180314_1509'
 
 # Perform/load policy inference options. If @c perform_new_inference is false, load the @pickled_inference_mdps_file.
-perform_new_inference = True
+perform_new_inference = False
 pickled_inference_mdps_file_to_load  = 'robot_mdps_180311_1149_HIST_250eps15steps_180311_1149_Policy_180311_1149'
 inference_method = 'gradientAscentGaussianTheta'
 
@@ -121,9 +115,9 @@ num_theta_samples = 3000
 
 # Plotting flags
 plot_all_grids = False
-plot_VI_mdp_grids = False
+plot_VI_mdp_grids = True
 plot_EM_mdp_grids = False
-plot_inferred_mdp_grids = True
+plot_inferred_mdp_grids = False
 plot_flags = [plot_all_grids, plot_VI_mdp_grids, plot_EM_mdp_grids, plot_inferred_mdp_grids]
 ########################################################################################################################
 # Create / Load Multi Agent MDP
@@ -140,7 +134,7 @@ if make_new_mdp:
         use_mobile_kernels = False
     VI_mdp, policy_keys_to_print = ExperimentConfigs.makeMultiAgentGridMDPxDRA(states, initial_state, action_dict,
                                                                                alphabet_dict, labels, grid_map,
-                                                                               do_print=True, init_set=init_set,
+                                                                               do_print=False, init_set=init_set,
                                                                                prob_dtype=prob_dtype,
                                                                                fixed_obstacle_labels=fixed_obs_labels,
                                                                                use_mobile_kernels=use_mobile_kernels)
@@ -149,6 +143,9 @@ if make_new_mdp:
 else:
     (VI_mdp, policy_keys_to_print, pickled_mdp_file) = DataHelper.loadPickledMDP(pickled_mdp_file_to_load)
 
+# Override recorded initial dist to be uniform
+VI_mdp.init_set=policy_keys_to_print
+VI_mdp.setInitialProbDist()
 reference_policy_vec = VI_mdp.getPolicyAsVec(policy_keys_to_print)
 
 ########################################################################################################################
@@ -202,9 +199,9 @@ if perform_new_inference:
             next_state = demo_mdp.observable_states[next_state_idx]
             observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(this_state, next_state)
 
-    theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=True,
+    theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                                      reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True,
-                                     monte_carlo_size=monte_carlo_size)
+                                     monte_carlo_size=monte_carlo_size, print_iterations=True)
 
 ########################################################################################################################
 # Print Results' analysis
@@ -215,6 +212,7 @@ if perform_new_inference:
 if len(policy_keys_to_print) == infer_mdp.num_states:
     infered_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
     print('L1-norm between reference and inferred policy: {}.'.format(infered_policy_L1_norm_error))
+    print('L1-norm as a fraction of max error: {}.'.format(2*infered_policy_L1_norm_error/len(true_env_policy_vec)))
 else:
     warnings.warn('Demonstration MDP and inferred MDP do not have the same number of states. Perhaps one was '
                   'loaded from an old file? Not printing policy difference.')
