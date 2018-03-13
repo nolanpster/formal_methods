@@ -99,7 +99,7 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180312_2300'
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180313_1910'
 
 
 # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -109,12 +109,15 @@ gather_new_data = False
 print_history_analysis = False
 num_episodes = 1000
 steps_per_episode = 10
-pickled_episodes_file_to_load = 'multi_agent_mdps_180312_1952_HIST_1000eps10steps_180312_2124'
+pickled_episodes_file_to_load = 'multi_agent_mdps_180312_1952_HIST_250eps15steps_180312_2042'
 
 # Perform/load policy inference options. If @c perform_new_inference is false, load the @pickled_inference_mdps_file.
 perform_new_inference = True
 pickled_inference_mdps_file_to_load  = 'robot_mdps_180311_1149_HIST_250eps15steps_180311_1149_Policy_180311_1149'
-inference_method = 'gradientAscent'
+inference_method = 'gradientAscentGaussianTheta'
+
+# Gaussian Theta params
+num_theta_samples = 3000
 
 # Plotting flags
 plot_all_grids = False
@@ -131,11 +134,16 @@ if make_new_mdp:
     else:
         # Leave MDP.init_set unset (=None) to solve the system from a single initial_state.
         init_set = None
+    if 'gradientAscent' in inference_method:
+        use_mobile_kernels = True
+    else:
+        use_mobile_kernels = False
     VI_mdp, policy_keys_to_print = ExperimentConfigs.makeMultiAgentGridMDPxDRA(states, initial_state, action_dict,
                                                                                alphabet_dict, labels, grid_map,
                                                                                do_print=True, init_set=init_set,
                                                                                prob_dtype=prob_dtype,
-                                                                               fixed_obstacle_labels=fixed_obs_labels)
+                                                                               fixed_obstacle_labels=fixed_obs_labels,
+                                                                               use_mobile_kernels=use_mobile_kernels)
     variables_to_save = [VI_mdp, policy_keys_to_print]
     pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps")
 else:
@@ -178,6 +186,11 @@ true_env_policy_vec = infer_mdp.getPolicyAsVec(policy_to_convert=VI_mdp.env_poli
 if perform_new_inference:
     # Infer the policy from the recorded data.
 
+    if 'GaussianTheta' in inference_method:
+        monte_carlo_size = num_theta_samples
+    else:
+        monte_carlo_size = None
+
     # Precompute observed actions for all episodes. Should do this in a "history" class.
     observation_dtype  = DataHelper.getSmallestNumpyUnsignedIntType(demo_mdp.num_actions)
     observed_action_indeces = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
@@ -190,7 +203,8 @@ if perform_new_inference:
             observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(this_state, next_state)
 
     theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=True,
-                                     reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True)
+                                     reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True,
+                                     monte_carlo_size=monte_carlo_size)
 
 ########################################################################################################################
 # Print Results' analysis

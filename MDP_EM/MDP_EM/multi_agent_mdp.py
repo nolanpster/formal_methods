@@ -26,7 +26,8 @@ class MultiAgentMDP(MDP):
     """
     def __init__(self, init=None, action_dict={}, states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
                  reward=dict([]), grid_map=None, act_prob=dict([]), init_set=None, prob_dtype=np.float64,
-                 index_of_controllable_agent=0, infer_dtype=np.float64, fixed_obstacle_labels=dict([])):
+                 index_of_controllable_agent=0, infer_dtype=np.float64, fixed_obstacle_labels=dict([]),
+                 use_mobile_kernels=False):
         """
         @brief Construct an MDP meant to perform inference.
         @param init @todo
@@ -73,6 +74,22 @@ class MultiAgentMDP(MDP):
         else:
             self.fixed_obstacle_labels = fixed_obstacle_labels
 
+        # Need current state to be a valid location to build inference mdp.
+        self.resetState()
+
+        # Configure kernels for InferenceMDP()
+        fixed_kernel_centers = [0, 2, 4, 6, 8]
+        if use_mobile_kernels:
+            mobile_kernel_centers = [self.current_state[self.controllable_agent_idx]]
+            kernel_centers = fixed_kernel_centers + mobile_kernel_centers
+            state_idx_of_mobile_kernel = self.controllable_agent_idx
+        else:
+            kernel_centers = fixed_kernel_centers
+            state_idx_of_mobile_kernel = None
+        ggk_mobile_indices = [cent for cent in range(len(fixed_kernel_centers), len(kernel_centers))]
+        num_kernels_in_set = len(kernel_centers)
+        kernel_sigmas = np.array([1.]*num_kernels_in_set, dtype=infer_dtype)
+
         # Reset any values 'uninitialize' by base-class constructor. @TODO These variables are manually copied in
         # ProductMDPxDRA.reconfigureConditionalInitialValues(). That's a shitty hack. Fix that. xoxo Nolan
         # Current flow is:
@@ -101,18 +118,22 @@ class MultiAgentMDP(MDP):
                                             self.action_dict[self.uncontrollable_agent_indices[0]]):
             self.grid_prob[new_act_key] = self.grid_prob.pop(old_act_key)
 
-       #### !!! This is the container for the TRUE environmental policy !!! ####
+        #### !!! This is the container for the TRUE environmental policy !!! ####
         self.env_policy = {agent_idx:{} for agent_idx in self.uncontrollable_agent_indices}
         ####                                                                 ####
-        kernel_centers = [0, 2, 4, 6, 8]
-        num_kernels_in_set = len(kernel_centers)
-        kernel_sigmas = np.array([1.]*num_kernels_in_set, dtype=infer_dtype)
 
         self.infer_env_mdp = InferenceMDP(init=self.init,
-            action_list=self.executable_action_dict[self.uncontrollable_agent_indices[0]], states=states,
-            prob=deepcopy(self.grid_prob), grid_map=self.grid_map, L=None, gg_kernel_centers=kernel_centers,
-            kernel_sigmas=kernel_sigmas, state_idx_to_observe=self.uncontrollable_agent_indices[0],
-            fixed_obstacle_labels=self.fixed_obstacle_labels)
+                                          action_list=self.executable_action_dict[self.uncontrollable_agent_indices[0]],
+                                          states=states,
+                                          prob=deepcopy(self.grid_prob),
+                                          grid_map=self.grid_map,
+                                          L=None,
+                                          gg_kernel_centers=kernel_centers,
+                                          kernel_sigmas=kernel_sigmas,
+                                          state_idx_to_observe=self.uncontrollable_agent_indices[0],
+                                          fixed_obstacle_labels=self.fixed_obstacle_labels,
+                                          ggk_mobile_indices=ggk_mobile_indices,
+                                          state_idx_of_mobile_kernel=state_idx_of_mobile_kernel)
 
         self.env_policy = {agent_idx:{} for agent_idx in self.uncontrollable_agent_indices}
 

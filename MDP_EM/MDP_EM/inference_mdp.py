@@ -20,7 +20,8 @@ class InferenceMDP(MDP):
     def __init__(self, init=None, action_list=[], states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
                  reward=dict([]), grid_map=None, act_prob=dict([]), gg_kernel_centers=frozenset([]),
                  og_kernel_centers=frozenset([]), kernel_sigmas=None, prob_dtype=np.float64, state_idx_to_observe=0,
-                 fixed_obstacle_labels=dict([])):
+                 fixed_obstacle_labels=dict([]), ggk_mobile_indices=[], ogk_mobile_indices=[],
+                 state_idx_of_mobile_kernel=None):
         """
         @brief Construct an MDP meant to perform inference.
         @param init @todo
@@ -60,9 +61,12 @@ class InferenceMDP(MDP):
             self.graph = None
 
         self.gg_kernel_centers = gg_kernel_centers
+        self.ggk_mobile_indices = ggk_mobile_indices
         self.og_kernel_centers = og_kernel_centers
+        self.ogk_mobile_indices = ogk_mobile_indices
         self.kernel_centers = list(self.gg_kernel_centers) + list(self.og_kernel_centers)
         self.kernel_sigmas = kernel_sigmas
+        self.state_idx_of_mobile_kernel = state_idx_of_mobile_kernel
         if (self.graph is not None) and (self.kernel_centers):
             # Graph is not none and kernel centers is not an empty list:
             self.buildKernels()
@@ -106,7 +110,10 @@ class InferenceMDP(MDP):
 
         self.phi = FeatureVector(self.action_list, self.T, self.graph, ggk_centers=self.gg_kernel_centers,
                                  ogk_centers=self.og_kernel_centers, std_devs=self.kernel_sigmas,
-                                 state_list=self.states, state_idx_to_infer=self.state_idx_to_observe)
+                                 state_list=self.states, state_idx_to_infer=self.state_idx_to_observe,
+                                 ggk_mobile_indices=self.ggk_mobile_indices,
+                                 ogk_mobile_indices=self.ogk_mobile_indices,
+                                 mobile_kernel_state_idx=self.state_idx_of_mobile_kernel)
         self.num_kern = self.phi.num_kernels
         self.precomputePhiAtState()
 
