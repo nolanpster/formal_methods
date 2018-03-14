@@ -123,7 +123,7 @@ class ProductMDPxDRA(MDP):
         else:
             super(self.__class__, self).setSinks(sink_list)
 
-    def configureReward(self, winning_reward):
+    def configureReward(self, winning_reward, bonus_reward_at_state=dict([])):
         """
         @breif Configure the reward dictionary for the MDPxDRA.
 
@@ -155,6 +155,10 @@ class ProductMDPxDRA(MDP):
             else:
                 # No reward when leaving current state.
                 reward_dict[state] = no_reward
+            if bonus_reward_at_state and 'q0' in state:
+                env_state = state[self.cell_state_slicer][0]
+                for robot_act, env_act in zip(reward_dict[state].keys(), bonus_reward_at_state[env_state].keys()):
+                    reward_dict[state][robot_act] += bonus_reward_at_state[env_state][env_act]
         self.reward = reward_dict
 
     def makeUniformPolicy(self):

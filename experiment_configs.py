@@ -5,9 +5,10 @@ from NFA_DFA_Module.DFA import DRA
 from MDP_EM.MDP_EM.MDP import MDP
 from MDP_EM.MDP_EM.multi_agent_mdp import MultiAgentMDP
 from MDP_EM.MDP_EM.product_mdp_x_dra import ProductMDPxDRA
+import MDP_EM.MDP_EM.data_helper as DataHelper
 
 import numpy as np
-
+import time
 from copy import deepcopy
 
 def getActionProbabilityDictionary(dtype=np.float64):
@@ -223,3 +224,79 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
                  policy_keys_to_print=policy_keys_to_print)
 
     return VI_mdp, policy_keys_to_print
+
+
+def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=100,
+        num_steps_per_traj=15, inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
+        num_theta_samples=2000, SGA_eps=0.00001, SGA_log_prob_thresh=np.log(0.8)):
+
+    # Create a reference to the mdp used for inference.
+    infer_mdp = arena_mdp.infer_env_mdp
+    true_env_policy_vec = infer_mdp.getPolicyAsVec(policy_to_convert=arena_mdp.env_policy[env_idx])
+    infer_mdp.theta = np.zeros(len(infer_mdp.phi))
+    infer_mdp.theta_std_dev = np.ones(infer_mdp.theta.size)
+
+    winning_reward = {act: 0.0 for act in arena_mdp.action_list}
+    winning_reward['0_Empty'] = 1.0
+
+    # Data types are constant for every batch.
+    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(arena_mdp.num_observable_states)
+    observation_dtype  = DataHelper.getSmallestNumpyUnsignedIntType(arena_mdp.num_actions)
+
+    # Create a dictionary of observable states for printing.
+    policy_keys_to_print = deepcopy([(state[0], arena_mdp.dra.get_transition(arena_mdp.L[state], state[1])) for state in
+                                     arena_mdp.states if 'q0' in state])
+
+    # Variables for logging data
+    inferred_policy = {}
+    inferred_policy_L1_norm = {}
+    inferred_policy_variance = {}
+
+
+    for batch in range(num_batches):
+        batch_start_time = time.time()
+        ### Roll Out ###
+        run_histories = np.zeros([num_trajectories_per_batch, num_steps_per_traj], dtype=hist_dtype)
+        observed_action_indeces = np.empty([num_trajectories_per_batch, num_steps_per_traj], dtype=observation_dtype)
+        for episode in xrange(num_trajectories_per_batch):
+            # Create time-history for this episode.
+            _, run_histories[episode, 0] = arena_mdp.resetState()
+            for t_step in xrange(1, num_steps_per_traj):
+                # Take step
+                _, run_histories[episode, t_step] = arena_mdp.step()
+                # Record observed action.
+                prev_state_idx = run_histories[episode, t_step-1]
+                prev_state = arena_mdp.observable_states[prev_state_idx]
+                this_state_idx = run_histories[episode, t_step]
+                this_state = arena_mdp.observable_states[this_state_idx]
+                observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(prev_state, this_state)
+
+        ### Infer ###
+        theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
+                                                       reference_policy_vec=true_env_policy_vec,
+                                                       use_precomputed_phi=True, monte_carlo_size=num_theta_samples,
+                                                       precomputed_observed_action_indeces=observed_action_indeces,
+                                                       print_iterations=True, eps=0.00001, thresh_prob=0.3,
+                                                       theta_0=infer_mdp.theta)
+        # Print Inference error
+        infered_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
+        print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch,infered_policy_L1_norm_error))
+        print('L1-norm as a fraction of max error: {}.'.format(infered_policy_L1_norm_error/2/len(true_env_policy_vec)))
+
+        # Go through and pop keys from policy_uncertainty into a dict built from policy_keys_to_print.
+        arena_mdp.configureReward(winning_reward, bonus_reward_at_state=makeBonusReward(infer_mdp.policy_uncertainty))
+
+        arena_mdp.solve(do_print=False, method='valueIteration', write_video=False,
+                        policy_keys_to_print=policy_keys_to_print)
+        batch_stop_time = time.time()
+        print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
+
+
+def makeBonusReward(policy_uncertainty_dict):
+    exploration_weight = 0.2
+    bonus_reward_dict = dict.fromkeys(policy_uncertainty_dict)
+    for state in policy_uncertainty_dict:
+        bonus_reward_dict[state] = {}
+        for act in policy_uncertainty_dict[state].keys():
+            bonus_reward_dict[state][act] = exploration_weight * policy_uncertainty_dict[state][act]
+    return bonus_reward_dict
