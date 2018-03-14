@@ -20,7 +20,7 @@ class ProductMDPxDRA(MDP):
     of atomic propositions. Each proposition is identified by an index between 0 -N.  L: the labeling function,
     implemented as a dictionary: state: a subset of AP."""
     def __init__(self, mdp, dra, sink_action=None, sink_list=[], losing_sink_label=None, winning_reward=None,
-                 prob_dtype=np.float64):
+                 prob_dtype=np.float64, winning_label=None, skip_product_calcs=False):
         """
         @brief
         """
@@ -33,14 +33,16 @@ class ProductMDPxDRA(MDP):
         # dictionary keys and this class augments the state tuple from (mdp_state) to ((mdp_state),dra_state).
         self.state_slice_length = 1
         self.cell_state_slicer = slice(None, self.state_slice_length, None)
-
-        self.computeProductMDPxDRA(mdp, dra)
         self.gamma=mdp.gamma
         self.grid_map = deepcopy(mdp.grid_map)
         self.sink_action = sink_action
+        self.losing_sink_label = losing_sink_label
+        self.winning_label = winning_label
+
+        self.product_calcs_skipped = skip_product_calcs
+        self.computeProductMDPxDRA(mdp, dra, skip_product_calcs)
         self.reconfigureConditionalInitialValues()
         self.setSinks(sink_list)
-        self.losing_sink_label=losing_sink_label
         if winning_reward is not None:
             self.configureReward(winning_reward)
         self.makeUniformPolicy()
@@ -61,43 +63,63 @@ class ProductMDPxDRA(MDP):
             #self.mdp.cell_state_slicer = self.cell_state_slicer
             #self.mdp.prob = self.prob
 
-    def computeProductMDPxDRA(self, mdp, dra):
-        # Create product MDP-times-DRA
-        if mdp.init is not None:
-            init = (mdp.init, dra.get_transition(mdp.L[mdp.init], dra.initial_state))
+    def computeProductMDPxDRA(self, mdp, dra, skip_product_calcs=False):
+        if skip_product_calcs:
+            if mdp.init is not None:
+                init = (mdp.init,)
+            else:
+                init = tuple()
+            if mdp.init_set is not None:
+                self.init_set = [(m_i,) for m_i in mdp.init_set]
+            self.init = init
+            prod_states = [(state,) for state in mdp.states]
+            self.L ={(state,): label for state, label in mdp.L.iteritems()}
+            N = len(prod_states)
+            self.action_list = list(mdp.action_list)
+            self.states = list(prod_states)
+            self.prob = mdp.prob
+            mdp_acc = set([])
+            for state in self.states:
+                if mdp.L[state[mdp.cell_state_slicer][0]] == self.winning_label:
+                    mdp_acc.add(state,)
+            self.acc = [(mdp_acc,)]
         else:
-            init = tuple()
-        if mdp.init_set is not None:
-            self.init_set = [(m_i, dra.get_transition(mdp.L[m_i], dra.initial_state)) for m_i in mdp.init_set]
-        self.init = init
-        prod_states = []
-        for _s in mdp.states:
-            for _q in dra.states:
-                prod_states.append((_s, _q))
-        N = len(prod_states)
-        self.action_list = list(mdp.action_list)
-        self.states = list(prod_states)
-        for act in self.action_list:
-            self.prob[act] = np.zeros((N, N), self.prob_dtype)
-            for prod_state in range(N):
-                (_s,_q) = self.states[prod_state]
-                self.L[(_s, _q)] = mdp.L[_s]
-                for _j in range(N):
-                    (next_s,next_q) = self.states[_j]
-                    if next_q == dra.get_transition(mdp.L[next_s], _q):
-                        _p = mdp.P(_s, act, next_s)
-                        self.prob[act][prod_state, _j] =  _p
-        mdp_acc = []
-        for (J,K) in dra.acc:
-            Jmdp = set([])
-            Kmdp = set([])
-            for prod_state in prod_states:
-                if prod_state[1] in J:
-                    Jmdp.add(prod_state)
-                if prod_state[1] in K:
-                    Kmdp.add(prod_state)
-            mdp_acc.append((Jmdp, Kmdp))
-        self.acc = mdp_acc
+            # Create product MDP-times-DRA
+            if mdp.init is not None:
+                init = (mdp.init, dra.get_transition(mdp.L[mdp.init], dra.initial_state))
+            else:
+                init = tuple()
+            if mdp.init_set is not None:
+                self.init_set = [(m_i, dra.get_transition(mdp.L[m_i], dra.initial_state)) for m_i in mdp.init_set]
+            self.init = init
+            prod_states = []
+            for _s in mdp.states:
+                for _q in dra.states:
+                    prod_states.append((_s, _q))
+            N = len(prod_states)
+            self.action_list = list(mdp.action_list)
+            self.states = list(prod_states)
+            for act in self.action_list:
+                self.prob[act] = np.zeros((N, N), self.prob_dtype)
+                for prod_state in range(N):
+                    (_s,_q) = self.states[prod_state]
+                    self.L[(_s, _q)] = mdp.L[_s]
+                    for _j in range(N):
+                        (next_s,next_q) = self.states[_j]
+                        if next_q == dra.get_transition(mdp.L[next_s], _q):
+                            _p = mdp.P(_s, act, next_s)
+                            self.prob[act][prod_state, _j] =  _p
+            mdp_acc = []
+            for (J,K) in dra.acc:
+                Jmdp = set([])
+                Kmdp = set([])
+                for prod_state in prod_states:
+                    if prod_state[1] in J:
+                        Jmdp.add(prod_state)
+                    if prod_state[1] in K:
+                        Kmdp.add(prod_state)
+                mdp_acc.append((Jmdp, Kmdp))
+            self.acc = mdp_acc
 
     def setSinks(self, sink_list):
         """

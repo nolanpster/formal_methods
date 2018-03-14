@@ -207,15 +207,24 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
     # solved with Value Iteration.
     winning_reward = {act: 0.0 for act in grid_mdp.action_list}
     winning_reward['0_Empty'] = 1.0
-    VI_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='0_Empty', sink_list=['q2', 'q3'],
+    skip_product_calcs = False
+    if skip_product_calcs:
+        sink_list = [state for state, label in labels.iteritems() if label is not alphabet_dict['empty']]
+    else:
+        sink_list = ['q2', 'q3']
+    VI_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='0_Empty', sink_list=sink_list,
                                  losing_sink_label=alphabet_dict['red'], winning_reward=winning_reward,
-                                 prob_dtype=prob_dtype)
+                                 prob_dtype=prob_dtype, skip_product_calcs=skip_product_calcs,
+                                 winning_label=alphabet_dict['green'])
 
     # @TODO Prune unreachable states from MDP.
 
     # Create a dictionary of observable states for printing.
-    policy_keys_to_print = deepcopy([(state[0], VI_mdp.dra.get_transition(VI_mdp.L[state], state[1])) for state in
-                                     VI_mdp.states if 'q0' in state])
+    if skip_product_calcs:
+        policy_keys_to_print = VI_mdp.states
+    else:
+        policy_keys_to_print = deepcopy([(state[0], VI_mdp.dra.get_transition(VI_mdp.L[state], state[1])) for state in
+                                         VI_mdp.states if 'q0' in state])
     VI_mdp.setObservableStates(observable_states=policy_keys_to_print)
 
     ##### SOLVE #####
