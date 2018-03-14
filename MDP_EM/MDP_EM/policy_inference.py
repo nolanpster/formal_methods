@@ -473,7 +473,8 @@ class PolicyInference(object):
 
     def gradientAscentGaussianTheta(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False,
                                     dtype=np.float64, monte_carlo_size=10, reference_policy_vec=None,
-                                    precomputed_observed_action_indeces=None, theta_std_dev_0=None, **kwargs):
+                                    precomputed_observed_action_indeces=None, theta_std_dev_0=None,
+                                    print_iterations=False, thresh_prob=0.9, eps=0.0001,  **kwargs):
         """
         @brief Performs Policy inference using gradient ascent on the distribution theta_i ~ (mu_i, sigma_i).
 
@@ -564,9 +565,8 @@ class PolicyInference(object):
         theta_mu_avg = deepcopy(theta_0[0])
         theta_sigma_avg = deepcopy(theta_std_dev_0)
         max_log_prob_traj = np.log(0.8) * self.histories.size
-        log_prob_thresh = np.log(0.999) * self.histories.size
+        log_prob_thresh = np.log(thresh_prob) * self.histories.size
         thresh = 0.05
-        eps = 0.0001
         inverse_temp_start = np.float16(1.0)
         inverse_temp = inverse_temp_start
         # Larger value of inverse_temp_rate causes the temperature to cool faster, reduces oscilation. Set to 0 to
@@ -583,7 +583,7 @@ class PolicyInference(object):
         # Loop until convergence unless killed by Crtl-C
         killer = GracefulKiller()
         while (log_prob_traj_given_mean_thetas < (log_prob_thresh + max_log_prob_traj)) and not killer.kill_now:
-            if do_print:
+            if do_print or print_iterations:
                 iter_tic = time.clock()
             iter_count += 1
             inverse_temp += inverse_temp_rate
@@ -658,7 +658,7 @@ class PolicyInference(object):
             if do_plot:
                 means2plot = np.vstack((means2plot, theta_mean_vec))
                 sigmas2plot = np.vstack((sigmas2plot, theta_std_dev_vec))
-            if do_print:
+            if do_print or print_iterations:
                 infer_toc = time.clock() - iter_tic
                 pprint('Iter#: {}, delta_mu: {}, delta_sigma: {}, mean_LogLike: {}, iter-time: {}sec.'
                        .format(iter_count, delta_theta_mu_norm, delta_theta_sigma_norm, log_prob_traj_given_mean_thetas,
