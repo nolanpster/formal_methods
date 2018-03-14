@@ -517,14 +517,14 @@ class PolicyInference(object):
         # Initialize Weight vector, theta.
         if theta_0 is None:
             test_phi = self.mdp.phi(self.mdp.states[0], self.mdp.action_list[0])
-            theta_0 = np.empty([test_phi.size, 1], dtype=dtype).T
+            theta_0 = np.empty(test_phi.size, dtype=dtype)
             for kern_idx in xrange(self.mdp.num_kern):
                 for act_idx, act in enumerate(self.mdp.action_list):
-                    theta_0[0][kern_idx*self.mdp.num_actions+act_idx]= 1.0 / (theta_0.size)
+                    theta_0[kern_idx*self.mdp.num_actions+act_idx]= 1.0 / (theta_0.size)
         self.theta_size = theta_0.size
         self.ones_length_theta = np.ones(self.theta_size)
-        self.mdp.theta = deepcopy(theta_0[0])
-        theta_mean_vec = deepcopy(theta_0[0]) # Vector to compute SGD with.
+        self.mdp.theta = deepcopy(theta_0)
+        theta_mean_vec = deepcopy(theta_0) # Vector to compute SGD with.
 
         if theta_std_dev_0 is None:
             theta_std_dev_0 = np.ones(self.theta_size)
@@ -562,7 +562,7 @@ class PolicyInference(object):
         # theta vector as described here: https://en.wikipedia.org/wiki/Moving_average#Exponential_moving_average. Take
         # the difference between the new average @theta and the previous @theta. If the Euclidian norm of the difference
         # is less than @c thresh, the iteration exits.
-        theta_mu_avg = deepcopy(theta_0[0])
+        theta_mu_avg = deepcopy(theta_0)
         theta_sigma_avg = deepcopy(theta_std_dev_0)
         max_log_prob_traj = np.log(0.8) * self.histories.size
         log_prob_thresh = np.log(thresh_prob) * self.histories.size
