@@ -2,6 +2,7 @@
 __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 
 import numpy as np
+from numpy.core.umath_tests import inner1d
 from copy import deepcopy
 from pprint import pprint
 import time
@@ -67,19 +68,17 @@ class MDP_solvers(object):
             prev_values = deepcopy(values)
             for s_idx, state in enumerate(self.mdp.states):
                 for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]:
-                    reward = self.mdp.reward[state][act]
+                    this_value = self.mdp.reward[state][act]
                     # Column of Transition matrix
                     trans_prob = self.mdp.T(state, act)
                     # Using the actual discount factor, comput the value.
-                    this_value = reward + self.mdp.gamma * np.dot(trans_prob, prev_values)
+                    this_value += self.mdp.gamma * inner1d(trans_prob, prev_values)
                     # Update value if new one is larger.
                     if this_value > values[s_idx]:
                         values[s_idx] = this_value
                         policy[state] = empty_policy_dist.copy()
                         policy[state][act] = 1
-                    if self.write_video:
-                        self.video_writer.render(policy)
-            delta_value_norm = np.linalg.norm(values - prev_values)
+            delta_value_norm = np.linalg.norm(np.subtract(values, prev_values))
         # Set zero-likly-hood states to take empty action.
         for state in self.mdp.states:
             if sum(policy[state].values()) == 0:
