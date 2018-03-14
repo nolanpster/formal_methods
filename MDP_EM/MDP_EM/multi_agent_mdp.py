@@ -27,7 +27,7 @@ class MultiAgentMDP(MDP):
     def __init__(self, init=None, action_dict={}, states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
                  reward=dict([]), grid_map=None, act_prob=dict([]), init_set=None, prob_dtype=np.float64,
                  index_of_controllable_agent=0, infer_dtype=np.float64, fixed_obstacle_labels=dict([]),
-                 use_mobile_kernels=False):
+                 use_mobile_kernels=False, ggk_centers=[]):
         """
         @brief Construct an MDP meant to perform inference.
         @param init @todo
@@ -78,7 +78,7 @@ class MultiAgentMDP(MDP):
         self.resetState()
 
         # Configure kernels for InferenceMDP()
-        fixed_kernel_centers = [0, 2, 4, 6, 8]
+        fixed_kernel_centers = ggk_centers
         if use_mobile_kernels:
             mobile_kernel_centers = [self.current_state[self.controllable_agent_idx]]
             kernel_centers = fixed_kernel_centers + mobile_kernel_centers

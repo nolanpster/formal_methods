@@ -109,6 +109,7 @@ pickled_episodes_file_to_load = 'multi_agent_mdps_180314_1508_HIST_500eps10steps
 perform_new_inference = False
 pickled_inference_mdps_file_to_load  = 'robot_mdps_180311_1149_HIST_250eps15steps_180311_1149_Policy_180311_1149'
 inference_method = 'gradientAscentGaussianTheta'
+gg_kernel_centers = [0, 4, 12, 20, 24]
 
 # Gaussian Theta params
 num_theta_samples = 3000
@@ -137,7 +138,8 @@ if make_new_mdp:
                                                                                do_print=False, init_set=init_set,
                                                                                prob_dtype=prob_dtype,
                                                                                fixed_obstacle_labels=fixed_obs_labels,
-                                                                               use_mobile_kernels=use_mobile_kernels)
+                                                                               use_mobile_kernels=use_mobile_kernels,
+                                                                               gg_kernel_centers=gg_kernel_centers)
     variables_to_save = [VI_mdp, policy_keys_to_print]
     pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps")
 else:
