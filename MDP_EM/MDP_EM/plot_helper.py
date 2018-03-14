@@ -264,7 +264,7 @@ def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set
 
 def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_grids=False,
                    plot_inferred_mdp_grids=False, VI_mdp=None, EM_mdp=None, infer_mdp=None, robot_action_list=None,
-                   env_action_list=None):
+                   env_action_list=None, VI_plot_keys=None, EM_plot_keys=None, infer_plot_keys=None):
 
     mdp_list = []
     plot_policies = []
@@ -272,6 +272,7 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
     titles = []
     kernel_locations = []
     action_lists = []
+    plot_key_groups = []
     if plot_all_grids or (plot_VI_mdp_grids and plot_EM_mdp_grids and plot_inferred_mdp_grids):
         mdp_list = [VI_mdp, EM_mdp, infer_mdp]
         plot_policies = [VI_mdp.policy, EM_mdp.policy, infer_mdp.policy]
@@ -279,6 +280,7 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
         only_use_print_keys = [True, True, False]
         kernel_locations = [None, None, infer_mdp.kernel_centers]
         action_lists = [robot_action_list, robot_action_list, env_action_list]
+        plot_key_groups = [VI_plot_keys, EM_plot_keys, infer_plot_keys]
         return mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations
 
     if plot_VI_mdp_grids:
@@ -288,6 +290,7 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
         kernel_locations.append(None)
         only_use_print_keys.append(True)
         action_lists.append(robot_action_list)
+        plot_key_groups.append(VI_plot_keys)
 
     if plot_EM_mdp_grids:
         mdp_list.append(EM_mdp)
@@ -296,6 +299,7 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
         kernel_locations.append(None)
         only_use_print_keys.append(True)
         action_lists.append(robot_action_list)
+        plot_key_groups.append(EM_plot_keys)
 
     if plot_inferred_mdp_grids:
         mdp_list.append(infer_mdp)
@@ -304,5 +308,6 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
         only_use_print_keys.append(False)
         kernel_locations.append(infer_mdp.kernel_centers)
         action_lists.append(env_action_list)
+        plot_key_groups.append(infer_plot_keys)
 
-    return mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations, action_lists
+    return mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations, action_lists, plot_key_groups

@@ -222,39 +222,46 @@ else:
 ########################################################################################################################
 # Plot Results
 ########################################################################################################################
-policy_keys_for_env_poses = {env_cell: [(robot_cell, env_cell) for robot_cell in demo_mdp.grid_cell_vec] for env_cell in
+VI_policy_key_groups = {env_cell: [((robot_cell, env_cell),) for robot_cell in demo_mdp.grid_cell_vec] for env_cell in
                              demo_mdp.grid_cell_vec}
+infer_policy_key_groups = {env_cell: [(robot_cell, env_cell) for robot_cell in demo_mdp.grid_cell_vec] for env_cell in
+                            demo_mdp.grid_cell_vec}
 
 if any(plot_flags):
 
     # Create plots for comparison. Note that the the `maze` array has one more row and column than the `grid` for
     # plotting purposes.
-    maze = np.zeros(np.array(grid_dim)+1)
-    for state, label in labels.iteritems():
-        if label==red:
-            grid_row, grid_col = np.where(grid_map==state[0])
-            maze[grid_row, grid_col] = 2
-        if label==green:
-            grid_row, grid_col = np.where(grid_map==state[0])
-            maze[grid_row, grid_col] = 1
     if red in labels.values():
         # Maximum value in maze corresponds to red.
-        cmap = mcolors.ListedColormap(['white','green','red'])
+        color_list = ['white','green','red','blue']
     else:
         # Maximum value in maze corresponds to green.
-        cmap = mcolors.ListedColormap(['white','green'])
+        color_list = ['white','green','blue']
+    cmap = mcolors.ListedColormap(color_list)
+    maze = np.zeros(np.array(grid_dim)+1)
+    for state, label in labels.iteritems():
+        if label==red and fixed_obs_labels[state]==red:
+            grid_row, grid_col = np.where(grid_map==state[0])
+            maze[grid_row, grid_col] = color_list.index('red')
+        if label==green:
+            grid_row, grid_col = np.where(grid_map==state[0])
+            maze[grid_row, grid_col] = color_list.index('green')
 
-    mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations, action_lists = \
+    mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations, action_lists, plot_key_groups = \
         PlotHelper.makePlotGroups(plot_all_grids, plot_VI_mdp_grids, plot_EM_mdp_grids, plot_inferred_mdp_grids,
                                   VI_mdp=VI_mdp, infer_mdp=infer_mdp, robot_action_list=robot_action_list,
-                                  env_action_list=env_action_list)
+                                  env_action_list=env_action_list, VI_plot_keys=VI_policy_key_groups,
+                                  infer_plot_keys=infer_policy_key_groups)
 
     if plot_all_grids or plot_VI_mdp_grids or plot_EM_mdp_grids or plot_inferred_mdp_grids:
         center_offset = 0.5 # Shifts points into center of cell.
         base_policy_grid = PlotHelper.PlotPolicy(maze, cmap, center_offset)
-        for mdp_to_plot, policy, use_print_keys, title, kernel_loc, act_list in zip(mdp_list, plot_policies,
-                                                                                    only_use_print_keys, titles,
-                                                                                    kernel_locations, action_lists):
+        for mdp_to_plot, policy, use_print_keys, title, kernel_loc, act_list, plot_key_dict in \
+                zip(mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations, action_lists,
+                    plot_key_groups):
+            # Plot one policy plot for each environment location for the robot's policy, or plot one policy plot for
+            # each robot location for the inference policy.
+
             key_slicer = mdp_to_plot.cell_state_slicer
             # Reorder policy dict for plotting.
             if use_print_keys: # VI and EM policies have DRA states in policy keys.
@@ -264,27 +271,36 @@ if any(plot_flags):
                 list_of_tuples = [(key[key_slicer], policy[key]) for key in order_of_keys]
             policy = OrderedDict(list_of_tuples)
 
-            for env_pose in policy_keys_for_env_poses.keys():
+            # ID The fixed index for each plot group.
+            if type(mdp_to_plot) is InferenceMDP:
+                fixed_idx = 0 # Robot pose is fixed in plots below.
+            else:
+                fixed_idx = 1 # Env pose is fixed in plots below.
+
+            for pose in plot_key_dict.keys():
 
                 # Get policy at desired states to plot.
-                list_of_tuples = [(key, policy[key]) for key in policy_keys_for_env_poses[env_pose]]
+                list_of_tuples = [(key, policy[key]) for key in plot_key_dict[pose]]
                 policy_to_plot = OrderedDict(list_of_tuples)
 
                 # Update the grid colors, assuming the environment is in a fixed locaiton.
-                maze = np.zeros(np.array(grid_dim)+1)
+                this_maze = deepcopy(maze)
                 for state, label in labels.iteritems():
                     if state in policy_to_plot.keys():
                         if label==red:
-                            if (state[robot_idx] in fixed_obstacle_cells) or (state[robot_idx] == state[env_idx]):
-                                grid_row, grid_col = np.where(grid_map==state[robot_idx])
-                                maze[grid_row, grid_col] = 2
+                            if fixed_idx: # Env is fixed
+                                if (state[robot_idx] in fixed_obstacle_cells) or (state[robot_idx] == state[env_idx]):
+                                    grid_row, grid_col = np.where(grid_map==state[robot_idx])
+                                    this_maze[grid_row, grid_col] = color_list.index('red')
                         if label==green:
                             grid_row, grid_col = np.where(grid_map==state[robot_idx])
-                            maze[grid_row, grid_col] = 1
-                base_policy_grid.updateCellColors(maze_cells=maze)
+                            this_maze[grid_row, grid_col] = color_list.index('green')
+                grid_row, grid_col = np.where(grid_map==pose)
+                this_maze[grid_row, grid_col] = color_list.index('blue')
+                base_policy_grid.updateCellColors(maze_cells=this_maze)
 
                 fig = base_policy_grid.configurePlot(title, policy_to_plot, act_list, use_print_keys,
-                                                     policy_keys_for_env_poses[env_pose], decimals=2,
+                                                     plot_key_dict[pose], decimals=2,
                                                      kernel_locations=kernel_loc, stay_action=act_list[0])
 
         print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
