@@ -3,13 +3,18 @@ __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 
 from NFA_DFA_Module.DFA import DRA
 from MDP_EM.MDP_EM.MDP import MDP
+from MDP_EM.MDP_EM.inference_mdp import InferenceMDP
 from MDP_EM.MDP_EM.multi_agent_mdp import MultiAgentMDP
 from MDP_EM.MDP_EM.product_mdp_x_dra import ProductMDPxDRA
+from MDP_EM.MDP_EM.feature_vector import FeatureVector
 import MDP_EM.MDP_EM.data_helper as DataHelper
+import MDP_EM.MDP_EM.plot_helper as PlotHelper
 
 import numpy as np
 import time
 from copy import deepcopy
+from collections import OrderedDict
+import matplotlib.pyplot as plt
 
 def getActionProbabilityDictionary(dtype=np.float64):
     # Transition probabilities for each action in each cell  explodes with the number of states so we build the transition
@@ -310,3 +315,109 @@ def makeBonusReward(policy_uncertainty_dict):
         for act in policy_uncertainty_dict[state].keys():
             bonus_reward_dict[state][act] = exploration_weight * policy_uncertainty_dict[state][act]
     return bonus_reward_dict
+
+
+def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels, state_env_idx=1, file_with_policy=None,
+                                            new_kernel_weight=1.0, new_phi_sigma=1.0, plot_policies=True,
+                                            alphabet_dict=None, fixed_obstacle_labels=None):
+    """
+    @brief Converts a single-agent policy dictionary to a multi-agent policy dictionary with the added repulsive factor.
+
+    This converts a loaded environmental policy to a multi-agent policy dictionary and includes a repulsive factor based
+    on the robot position. The loaded mdp must have a `theta` and `phi` property that can be used to build the soft-max
+    policy as a function of the linear combination of these vectors. This method adds a mobile kernel at the robot
+    location to augment the environments Q-function. Then the policy is recalculated.
+
+    @param file_with_policy The file-path to load that contains a singe agent policy.
+    @param new_kernel_weight @todo
+    @param new_kernel_sigma @todo
+    @param alphabet_dict Required if plot_policys is True
+    """
+    if file_with_policy is None:
+        file_with_policy =  'robot_mdps_180316_1024_HIST_500eps20steps_180316_1124_Policy_180316_1124'
+
+    (single_agent_mdp, pickled_inference_file) = DataHelper.loadPickledPolicyInferenceMDP(file_with_policy)
+
+    # Build a feature vector that only has a mobile kernel on the robot location.
+    copied_single_agent_mdp = deepcopy(single_agent_mdp)
+    joint_grid_states = multi_agent_mdp.env_policy[1].keys()
+    env_action_list = copied_single_agent_mdp.action_list
+    trans_func = copied_single_agent_mdp.T
+    repulsive_feature_vector = FeatureVector(env_action_list, trans_func, copied_single_agent_mdp.graph,
+                                             ggk_centers=[0], std_devs=[1.0], ggk_mobile_indices=[0],
+                                             state_list=joint_grid_states, state_idx_to_infer=1,
+                                             mobile_kernel_state_idx=0)
+    repulsive_theta = -np.array([0.,3.,3.,3.,3.])
+
+
+    # Linearly combine old Q-function with repulsive Q-function.
+    new_env_policy = dict.fromkeys(joint_grid_states)
+    for state in joint_grid_states:
+        new_env_policy[state] = {}
+        Q_at_state = {act: (np.inner(copied_single_agent_mdp.theta,
+                                    copied_single_agent_mdp.phi_at_state[(state[state_env_idx],)][act])
+                            + np.inner(repulsive_theta, repulsive_feature_vector(state, act))) / 1.
+                      for act in env_action_list}
+        new_env_policy[state] = InferenceMDP.evalGibbsPolicy(Q_at_state)
+    new_env_policy = MDP.updatePolicyActionKeys(new_env_policy, env_action_list,
+                                                multi_agent_mdp.executable_action_dict[state_env_idx])
+    multi_agent_mdp.env_policy[1] = new_env_policy
+
+
+    # The 'q0' below is a hack to make sure that the environment's goal cell is only highlighted once and therefore
+    # the colormap is handed the correct color range.
+    env_goal_cells = [cell[0] for cell, label in single_agent_mdp.L.iteritems() if label==alphabet_dict['green']]
+    joint_env_goal_states = [((robot_cell, env_goal),'q0') for robot_cell in single_agent_mdp.grid_cell_vec for env_goal
+                             in env_goal_cells]
+
+    if plot_policies:
+
+        single_agent_maze, single_agent_cmap = PlotHelper.PlotGrid.buildGridPlotArgs(single_agent_mdp.grid_map,
+                                                                                     single_agent_mdp.L,
+                                                                                     alphabet_dict)
+        multi_agent_maze, multi_agent_cmap = PlotHelper.PlotGrid.buildGridPlotArgs(multi_agent_mdp.grid_map,
+            multi_agent_mdp.L, alphabet_dict, num_agents=2, agent_idx=1, fixed_obstacle_labels=fixed_obstacle_labels,
+            goal_states=joint_env_goal_states, labels_have_dra_states=True)
+
+        center_offset = 0.5 # Shifts points into center of cell.
+        single_agent_policy_grid = PlotHelper.PlotPolicy(single_agent_maze, single_agent_cmap, center_offset)
+        multi_agent_policy_grid = PlotHelper.PlotPolicy(multi_agent_maze, multi_agent_cmap, center_offset)
+
+         # Configure Single agent policy plot
+        order_of_keys = [key for key in single_agent_mdp.states]
+        list_of_tuples = [(key, single_agent_mdp.policy[key]) for key in order_of_keys]
+        single_agent_ordered_policy = OrderedDict(list_of_tuples)
+        fig = single_agent_policy_grid.configurePlot('Original Policy', single_agent_ordered_policy,
+                single_agent_mdp.action_list, decimals=2)
+
+        # Configure Multi agent policy plots. We'll create a plot for every robot location in the joint space.
+        multi_agent_policy_key_groups = {robot_cell:
+            [(robot_cell, env_cell) for env_cell in multi_agent_mdp.grid_cell_vec] for robot_cell in
+            multi_agent_mdp.grid_cell_vec}
+
+        # Reorder policy dict for plotting.
+        order_of_keys = [key[0] for key in multi_agent_mdp.observable_states]
+        list_of_tuples = [(key, multi_agent_mdp.env_policy[1][key]) for key in order_of_keys]
+        policy = OrderedDict(list_of_tuples)
+
+        fixed_idx = 0 # Robot pose is fixed in plots below.
+        robot_idx = 0
+        env_idx = 1
+        for pose in multi_agent_policy_key_groups.keys():
+
+            # Get policy at desired states to plot.
+            list_of_tuples = [(key, policy[key]) for key in multi_agent_policy_key_groups[pose]]
+            policy_to_plot = OrderedDict(list_of_tuples)
+
+            # Update the grid colors, assuming the environment is in a fixed locaiton.
+            this_maze = deepcopy(multi_agent_maze)
+            grid_row, grid_col = np.where(multi_agent_mdp.grid_map==pose)
+            this_maze[grid_row, grid_col] = multi_agent_cmap.colors.index('blue')
+            multi_agent_policy_grid.updateCellColors(maze_cells=this_maze)
+
+            act_list = multi_agent_mdp.executable_action_dict[state_env_idx]
+            fig = multi_agent_policy_grid.configurePlot('Joint Policy - Robot in cell {}'.format(pose), policy_to_plot,
+                                                 act_list, use_print_keys=True,
+                                                 policy_keys_to_print=multi_agent_policy_key_groups[pose], decimals=2,
+                                                 stay_action=act_list[0])
+        plt.show()

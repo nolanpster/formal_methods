@@ -150,6 +150,16 @@ VI_mdp.init_set=policy_keys_to_print
 VI_mdp.setInitialProbDist()
 reference_policy_vec = VI_mdp.getPolicyAsVec(policy_keys_to_print)
 
+# The original environment policy in the MDP is a random walk. So we load a file containing a more interesting
+# environent policy (generated in a single agent environment) then copy it into the joint state-space. Additionally, we
+# add an additional feature vector to the environment's Q-function that represents how much the environment is repulsed
+# by the robot. (Repulsive factors are buried in the method below). The method below updates the VI_mdp.env_policy
+# dictionary.
+ExperimentConfigs.convertSingleAgentEnvPolicyToMultiAgent(VI_mdp, labels, state_env_idx=env_idx,
+                                                          new_kernel_weight=1.0, new_phi_sigma=1.0, plot_policies=False,
+                                                          alphabet_dict=alphabet_dict,
+                                                          fixed_obstacle_labels=fixed_obs_labels)
+
 ########################################################################################################################
 # Demonstrate Trajectories
 ########################################################################################################################
