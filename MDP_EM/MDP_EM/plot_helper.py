@@ -222,9 +222,10 @@ class PlotPolicy(PlotGrid):
         except SyntaxError:
             pass
         stay_probs = [p for p in stay_probs if  p > self.prob_disp_thresh]
-        df_stay = pd.DataFrame({'Prob': stay_probs, 'x': this_x_cent, 'y': this_y_cent})
-        df_stay.plot(kind='scatter', x='x', y='y', s=df_stay['Prob']*self.stay_scale, c=1-df_stay['Prob'], ax=ax,
-                     cmap='gray', legend=None)
+        if any(stay_probs):
+            df_stay = pd.DataFrame({'Prob': stay_probs, 'x': this_x_cent, 'y': this_y_cent})
+            df_stay.plot(kind='scatter', x='x', y='y', s=df_stay['Prob']*self.stay_scale, c=1-df_stay['Prob'], ax=ax,
+                         cmap='gray', legend=None)
         # Motion actions - plot with arrows.
         for act in action_list:
             if act==stay_action:
