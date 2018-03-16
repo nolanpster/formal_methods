@@ -28,7 +28,7 @@ np.set_printoptions(precision=4)
 ########################################################################################################################
 # Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
-grid_dim = [4, 4] # [num-rows, num-cols]
+grid_dim = [5, 5] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
 
 # Create a list of tuples where the tuples have length @c num_agents and represent the joint states of the agents.
@@ -44,14 +44,14 @@ red = LTL_plus('red')
 empty = LTL_plus('E') # <-- 'E' is defined to be 'empty' in LTL_plus class.
 alphabet_dict = {'empty': empty, 'green': green, 'red': red}
 labels = {state: empty for state in states}
-labels[(6,)] = red
-labels[(7,)] = red
-labels[(8,)] = red
-labels[(0,)] = green
+labels[(13,)] = red
+labels[(14,)] = red
+labels[(20,)] = red
+labels[(4,)] = green
 
 # Starting and final states
 initial_state = (15,)
-goal_state = (0,) # Currently assumess only one goal.
+goal_state = (4,) # Currently assumess only one goal.
 
 # Numpy Data type to use for transition probability matrices (affects speed / precision)
 prob_dtype = np.float32
@@ -69,23 +69,23 @@ act_prob = ExperimentConfigs.getActionProbabilityDictionary(prob_dtype)
 # Set `solve_with_uniform_distribution` to True to have the initial distribution for EM and the history/demonstration
 # generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
 # _False_ to have EM and the MDP always start from the `initial_state` below.
-solve_with_uniform_distribution = False
+solve_with_uniform_distribution = True
 
 #######################################################################################################################
 # Entry point when called from Command line.
 if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
     make_new_mdp = False
-    pickled_mdp_file_to_load  = 'robot_mdps_180310_1124'
+    pickled_mdp_file_to_load  = 'robot_mdps_180316_1024'
     write_mdp_policy_csv = False
 
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
     # load the @c pickled_episodes_file. If @c gather_new_data is true, use @c num_episodes and @c steps_per_episode to
     # determine how large the demonstration set should be.
-    gather_new_data = False
-    num_episodes = 250
-    steps_per_episode = 15
-    pickled_episodes_file_to_load = 'robot_mdps_180309_2256_HIST_250eps15steps_180309_2256'
+    gather_new_data = True
+    num_episodes = 500
+    steps_per_episode = 20
+    pickled_episodes_file_to_load = 'robot_mdps_180316_1024_HIST_500eps15steps_180316_1042'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
@@ -103,20 +103,20 @@ if __name__=='__main__':
     # Gradient Ascent kernel configurations
     use_fixed_kernel_set = True
     if use_fixed_kernel_set is True:
-        kernel_centers = [frozenset([0, 2, 5, 7, 8, 10, 13, 15])]
+        kernel_centers = [frozenset(states)]
         num_kernels_in_set = len(kernel_centers[0])
-        kernel_sigmas = np.array([1.]*num_kernels_in_set, dtype=infer_dtype)
+        kernel_sigmas = np.array([0.8]*num_kernels_in_set, dtype=infer_dtype)
         batch_size_for_kernel_set = 1
     else:
-        kernel_count_start = 10
-        kernel_count_end = 9
+        kernel_count_start = 16
+        kernel_count_end = 15
         kernel_sigmas = np.array([1.]*kernel_count_start, dtype=infer_dtype)
         kernel_count_increment_per_set = -1
         kernel_set_sample_count = 1
         batch_size_for_kernel_set = 1
 
     if inference_method is 'gradientAscentGaussianTheta':
-        num_theta_samples = 8000
+        num_theta_samples = 5000
         monte_carlo_size = num_theta_samples
     else:
         monte_carlo_size = batch_size_for_kernel_set
@@ -124,8 +124,8 @@ if __name__=='__main__':
 
     # Plotting lags
     plot_all_grids = False
-    plot_initial_mdp_grids = False
-    plot_inferred_mdp_grids = False
+    plot_initial_mdp_grids = True
+    plot_inferred_mdp_grids = True
     plot_demonstration = True
     plot_uncertainty = False
     plot_new_phi = False
@@ -227,10 +227,13 @@ if __name__=='__main__':
                 next_state = VI_mdp.observable_states[next_state_idx]
                 observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(this_state, next_state)
 
-        if inference_method in ['historyMLE', 'iterativeBayes', 'gradientAscentGaussianTheta']:
+        if inference_method in ['historyMLE', 'iterativeBayes', 'gradientAscentGaussianTheta'] or use_fixed_kernel_set:
            theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,
-                                             do_print=True, reference_policy_vec=reference_policy_vec,
-                                             monte_carlo_size=monte_carlo_size, dtype=infer_dtype)
+                                             do_print=False, reference_policy_vec=reference_policy_vec,
+                                             monte_carlo_size=monte_carlo_size, dtype=infer_dtype,
+                                             print_iterations=True, eps=0.00001, thresh_prob=0.97,
+                                             precomputed_observed_action_indeces=observed_action_indeces,
+                                             use_precomputed_phi=True)
         else:
             if batch_size_for_kernel_set > 1:
                 print_inference_iterations = False
