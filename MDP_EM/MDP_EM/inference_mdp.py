@@ -143,3 +143,16 @@ class InferenceMDP(MDP):
         @param a string matching a method name in @ref policy_solvers.py.
         """
         return PolicyInference(self, method=method, write_video=write_video).infer(**kwargs)
+
+    @staticmethod
+    def evalGibbsPolicy(Q_dict):
+        """
+        @brief Evaluates the policy at a single state given Q values.
+
+        @param a dictionary with action keys and  Q-values for values
+        @return a policy distribution dictionary
+        """
+        exp_Q = {act: np.exp(Q_dict[act]) for act in Q_dict.keys()}
+        sum_exp_Q = sum(exp_Q.values())
+        policy = {act: exp_Q[act]/sum_exp_Q for act in Q_dict.keys()}
+        return policy
