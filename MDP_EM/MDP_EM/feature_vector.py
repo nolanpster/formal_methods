@@ -152,7 +152,7 @@ class FeatureVector(object):
 
         num_static_k = self.num_static_kernels
         for mob_k_idx in self.mobile_indices:
-            self.expanded_std_devs[num_static_k: (mob_k_idx * self.num_cells) + num_static_k] = self.std_devs[mob_k_idx]
+            self.expanded_std_devs[num_static_k: ((mob_k_idx+1) * self.num_cells) + num_static_k] = self.std_devs[mob_k_idx]
 
     def expandKernDistObjs(self):
         num_static_k = self.num_static_kernels
@@ -194,10 +194,10 @@ class FeatureVector(object):
         @param selected_kernel_indices The indices to update the selected indices, otherwise all will be updated.
         """
         if selected_kernel_indices is not None:
-            kern_iterator = zip(selected_kernel_indices, self.kernel_dist_objs[selected_kernel_indices])
+            kern_iterator = zip(selected_kernel_indices, self.expanded_kernel_dist_objs[selected_kernel_indices])
         else:
             # Update all kernels
-            kern_iterator = enumerate(self.kernel_dist_objs)
+            kern_iterator = enumerate(self.expanded_kernel_dist_objs)
 
         for kern_idx, kern_dist in kern_iterator:
             # Running kern_dist(state_num) will return the distance by the metric of the specific kernel.
