@@ -538,6 +538,15 @@ class MDP(object):
         MDP_solvers(self, method=method, write_video=write_video).solve(**kwargs)
 
     @staticmethod
+    def updatePolicyActionKeys(policy, old_keys, new_keys):
+        # User must ensure that key-lists are in the same order.
+        key_pairs = zip(old_keys, new_keys)
+        for state, distribution in policy.iteritems():
+            for old_key, new_key in key_pairs:
+                policy[state][new_key] = policy[state].pop(old_key)
+        return policy
+
+    @staticmethod
     def get_NFA(mdp):
         """
         This function obtains the graph structure, which is essentially an
