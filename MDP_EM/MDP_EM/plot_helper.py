@@ -18,7 +18,66 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 
+
+
 class PlotGrid(object):
+
+    @staticmethod
+    def buildGridPlotArgs(grid_map, labels, alphabet_dict, num_agents=1, agent_idx=0, fixed_obstacle_labels=None,
+                          goal_states=None, labels_have_dra_states=False):
+        """
+        @param fixed_obstacle_labels is required if num_agents > 1.
+        @param if goals states are provided, the goals cell value should correspond to the agent index.
+        """
+        if labels_have_dra_states:
+            # Expect states to be stored as (grid_cell_state, dra_state) or, (grid_cell_state,)
+            cell_state_slicer = slice(0,1)
+        else:
+            # Expect states to be stored as (grid_cell_state)
+            cell_state_slicer = slice(None)
+        grid_dim = grid_map.shape
+        # Build the color list in order of numerical values in maze.
+        color_list = ['white', 'green']
+        if alphabet_dict['red'] in labels.values():
+            # Next highest value in maze corresponds to red.
+            color_list.append('red')
+        if num_agents > 1:
+            # Next highest value in maze corresponds to blue.
+            color_list.append('blue')
+        # Create plots for comparison. Note that the the `maze` array has one more row and column than the `grid` for
+        # plotting purposes.
+        maze = np.zeros(np.array(grid_dim)+1)
+        for state, label in labels.iteritems():
+            if label==alphabet_dict['red']:
+                if num_agents > 1 and agent_idx > 0:
+                    if fixed_obstacle_labels[state[cell_state_slicer][0]]==alphabet_dict['red']:
+                        # Assume fixed obstacles are shared, only grab the robot state.
+                        grid_row, grid_col = np.where(grid_map==state[cell_state_slicer][0][0])
+                        maze[grid_row, grid_col] = color_list.index('red')
+                else:
+                    if num_agents > 1:
+                        if fixed_obstacle_labels[state[cell_state_slicer]]==alphabet_dict['red']:
+                            grid_row, grid_col = np.where(grid_map==state[cell_state_slicer][agent_idx])
+                            maze[grid_row, grid_col] = color_list.index('red')
+                    else:
+                        grid_row, grid_col = np.where(grid_map==state[cell_state_slicer])
+                        maze[grid_row, grid_col] = color_list.index('red')
+            if label==alphabet_dict['green'] and goal_states is None:
+                if num_agents > 1:
+                    grid_row, grid_col = np.where(grid_map==state[cell_state_slicer][0])
+                else:
+                    grid_row, grid_col = np.where(grid_map==state[cell_state_slicer])
+                maze[grid_row, grid_col] = color_list.index('green')
+            elif goal_states is not None and state in goal_states:
+                if num_agents > 1:
+                    grid_row, grid_col = np.where(grid_map==state[cell_state_slicer][agent_idx])
+                else:
+                    grid_row, grid_col = np.where(grid_map==state[cell_state_slicer])
+                maze[grid_row, grid_col] = color_list.index('green')
+
+        cmap = mcolors.ListedColormap(color_list)
+        return maze, cmap
+
     def __init__(self, maze_cells, cmap, fontsize=20):
         # maze_cells - np.array - grid of ints, 0 is colored with cell_color[0], 1 is colored with cell_color[1], etc.
         #              expectes one EXTRA row and column for formatting.
@@ -141,7 +200,7 @@ class PlotPolicy(PlotGrid):
         self.prob_disp_thresh = 0.02
         self.predefined_action_set = frozenset(self.quiv_angs.keys())
 
-    def configurePlot(self, title, policy, action_list, use_print_keys, policy_keys_to_print, decimals,
+    def configurePlot(self, title, policy, action_list, use_print_keys=False, policy_keys_to_print=None, decimals=2,
                        kernel_locations=None, stay_action='Empty'):
         fig, ax = super(self.__class__, self).configurePlot(title)
         if not any(frozenset(action_list) & self.predefined_action_set):
@@ -264,7 +323,8 @@ def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set
 
 def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_grids=False,
                    plot_inferred_mdp_grids=False, VI_mdp=None, EM_mdp=None, infer_mdp=None, robot_action_list=None,
-                   env_action_list=None, VI_plot_keys=None, EM_plot_keys=None, infer_plot_keys=None):
+                   env_action_list=None, VI_plot_keys=None, EM_plot_keys=None, infer_plot_keys=None,
+                   include_kernels=False):
 
     mdp_list = []
     plot_policies = []
@@ -278,7 +338,8 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
         plot_policies = [VI_mdp.policy, EM_mdp.policy, infer_mdp.policy]
         titles = ['Value Iteration', 'Expecation Maximization', 'Learned']
         only_use_print_keys = [True, True, False]
-        kernel_locations = [None, None, infer_mdp.kernel_centers]
+        if include_kernels:
+            kernel_locations = [None, None, infer_mdp.kernel_centers]
         action_lists = [robot_action_list, robot_action_list, env_action_list]
         plot_key_groups = [VI_plot_keys, EM_plot_keys, infer_plot_keys]
         return mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations
@@ -287,7 +348,8 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
         mdp_list.append(VI_mdp)
         plot_policies.append(VI_mdp.policy)
         titles.append('Value Iteration')
-        kernel_locations.append(None)
+        if include_kernels:
+            kernel_locations.append(None)
         only_use_print_keys.append(True)
         action_lists.append(robot_action_list)
         plot_key_groups.append(VI_plot_keys)
@@ -296,7 +358,8 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
         mdp_list.append(EM_mdp)
         plot_policies.append(EM_mdp.policy)
         titles.append('Expectation Maximization')
-        kernel_locations.append(None)
+        if include_kernels:
+            kernel_locations.append(None)
         only_use_print_keys.append(True)
         action_lists.append(robot_action_list)
         plot_key_groups.append(EM_plot_keys)
@@ -306,7 +369,8 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
         plot_policies.append(infer_mdp.policy)
         titles.append('Learned')
         only_use_print_keys.append(False)
-        kernel_locations.append(infer_mdp.kernel_centers)
+        if include_kernels:
+            kernel_locations.append(infer_mdp.kernel_centers)
         action_lists.append(env_action_list)
         plot_key_groups.append(infer_plot_keys)
 

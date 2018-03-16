@@ -229,29 +229,14 @@ infer_policy_key_groups = {env_cell: [(robot_cell, env_cell) for robot_cell in d
 
 if any(plot_flags):
 
-    # Create plots for comparison. Note that the the `maze` array has one more row and column than the `grid` for
-    # plotting purposes.
-    if red in labels.values():
-        # Maximum value in maze corresponds to red.
-        color_list = ['white','green','red','blue']
-    else:
-        # Maximum value in maze corresponds to green.
-        color_list = ['white','green','blue']
-    cmap = mcolors.ListedColormap(color_list)
-    maze = np.zeros(np.array(grid_dim)+1)
-    for state, label in labels.iteritems():
-        if label==red and fixed_obs_labels[state]==red:
-            grid_row, grid_col = np.where(grid_map==state[0])
-            maze[grid_row, grid_col] = color_list.index('red')
-        if label==green:
-            grid_row, grid_col = np.where(grid_map==state[0])
-            maze[grid_row, grid_col] = color_list.index('green')
+    maze, cmap = PlotHelper.PlotGrid.buildGridPlotArgs(grid_map, labels, alphabet_dict, num_agents=2,
+            fixed_obstacle_labels=fixed_obs_labels, num_agents=2, agent_idx=0, goal_states=robot_goal_states)
 
     mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations, action_lists, plot_key_groups = \
         PlotHelper.makePlotGroups(plot_all_grids, plot_VI_mdp_grids, plot_EM_mdp_grids, plot_inferred_mdp_grids,
                                   VI_mdp=VI_mdp, infer_mdp=infer_mdp, robot_action_list=robot_action_list,
                                   env_action_list=env_action_list, VI_plot_keys=VI_policy_key_groups,
-                                  infer_plot_keys=infer_policy_key_groups)
+                                  infer_plot_keys=infer_policy_key_groups, include_kernels=True)
 
     if plot_all_grids or plot_VI_mdp_grids or plot_EM_mdp_grids or plot_inferred_mdp_grids:
         center_offset = 0.5 # Shifts points into center of cell.

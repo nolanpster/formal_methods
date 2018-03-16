@@ -294,22 +294,7 @@ if __name__=='__main__':
                       'loaded from an old file? Not printing policy difference.')
 
     if any(plot_flags):
-        # Create plots for comparison. Note that the the `maze` array has one more row and column than the `grid` for
-        # plotting purposes.
-        maze = np.zeros(np.array(grid_dim)+1)
-        for state, label in labels.iteritems():
-            if label==red:
-                grid_row, grid_col = np.where(grid_map==state)
-                maze[grid_row, grid_col] = 2
-            if label==green:
-                grid_row, grid_col = np.where(grid_map==state)
-                maze[grid_row, grid_col] = 1
-        if red in labels.values():
-            # Maximum value in maze corresponds to red.
-            cmap = mcolors.ListedColormap(['white','green','red'])
-        else:
-            # Maximum value in maze corresponds to green.
-            cmap = mcolors.ListedColormap(['white','green'])
+        maze, cmap = PlotHelp.PlotGrid.buildGridPlotArgs(grid_map, labels, alphabet_dict)
 
     plot_policies = []
     only_use_print_keys = []
