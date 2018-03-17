@@ -515,17 +515,20 @@ class MDP(object):
         """
         if policy_to_convert is None:
             policy_to_convert = self.policy
+
+        action_list = policy_to_convert.itervalues().next().keys()
+        num_actions = len(action_list)
         if policy_keys_to_use is not None:
-            policy_vec = np.empty(len(policy_keys_to_use) * self.num_actions, self.prob_dtype)
+            policy_vec = np.empty(len(policy_keys_to_use) * num_actions, self.prob_dtype)
             policy_dict  = {state: deepcopy(policy_to_convert[state])
                             for state in policy_keys_to_use}
         else:
-            policy_vec = np.empty(self.num_states * self.num_actions, self.prob_dtype)
-            policy_dict = policy_to_convert
             policy_keys_to_use = self.states
+            policy_vec = np.empty(len(policy_keys_to_use) * num_actions, self.prob_dtype)
+            policy_dict = policy_to_convert
         for state_idx, state in enumerate(policy_keys_to_use):
-            for act_idx, act in enumerate(self.action_list):
-                policy_vec[(state_idx * self.num_actions) + act_idx] = policy_dict[state][act]
+            for act_idx, act in enumerate(action_list):
+                policy_vec[(state_idx * num_actions) + act_idx] = policy_dict[state][act]
         return policy_vec
 
     def solve(self, method='valueIteration', write_video=False, **kwargs):
