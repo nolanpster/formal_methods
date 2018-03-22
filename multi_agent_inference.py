@@ -93,7 +93,7 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180314_1508'
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180317_1436'
 
 
 # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -103,7 +103,7 @@ gather_new_data = False
 print_history_analysis = False
 num_episodes = 500
 steps_per_episode = 10
-pickled_episodes_file_to_load = 'multi_agent_mdps_180314_1508_HIST_500eps10steps_180314_1509'
+pickled_episodes_file_to_load = 'multi_agent_mdps_180317_1134_HIST_500eps10steps_180317_1419'
 
 # Perform/load policy inference options. If @c perform_new_inference is false, load the @pickled_inference_mdps_file.
 perform_new_inference = False
@@ -145,10 +145,10 @@ if make_new_mdp:
 else:
     (VI_mdp, policy_keys_to_print, pickled_mdp_file) = DataHelper.loadPickledMDP(pickled_mdp_file_to_load)
 
-# Override recorded initial dist to be uniform
-VI_mdp.init_set=policy_keys_to_print
-VI_mdp.setInitialProbDist()
-reference_policy_vec = VI_mdp.getPolicyAsVec(policy_keys_to_print)
+# Override recorded initial dist to be uniform. Note that policy_keys_to_print are the reachable initial states, and we
+# want to set the initial state-set to only include the states where the robot is at `robot_initial_cell`.
+VI_mdp.init_set = [state for state in policy_keys_to_print if state[0][robot_idx] == robot_initial_cell]
+VI_mdp.setInitialProbDist(VI_mdp.init_set)
 
 # The original environment policy in the MDP is a random walk. So we load a file containing a more interesting
 # environent policy (generated in a single agent environment) then copy it into the joint state-space. Additionally, we
@@ -220,11 +220,12 @@ if perform_new_inference:
 ########################################################################################################################
 # Remember that variable @ref mdp is used for demonstration.
 
+inferred_policy_vec = infer_mdp.getPolicyAsVec()
 # Use the InferenceMDP to get the true policy vector since they have matching action keys.
 if len(policy_keys_to_print) == infer_mdp.num_states:
-    infered_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
+    infered_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, inferred_policy_vec)
     print('L1-norm between reference and inferred policy: {}.'.format(infered_policy_L1_norm_error))
-    print('L1-norm as a fraction of max error: {}.'.format(2*infered_policy_L1_norm_error/len(true_env_policy_vec)))
+    print('L1-norm as a fraction of max error: {}.'.format(infered_policy_L1_norm_error/2/len(true_env_policy_vec)))
 else:
     warnings.warn('Demonstration MDP and inferred MDP do not have the same number of states. Perhaps one was '
                   'loaded from an old file? Not printing policy difference.')
@@ -234,13 +235,13 @@ else:
 ########################################################################################################################
 VI_policy_key_groups = {env_cell: [((robot_cell, env_cell),) for robot_cell in demo_mdp.grid_cell_vec] for env_cell in
                              demo_mdp.grid_cell_vec}
-infer_policy_key_groups = {env_cell: [(robot_cell, env_cell) for robot_cell in demo_mdp.grid_cell_vec] for env_cell in
+infer_policy_key_groups = {robot_cell: [(robot_cell, env_cell) for env_cell in demo_mdp.grid_cell_vec] for robot_cell in
                             demo_mdp.grid_cell_vec}
 
 if any(plot_flags):
 
     maze, cmap = PlotHelper.PlotGrid.buildGridPlotArgs(grid_map, labels, alphabet_dict, num_agents=2,
-            fixed_obstacle_labels=fixed_obs_labels, num_agents=2, agent_idx=0, goal_states=robot_goal_states)
+            fixed_obstacle_labels=fixed_obs_labels, agent_idx=0, goal_states=robot_goal_states)
 
     mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations, action_lists, plot_key_groups = \
         PlotHelper.makePlotGroups(plot_all_grids, plot_VI_mdp_grids, plot_EM_mdp_grids, plot_inferred_mdp_grids,
@@ -286,12 +287,12 @@ if any(plot_flags):
                             if fixed_idx: # Env is fixed
                                 if (state[robot_idx] in fixed_obstacle_cells) or (state[robot_idx] == state[env_idx]):
                                     grid_row, grid_col = np.where(grid_map==state[robot_idx])
-                                    this_maze[grid_row, grid_col] = color_list.index('red')
+                                    this_maze[grid_row, grid_col] = cmap.colors.index('red')
                         if label==green:
                             grid_row, grid_col = np.where(grid_map==state[robot_idx])
-                            this_maze[grid_row, grid_col] = color_list.index('green')
+                            this_maze[grid_row, grid_col] = cmap.colors.index('green')
                 grid_row, grid_col = np.where(grid_map==pose)
-                this_maze[grid_row, grid_col] = color_list.index('blue')
+                this_maze[grid_row, grid_col] = cmap.colors.index('blue')
                 base_policy_grid.updateCellColors(maze_cells=this_maze)
 
                 fig = base_policy_grid.configurePlot(title, policy_to_plot, act_list, use_print_keys,
@@ -301,4 +302,4 @@ if any(plot_flags):
         print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
                 'arrow/dot size ratio!\n'
 
-plt.show()
+    plt.show()
