@@ -391,7 +391,8 @@ class PolicyInference(object):
                 next_state = self.mdp.observable_states[next_state_idx]
                 observed_action_idx = self.mdp.graph.getObservedAction((this_state,), (next_state,))
                 if do_weighted_update:
-                    import pdb; pdb.set_trace() # Check actionProbGi... for state/state_idx changes
+                    warnings.warn('Iterative Bayes Method does not converge for the multi-agent case. The MDP.P() '
+                                  'method needs to be updated to condition on joint action probabilities.')
                     action_weights = PolicyInference.actionProbGivenStatePair(this_state, next_state, prior_policy,
                                                                               self.mdp.P, self.mdp.action_list)
                     for act_idx, act in enumerate(self.mdp.action_list):
