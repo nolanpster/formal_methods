@@ -30,8 +30,8 @@ np.set_printoptions(precision=4)
 
 grid_dim = [3, 3] # [num-rows, num-cols]
 num_cells = np.prod(grid_dim)
-cell_indeces = range(0, num_cells)
-grid_map = np.array(cell_indeces, dtype=np.int8).reshape(grid_dim)
+cell_indices = range(0, num_cells)
+grid_map = np.array(cell_indices, dtype=np.int8).reshape(grid_dim)
 
 # Create a list of tuples where the tuples have length @c num_agents and represent the joint states of the agents.
 num_agents = 2
@@ -58,7 +58,7 @@ initial_state = (robot_initial_cell, env_initial_cell)
 
 # Currently assumes the robot only has one goal cell. Also, fixed obstacles only affect the robot.
 robot_goal_cell = 0 # Currently assumess only one goal.
-robot_goal_states = [(robot_goal_cell, cell) for cell in cell_indeces]
+robot_goal_states = [(robot_goal_cell, cell) for cell in cell_indices]
 
 fixed_obstacle_cells = [5]
 

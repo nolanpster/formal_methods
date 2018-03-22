@@ -202,7 +202,7 @@ if __name__=='__main__':
     DataHelp.printStateHistories(run_histories, VI_mdp.observable_states)
 
     if plot_new_phi or  plot_new_kernel or perform_new_inference:
-        tic = time.clock()
+        tic = time.time()
         # Solve for approximated observed policy.
         # Use a new mdp to model created/loaded one and a @ref GridGraph object to record, and seach for shortest paths
         # between two grid-cells.
@@ -265,7 +265,7 @@ if __name__=='__main__':
                                               precomputed_observed_action_indeces=observed_action_indeces)
                 kernel_set_L1_err[kernel_set_idx] = batch_L1_err.mean(axis=1)
                 kernel_set_infer_time[kernel_set_idx] = batch_infer_time.mean(axis=1)
-        toc = time.clock() -tic
+        toc = time.time() -tic
         print 'Total time to infer policy{}: {} sec, or {} min.'.format(' set' if num_kernel_sets > 1 else '', toc,
                                                                         toc/60.0)
         pickled_inference_file = DataHelp.picklePolicyInferenceMDP(variables_to_save=[infer_mdp],
@@ -290,7 +290,7 @@ if __name__=='__main__':
     if len(policy_keys_to_print) == infer_mdp.num_states:
         infered_policy_L1_norm_error = MDP.getPolicyL1Norm(reference_policy_vec, infer_mdp.getPolicyAsVec())
         print('L1-norm between reference and inferred policy: {}.'.format(infered_policy_L1_norm_error))
-        print('L1-norm as a fraction of max error: {}.'.format(infered_policy_L1_norm_error/2/len(reference_policy_vec)))
+        print('L1-norm as a fraction of max error: {}.'.format(infered_policy_L1_norm_error/2/num_states))
     else:
         warnings.warn('Demonstration MDP and inferred MDP do not have the same number of states. Perhaps one was '
                       'loaded from an old file? Not printing policy difference.')
