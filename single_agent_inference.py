@@ -289,6 +289,7 @@ if __name__=='__main__':
     if len(policy_keys_to_print) == infer_mdp.num_states:
         infered_policy_L1_norm_error = MDP.getPolicyL1Norm(reference_policy_vec, infer_mdp.getPolicyAsVec())
         print('L1-norm between reference and inferred policy: {}.'.format(infered_policy_L1_norm_error))
+        print('L1-norm as a fraction of max error: {}.'.format(infered_policy_L1_norm_error/2/len(reference_policy_vec)))
     else:
         warnings.warn('Demonstration MDP and inferred MDP do not have the same number of states. Perhaps one was '
                       'loaded from an old file? Not printing policy difference.')
