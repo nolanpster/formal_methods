@@ -103,7 +103,8 @@ if __name__=='__main__':
     # Gradient Ascent kernel configurations
     use_fixed_kernel_set = True
     if use_fixed_kernel_set is True:
-        kernel_centers = [frozenset(states)]
+        kernel_centers = [frozenset(range(1, num_states, 2))]
+        #kernel_centers = [frozenset((0, 4, 12, 20, 24))]
         num_kernels_in_set = len(kernel_centers[0])
         kernel_sigmas = np.array([0.8]*num_kernels_in_set, dtype=infer_dtype)
         batch_size_for_kernel_set = 1
@@ -116,7 +117,7 @@ if __name__=='__main__':
         batch_size_for_kernel_set = 1
 
     if inference_method is 'gradientAscentGaussianTheta':
-        num_theta_samples = 5000
+        num_theta_samples = 800
         monte_carlo_size = num_theta_samples
     else:
         monte_carlo_size = batch_size_for_kernel_set
