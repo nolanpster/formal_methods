@@ -242,8 +242,8 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
 
 
 def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=100,
-        num_steps_per_traj=15, inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
-        num_theta_samples=2000, SGA_eps=0.00001, SGA_log_prob_thresh=np.log(0.8)):
+                      num_steps_per_traj=15, inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
+                      num_theta_samples=1000):
 
     # Create a reference to the mdp used for inference.
     infer_mdp = arena_mdp.infer_env_mdp
@@ -263,9 +263,9 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                                      arena_mdp.states if 'q0' in state])
 
     # Variables for logging data
-    inferred_policy = {}
-    inferred_policy_L1_norm = {}
-    inferred_policy_variance = {}
+    inferred_policy = []
+    recorded_inferred_policy_L1_norms = []
+    inferred_policy_variance = []
 
 
     for batch in range(num_batches):
@@ -288,32 +288,35 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
 
         ### Infer ###
         theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
-                                                       reference_policy_vec=true_env_policy_vec,
-                                                       use_precomputed_phi=True, monte_carlo_size=num_theta_samples,
-                                                       precomputed_observed_action_indeces=observed_action_indeces,
-                                                       print_iterations=True, eps=0.00001, thresh_prob=0.3,
-                                                       theta_0=infer_mdp.theta)
+                                          use_precomputed_phi=True, monte_carlo_size=num_theta_samples,
+                                          precomputed_observed_action_indeces=observed_action_indeces, eps=0.001,
+                                          velocity_memory=0.2, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
+                                          moving_avg_min_slope=-0.0, print_iterations=True, theta_0=infer_mdp.theta)
         # Print Inference error
-        infered_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
-        print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch,infered_policy_L1_norm_error))
-        print('L1-norm as a fraction of max error: {}.'.format(infered_policy_L1_norm_error/2/len(true_env_policy_vec)))
+        inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
+        print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch, inferred_policy_L1_norm_error))
+        print('L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
+        recorded_inferred_policy_L1_norms.append(inferred_policy_L1_norm_error)
 
         # Go through and pop keys from policy_uncertainty into a dict built from policy_keys_to_print.
-        arena_mdp.configureReward(winning_reward, bonus_reward_at_state=makeBonusReward(infer_mdp.policy_uncertainty))
+        bonus_reward_dict = makeBonusReward(infer_mdp.policy_uncertainty, 0.5)
+        arena_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict)
 
-        arena_mdp.solve(do_print=False, method='valueIteration', write_video=False,
+        import pdb;pdb.set_trace()
+        arena_mdp.solve(do_print=True, method='valueIteration', write_video=False,
                         policy_keys_to_print=policy_keys_to_print)
         batch_stop_time = time.time()
         print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
 
 
-def makeBonusReward(policy_uncertainty_dict):
+def makeBonusReward(policy_uncertainty_dict, std_dev_thresh):
     exploration_weight = 0.2
     bonus_reward_dict = dict.fromkeys(policy_uncertainty_dict)
     for state in policy_uncertainty_dict:
         bonus_reward_dict[state] = {}
         for act in policy_uncertainty_dict[state].keys():
-            bonus_reward_dict[state][act] = exploration_weight * policy_uncertainty_dict[state][act]
+            if policy_uncertainty_dict[state][act] > std_dev_thresh:
+                bonus_reward_dict[state][act] = exploration_weight * policy_uncertainty_dict[state][act]
     return bonus_reward_dict
 
 

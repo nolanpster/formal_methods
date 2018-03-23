@@ -28,7 +28,7 @@ np.set_printoptions(precision=4)
 ########################################################################################################################
 # Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
-grid_dim = [3, 3] # [num-rows, num-cols]
+grid_dim = [5, 5] # [num-rows, num-cols]
 num_cells = np.prod(grid_dim)
 cell_indices = range(0, num_cells)
 grid_map = np.array(cell_indices, dtype=np.int8).reshape(grid_dim)
@@ -52,15 +52,15 @@ alphabet_dict = {'empty': empty, 'green': green, 'red': red}
 # generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
 # _False_ to have EM and the MDP always start from the `initial_state` below.
 solve_with_uniform_distribution = False
-robot_initial_cell = 8
-env_initial_cell = 2
+robot_initial_cell = 24
+env_initial_cell = 4
 initial_state = (robot_initial_cell, env_initial_cell)
 
 # Currently assumes the robot only has one goal cell. Also, fixed obstacles only affect the robot.
-robot_goal_cell = 0 # Currently assumess only one goal.
+robot_goal_cell = 6 # Currently assumess only one goal.
 robot_goal_states = [(robot_goal_cell, cell) for cell in cell_indices]
 
-fixed_obstacle_cells = [5]
+fixed_obstacle_cells = [13, 14, 20]
 
 labels = {state: empty for state in states}
 fixed_obs_labels = {state: empty for state in states}
@@ -92,15 +92,15 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 # Flags for script control
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
-make_new_mdp = True
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180314_1428'
+make_new_mdp = False
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180323_1125'
 
 
 # Geodesic Gaussian Kernel centers
-gg_kernel_centers = [0, 2, 4, 6, 8]
+gg_kernel_centers = range(0, num_cells, 2)
 
 # Gaussian Theta params
-num_theta_samples = 3000
+num_theta_samples = 500
 
 
 ########################################################################################################################
@@ -126,9 +126,24 @@ if make_new_mdp:
 else:
     (VI_mdp, policy_keys_to_print, pickled_mdp_file) = DataHelper.loadPickledMDP(pickled_mdp_file_to_load)
 
+# Override recorded initial dist to be uniform. Note that policy_keys_to_print are the reachable initial states, and we
+# want to set the initial state-set to only include the states where the robot is at `robot_initial_cell`.
+VI_mdp.init_set = [state for state in policy_keys_to_print if state[0][robot_idx] == robot_initial_cell]
+VI_mdp.setInitialProbDist(VI_mdp.init_set)
+
+# The original environment policy in the MDP is a random walk. So we load a file containing a more interesting
+# environent policy (generated in a single agent environment) then copy it into the joint state-space. Additionally, we
+# add an additional feature vector to the environment's Q-function that represents how much the environment is repulsed
+# by the robot. (Repulsive factors are buried in the method below). The method below updates the VI_mdp.env_policy
+# dictionary.
+ExperimentConfigs.convertSingleAgentEnvPolicyToMultiAgent(VI_mdp, labels, state_env_idx=env_idx,
+                                                          new_kernel_weight=1.0, new_phi_sigma=1.0, plot_policies=False,
+                                                          alphabet_dict=alphabet_dict,
+                                                          fixed_obstacle_labels=fixed_obs_labels)
+
 ########################################################################################################################
 # Run Batch Inference
 ########################################################################################################################
-ExperimentConfigs.rolloutInferSolve(VI_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=100,
-        num_steps_per_traj=15, inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
-        num_theta_samples=2000, SGA_eps=0.00001, SGA_log_prob_thresh=np.log(0.8))
+ExperimentConfigs.rolloutInferSolve(VI_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=10,
+        num_steps_per_traj=15, inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
+        num_theta_samples=num_theta_samples)
