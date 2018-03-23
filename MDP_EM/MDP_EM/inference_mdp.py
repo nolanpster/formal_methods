@@ -89,7 +89,8 @@ class InferenceMDP(MDP):
         """
         return self.prob[action][state, :]
 
-    def buildKernels(self, gg_kernel_centers=None, og_kernel_centers=None, kernel_sigmas=None):
+    def buildKernels(self, gg_kernel_centers=None, og_kernel_centers=None, kernel_sigmas=None,
+                     state_idx_of_mobile_kernel=None):
         """
         @brief @todo
 
@@ -107,6 +108,9 @@ class InferenceMDP(MDP):
             kernel_centers_were_updated = True
         if kernel_centers_were_updated:
             self.kernel_centers = list(self.gg_kernel_centers) + list(self.og_kernel_centers)
+
+        if state_idx_of_mobile_kernel is not None:
+            self.state_idx_of_mobile_kernel = state_idx_of_mobile_kernel
 
         self.phi = FeatureVector(self.action_list, self.T, self.graph, ggk_centers=self.gg_kernel_centers,
                                  ogk_centers=self.og_kernel_centers, std_devs=self.kernel_sigmas,
