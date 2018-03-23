@@ -93,7 +93,7 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180317_1436'
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180323_1125'
 
 
 # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -110,9 +110,10 @@ perform_new_inference = False
 pickled_inference_mdps_file_to_load  = 'robot_mdps_180311_1149_HIST_250eps15steps_180311_1149_Policy_180311_1149'
 inference_method = 'gradientAscentGaussianTheta'
 gg_kernel_centers = [0, 4, 12, 20, 24]
+gg_kernel_centers = range(0, num_cells, 2)
 
 # Gaussian Theta params
-num_theta_samples = 3000
+num_theta_samples = 500
 
 # Plotting flags
 plot_flags = PlotHelper.default_plot_flags.copy()
@@ -221,8 +222,10 @@ if perform_new_inference:
             observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(this_state, next_state)
 
     theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
-                                     reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True,
-                                     monte_carlo_size=monte_carlo_size, print_iterations=True)
+                                      reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True,
+                                      monte_carlo_size=monte_carlo_size, print_iterations=True, eps=0.0001,
+                                      velocity_memory=0.2, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
+                                      moving_avg_min_slope=-0.5)
 
 ########################################################################################################################
 # Print Results' analysis
