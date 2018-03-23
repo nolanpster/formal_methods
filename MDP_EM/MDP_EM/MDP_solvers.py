@@ -79,6 +79,8 @@ class MDP_solvers(object):
                         policy[state] = empty_policy_dist.copy()
                         policy[state][act] = 1
             delta_value_norm = np.linalg.norm(np.subtract(values, prev_values))
+            if do_print:
+                print(" Change in state values: {:f}".format(delta_value_norm))
         # Set zero-likly-hood states to take empty action.
         for state in self.mdp.states:
             if sum(policy[state].values()) == 0:
