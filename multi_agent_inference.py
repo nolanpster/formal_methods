@@ -115,6 +115,15 @@ gg_kernel_centers = [0, 4, 12, 20, 24]
 num_theta_samples = 3000
 
 # Plotting flags
+plot_flags = PlotHelper.default_plot_flags.copy()
+plot_flags['VI'] = True
+plot_flags['EM'] = True
+plot_flags['inference'] = True
+plot_flags['demonstration'] = True
+plot_flags['inference_statistics'] = False
+plot_flags['phi'] = True
+plot_flags['phi_std_dev'] = False
+# Plotting flags
 plot_all_grids = False
 plot_VI_mdp_grids = True
 plot_EM_mdp_grids = False

@@ -18,7 +18,19 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 
+# Module dictionary used to select which plots to make.
+default_plot_flags = {'VI': False,
+                      'EM': False,
+                      'inference': False,
+                      'inference_statistics': False,
+                      'demonstration': False,
+                      'phi': False,
+                      'phi_std_dev': False,
+                      'bonus_reward': False}
 
+# Module Dictionary used to pass arguments around.
+default_plot_info = dict.fromkeys(('fixed_obs_labels', 'grid_map', 'labels', 'alphabet_dict', 'num_agents',
+                                   'robot_goal_states', 'robot_action_list', 'env_action_list'))
 
 class PlotGrid(object):
 
