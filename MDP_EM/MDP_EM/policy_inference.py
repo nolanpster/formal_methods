@@ -655,6 +655,9 @@ class PolicyInference(object):
             print("Infered-Policy as a {state: action-distribution} dictionary.")
             pprint(self.mdp.policy)
 
+        # For all values in the theta standard deviation vector that are equal to the minimum value, set them to zero.
+        # Then build the policy uncertainty dictionary.
+        theta_std_dev_vec[theta_std_dev_vec <= theta_std_dev_min] = 0.0
         self.buildPolicyUncertainty(theta_std_dev_vec, phis, do_print)
         self.mdp.policy_uncertainty_as_vec = self.mdp.getPolicyAsVec(policy_to_convert=self.mdp.policy_uncertainty)
 
