@@ -477,7 +477,7 @@ class PolicyInference(object):
                                     precomputed_observed_action_indeces=None, theta_std_dev_0=None,
                                     print_iterations=False, eps=0.2, moving_average_buffer_length=20,
                                     velocity_memory=0.9, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
-                                    moving_avg_min_slope=-0.5, **kwargs):
+                                    moving_avg_min_slope=-0.5, moving_avg_min_improvement=0.1, **kwargs):
         """
         @brief Performs Policy inference using gradient ascent on the distribution theta_i ~ (mu_i, sigma_i).
 
@@ -501,6 +501,9 @@ class PolicyInference(object):
         @param precomputed_observed_action_indeces If supplied, the inference will assume the correct observed action
                indeces for each time-step in each episode in the history. This is useful if the inference is being
                called externally with the same history.
+        @param theta_std_dev_0 Initial standard deviations to use, otherwise defaults to 1 for all phi entries.
+        @param eps The step size for gradient ascent
+        @param moving_average_buffer_length
         """
         # Process input arguments
         do_plot=False
@@ -563,9 +566,11 @@ class PolicyInference(object):
         iter_count = 0
         log_prob_traj_given_mean_thetas  = -sys.float_info.max
         log_prob_moving_avg_slope = 1.0
+        moving_avg_improvement = np.inf
         # Loop until convergence unless killed by Crtl-C
         killer = GracefulKiller()
-        while not killer.kill_now and log_prob_moving_avg_slope > moving_avg_min_slope:
+        while not killer.kill_now and log_prob_moving_avg_slope > moving_avg_min_slope and \
+            (moving_avg_improvement > moving_avg_min_improvement):
             if do_print or print_iterations:
                 iter_tic = time.time()
             iter_count += 1
@@ -629,6 +634,7 @@ class PolicyInference(object):
 
             if iter_count > moving_average_buffer_length + 1:
                 log_prob_moving_avg_slope = recorded_log_prob_moving_avg[-1] - recorded_log_prob_moving_avg[-2]
+                moving_avg_improvement = log_prob_moving_avg - moving_avg_ring_buff[-1]
 
             if do_plot:
                 means2plot = np.vstack((means2plot, theta_mean_vec))
