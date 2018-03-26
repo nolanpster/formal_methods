@@ -355,7 +355,7 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
             kernel_locations = [None, None, infer_mdp.kernel_centers]
         action_lists = [robot_action_list, robot_action_list, env_action_list]
         plot_key_groups = [VI_plot_keys, EM_plot_keys, infer_plot_keys]
-        return mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations
+        return mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations, action_lists, plot_key_groups
 
     if plot_VI_mdp_grids:
         mdp_list.append(VI_mdp)
