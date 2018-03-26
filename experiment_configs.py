@@ -273,6 +273,9 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     recorded_inferred_policy_L1_norms = []
     inferred_policy_variance = []
 
+    theta_std_dev_min = 0.5
+    theta_std_dev_max = 1.5
+
 
     for batch in range(num_batches):
         batch_start_time = time.time()
@@ -293,11 +296,19 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                 observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(prev_state, this_state)
 
         ### Infer ###
+        if batch > 0:
+            theta_std_dev_0 = np.zeros(infer_mdp.theta_std_dev.shape)
+            for std_dev_idx, std_dev in enumerate(infer_mdp.theta_std_dev):
+                theta_std_dev_0[std_dev_idx] = theta_std_dev_min if std_dev <= theta_std_dev_min else 1.0
+        else:
+            theta_std_dev_0 = None
         theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                                           use_precomputed_phi=True, monte_carlo_size=num_theta_samples,
                                           precomputed_observed_action_indeces=observed_action_indeces, eps=0.001,
-                                          velocity_memory=0.2, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
-                                          moving_avg_min_slope=-0.0, print_iterations=True, theta_0=infer_mdp.theta)
+                                          velocity_memory=0.2, theta_std_dev_min=theta_std_dev_min,
+                                          theta_std_dev_max=theta_std_dev_max, moving_avg_min_slope=-0.0,
+                                          print_iterations=True, theta_0=infer_mdp.theta,
+                                          theta_std_dev_0=theta_std_dev_0, moving_avg_min_improvement=0.01)
         # Print Inference error
         inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
         print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch, inferred_policy_L1_norm_error))
