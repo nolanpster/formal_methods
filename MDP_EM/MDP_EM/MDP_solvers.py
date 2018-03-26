@@ -2,7 +2,6 @@
 __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 
 import numpy as np
-from numpy.core.umath_tests import inner1d
 from copy import deepcopy
 from pprint import pprint
 import time
@@ -74,7 +73,7 @@ class MDP_solvers(object):
                     # Column of Transition matrix
                     trans_prob = self.mdp.T(state, act)
                     # Using the actual discount factor, comput the value.
-                    this_value += self.mdp.gamma * inner1d(trans_prob, prev_values)
+                    this_value += self.mdp.gamma * np.dot(trans_prob, prev_values)
                     # Update value if new one is larger.
                     if this_value > values[s_idx]:
                         values[s_idx] = this_value
@@ -147,14 +146,14 @@ class MDP_solvers(object):
         _b = R
         alpha = _a
         beta = gamma*_b
-        L[0] = np.inner(_a, _b)
+        L[0] = np.dot(_a, _b)
         for h in range(1, H+1):
-            _a = np.inner(P,_a)
+            _a = np.dot(P,_a)
             l_ind = 2*h-1
-            L[l_ind] = gamma**(l_ind) * np.inner(_a, _b)
+            L[l_ind] = gamma**(l_ind) * np.dot(_a, _b)
             l_ind += 1
-            _b = np.inner(_b, P)
-            L[l_ind] = gamma**(l_ind) * np.inner(_a, _b)
+            _b = np.dot(_b, P)
+            L[l_ind] = gamma**(l_ind) * np.dot(_a, _b)
             alpha += gamma**h * _a
             beta += gamma**(h+1) * _b
         L *= (1-gamma)
@@ -170,7 +169,7 @@ class MDP_solvers(object):
             # Update policy and record value in normalization factor.
             for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]:
                 self.mdp.policy[state][act] = self.mdp.policy[state][act] * \
-                    (self.mdp.reward[state][act] + np.inner(beta, self.mdp.prob[act][state_ind, :]))
+                    (self.mdp.reward[state][act] + np.dot(beta, self.mdp.prob[act][state_ind, :]))
                 norm_factor += self.mdp.policy[state][act]
             if norm_factor > 0:
                 for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]:

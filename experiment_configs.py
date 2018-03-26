@@ -363,9 +363,9 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
     new_env_policy = dict.fromkeys(joint_grid_states)
     for state in joint_grid_states:
         new_env_policy[state] = {}
-        Q_at_state = {act: (np.inner(copied_single_agent_mdp.theta,
-                                    copied_single_agent_mdp.phi_at_state[(state[state_env_idx],)][act])
-                            + np.inner(repulsive_theta, repulsive_feature_vector(state, act))) / 1.
+        Q_at_state = {act: (np.dot(copied_single_agent_mdp.theta,
+                                   copied_single_agent_mdp.phi_at_state[(state[state_env_idx],)][act])
+                            + np.dot(repulsive_theta, repulsive_feature_vector(state, act))) / 1.
                       for act in env_action_list}
         new_env_policy[state] = InferenceMDP.evalGibbsPolicy(Q_at_state)
     new_env_policy = MDP.updatePolicyActionKeys(new_env_policy, env_action_list,

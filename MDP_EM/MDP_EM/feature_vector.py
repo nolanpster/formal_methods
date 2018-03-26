@@ -234,4 +234,4 @@ class FeatureVector(object):
             for act_idx in xrange(self.num_actions):
                 for cell in self.grid_cell_vec:
                     self.weighted_prob_kernel_sum[kernel_idx, cell, act_idx] = \
-                        np.inner(self.kernel_values[kernel_idx], self.prob_mat[cell, :, act_idx])
+                        np.dot(self.kernel_values[kernel_idx], self.prob_mat[cell, :, act_idx])

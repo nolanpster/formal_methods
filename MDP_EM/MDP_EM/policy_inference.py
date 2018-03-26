@@ -2,7 +2,6 @@
 __author__ = 'Nolan Poulin, nipoulin@wpi.edu'
 
 import numpy as np
-from numpy.core.umath_tests import inner1d
 from copy import deepcopy
 from copy import copy
 from pprint import pprint
@@ -285,7 +284,7 @@ class PolicyInference(object):
                 theta_avg -= np.divide(theta_avg, iter_count);
                 theta_avg += np.divide(theta, iter_count);
                 vector_diff = np.subtract(theta_avg_old, theta_avg)
-                delta_theta_norm = inner1d(np.absolute(vector_diff), self.ones_length_theta)
+                delta_theta_norm = np.dot(np.absolute(vector_diff), self.ones_length_theta)
 
                 if do_plot:
                     vals2plot.append(self.mdp.theta.tolist())
