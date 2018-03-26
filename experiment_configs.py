@@ -181,7 +181,8 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
 
 def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, grid_map, gamma=0.9,
                               act_prob=dict([]), do_print=False, init_set=None,prob_dtype=np.float64,
-                              fixed_obstacle_labels=dict([]), use_mobile_kernels=False, gg_kernel_centers=[]):
+                              fixed_obstacle_labels=dict([]), use_mobile_kernels=False, gg_kernel_centers=[],
+                              env_labels=None):
     """
     @brief Configure the product MDP and DRA.
 
@@ -198,7 +199,7 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
                                  act_prob=deepcopy(act_prob), gamma=gamma, AP=alphabet_dict.items(), L=labels,
                                  grid_map=grid_map, init_set=init_set, prob_dtype=prob_dtype,
                                  fixed_obstacle_labels=fixed_obstacle_labels, use_mobile_kernels=use_mobile_kernels,
-                                 ggk_centers=gg_kernel_centers)
+                                 ggk_centers=gg_kernel_centers, env_labels=env_labels)
     else:
         grid_mdp = MDP(init=initial_state, action_list=action_set, states=states, act_prob=deepcopy(act_prob),
                        gamma=gamma, AP=alphabet_dict.items(), L=labels, grid_map=grid_map, init_set=init_set,
@@ -215,12 +216,17 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
     skip_product_calcs = False
     if skip_product_calcs:
         sink_list = [state for state, label in labels.iteritems() if label is not alphabet_dict['empty']]
+        if env_labels is not None:
+            env_sink_list = [state for state, label in env_labels.iteritems() if label is not alphabet_dict['empty']]
+        else:
+            env_sink_list = []
     else:
         sink_list = ['q2', 'q3']
+        env_sink_list = []
     VI_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='0_Empty', sink_list=sink_list,
                                  losing_sink_label=alphabet_dict['red'], winning_reward=winning_reward,
                                  prob_dtype=prob_dtype, skip_product_calcs=skip_product_calcs,
-                                 winning_label=alphabet_dict['green'])
+                                 winning_label=alphabet_dict['green'], env_sink_list=env_sink_list)
 
     # @TODO Prune unreachable states from MDP.
 

@@ -27,7 +27,7 @@ class MultiAgentMDP(MDP):
     def __init__(self, init=None, action_dict={}, states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
                  reward=dict([]), grid_map=None, act_prob=dict([]), init_set=None, prob_dtype=np.float64,
                  index_of_controllable_agent=0, infer_dtype=np.float64, fixed_obstacle_labels=dict([]),
-                 use_mobile_kernels=False, ggk_centers=[]):
+                 use_mobile_kernels=False, ggk_centers=[], env_labels=dict([])):
         """
         @brief Construct an MDP meant to perform inference.
         @param init @todo
@@ -68,6 +68,7 @@ class MultiAgentMDP(MDP):
                                              act_prob=act_prob, init_set=init_set, prob_dtype=prob_dtype)
 
         self.action_list = self.joint_action_list
+        self.env_labels = env_labels
 
         if not fixed_obstacle_labels:
             self.fixed_obstacle_labels = self.L

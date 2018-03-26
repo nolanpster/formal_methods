@@ -20,7 +20,7 @@ class ProductMDPxDRA(MDP):
     of atomic propositions. Each proposition is identified by an index between 0 -N.  L: the labeling function,
     implemented as a dictionary: state: a subset of AP."""
     def __init__(self, mdp, dra, sink_action=None, sink_list=[], losing_sink_label=None, winning_reward=None,
-                 prob_dtype=np.float64, winning_label=None, skip_product_calcs=False):
+                 prob_dtype=np.float64, winning_label=None, skip_product_calcs=False, env_sink_list=None):
         """
         @brief
         """
@@ -42,7 +42,7 @@ class ProductMDPxDRA(MDP):
         self.product_calcs_skipped = skip_product_calcs
         self.computeProductMDPxDRA(mdp, dra, skip_product_calcs)
         self.reconfigureConditionalInitialValues()
-        self.setSinks(sink_list)
+        self.setSinks(sink_list, env_sink_list)
         if winning_reward is not None:
             self.configureReward(winning_reward)
         self.makeUniformPolicy()
@@ -121,7 +121,7 @@ class ProductMDPxDRA(MDP):
                 mdp_acc.append((Jmdp, Kmdp))
             self.acc = mdp_acc
 
-    def setSinks(self, sink_list):
+    def setSinks(self, sink_list, env_sink_list=None):
         """
         @brief Finds augmented states that contain @c sink_frag and updates the row corresponding to their transition
                probabilities so that all transitions take a self loop with probability 1.
@@ -129,7 +129,11 @@ class ProductMDPxDRA(MDP):
         Used for product MDPs (see @ref productMDP), to identify augmented states that include @c sink_frag. @c
         sink_frag is the DRA/DFA component of an augmented state that is terminal.
         """
+
         if type(self.mdp) is MultiAgentMDP:
+            # Iniitlaize the env_sink_list to empty since it hasn't been initialzed yet.
+            self.env_sink_list = []
+
             if any(sink_list):
                 for sink_frag in sink_list:
                     for state in self.states:
@@ -140,8 +144,19 @@ class ProductMDPxDRA(MDP):
                             for act in self.executable_action_dict[self.controllable_agent_idx]:
                                 self.prob[act][s_idx, :] = np.zeros((1, self.num_states), self.prob_dtype)
                                 self.prob[act][s_idx, s_idx] = 1.0
+            if env_sink_list is not None:
+                for sink_frag in env_sink_list:
+                    for state in self.states:
+                        if sink_frag in state:
+                            # Set the transition probability of this state to always self loop.
+                            self.env_sink_list.append(state)
+                            s_idx = self.states.index(state)
+                            for act in self.executable_action_dict[self.uncontrollable_agent_indices[0]]:
+                                self.prob[act][s_idx, :] = np.zeros((1, self.num_states), self.prob_dtype)
+                                self.prob[act][s_idx, s_idx] = 1.0
             else:
                 self.sink_list = []
+                self.env_sink_list = []
         else:
             super(self.__class__, self).setSinks(sink_list)
 

@@ -63,15 +63,20 @@ robot_goal_states = [(robot_goal_cell, cell) for cell in cell_indices]
 fixed_obstacle_cells = [13, 14, 20]
 
 labels = {state: empty for state in states}
+env_labels = {state: empty for state in states}
 fixed_obs_labels = {state: empty for state in states}
+env_fixed_obs_labels = {state: empty for state in states}
 for state in states:
     if state in robot_goal_states:
         labels[state] = green
     elif state[robot_idx] in fixed_obstacle_cells:
         labels[state] = red
         fixed_obs_labels[state] = red
+    elif state[env_idx] in fixed_obstacle_cells:
+        env_fixed_obs_labels[state] = red
     elif state[robot_idx] == state[env_idx]:
         labels[state] = red
+        env_labels[state] = red
 
 # Numpy Data type to use for transition probability matrices (affects speed / precision)
 prob_dtype = np.float32
@@ -149,7 +154,8 @@ if make_new_mdp:
                                                                                prob_dtype=prob_dtype,
                                                                                fixed_obstacle_labels=fixed_obs_labels,
                                                                                use_mobile_kernels=use_mobile_kernels,
-                                                                               gg_kernel_centers=gg_kernel_centers)
+                                                                               gg_kernel_centers=gg_kernel_centers,
+                                                                               env_labels=env_labels)
     variables_to_save = [VI_mdp, policy_keys_to_print]
     pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps")
 else:
