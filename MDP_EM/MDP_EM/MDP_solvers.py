@@ -169,7 +169,7 @@ class MDP_solvers(object):
             # Update policy and record value in normalization factor.
             for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]:
                 self.mdp.policy[state][act] = self.mdp.policy[state][act] * \
-                    (self.mdp.reward[state][act] + np.dot(beta, self.mdp.prob[act][state_ind, :]))
+                    (self.mdp.reward[state][act] + np.dot(beta, self.mdp.T(state, act)))
                 norm_factor += self.mdp.policy[state][act]
             if norm_factor > 0:
                 for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]:
