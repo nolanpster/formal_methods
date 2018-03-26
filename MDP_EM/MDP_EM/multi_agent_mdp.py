@@ -115,9 +115,10 @@ class MultiAgentMDP(MDP):
 
         # Update the grid_probabilility transition matrices to have keys associated with the uncontrolable agent (for
         # kernel transition functions). (Don't need to copy grid_prob.
+        inference_grid_prob = deepcopy(self.grid_prob)
         for new_act_key, old_act_key in zip(self.executable_action_dict[self.uncontrollable_agent_indices[0]],
                                             self.action_dict[self.uncontrollable_agent_indices[0]]):
-            self.grid_prob[new_act_key] = self.grid_prob.pop(old_act_key)
+            inference_grid_prob[new_act_key] = inference_grid_prob.pop(old_act_key)
 
         #### !!! This is the container for the TRUE environmental policy !!! ####
         self.env_policy = {agent_idx:{} for agent_idx in self.uncontrollable_agent_indices}
@@ -126,7 +127,7 @@ class MultiAgentMDP(MDP):
         self.infer_env_mdp = InferenceMDP(init=self.init,
                                           action_list=self.executable_action_dict[self.uncontrollable_agent_indices[0]],
                                           states=states,
-                                          prob=deepcopy(self.grid_prob),
+                                          prob=inference_grid_prob,
                                           grid_map=self.grid_map,
                                           L=None,
                                           gg_kernel_centers=kernel_centers,

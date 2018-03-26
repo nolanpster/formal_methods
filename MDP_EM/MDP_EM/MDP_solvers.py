@@ -46,9 +46,9 @@ class MDP_solvers(object):
         # Follows procedure in section 7.4 of Jay Taylor's notes: 'Markov
         # Decision Processes: Lecture Notes for STP 425'.
         iter_count = 0 # Iteration counter
-        epsilon = 0.01 # Stopping threshold
+        epsilon = 0.1 # Stopping threshold
         # Initialize decision of each state to none.
-        empty_policy_dist = {act:0 for act in self.mdp.action_list}
+        empty_policy_dist = {act:0 for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]}
         policy = {state: empty_policy_dist.copy() for state in self.mdp.states}
         # Initialize value of each state to zero.
         values =  np.array([0.0 for _ in self.mdp.states])
@@ -64,10 +64,12 @@ class MDP_solvers(object):
         thresh = epsilon*(1.0 - gamma) / (2.0*gamma)
         # Loop until convergence
         while delta_value_norm > thresh:
+            if do_print:
+                iter_start_time = time.time()
             iter_count += 1
             prev_values = deepcopy(values)
             for s_idx, state in enumerate(self.mdp.states):
-                for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]:
+                for act in empty_policy_dist.keys():
                     this_value = self.mdp.reward[state][act]
                     # Column of Transition matrix
                     trans_prob = self.mdp.T(state, act)
@@ -80,7 +82,7 @@ class MDP_solvers(object):
                         policy[state][act] = 1
             delta_value_norm = np.linalg.norm(np.subtract(values, prev_values))
             if do_print:
-                print(" Change in state values: {:f}".format(delta_value_norm))
+                print(" Change in state values: {:f}, {:f}sec".format(delta_value_norm, time.time() - iter_start_time))
         # Set zero-likly-hood states to take empty action.
         for state in self.mdp.states:
             if sum(policy[state].values()) == 0:

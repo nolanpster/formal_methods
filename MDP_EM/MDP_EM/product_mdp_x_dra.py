@@ -7,7 +7,7 @@ from MDP import MDP
 from multi_agent_mdp import MultiAgentMDP
 
 import numpy as np
-from scipy import sparse
+import itertools
 
 
 class ProductMDPxDRA(MDP):
@@ -254,24 +254,44 @@ class ProductMDPxDRA(MDP):
 
     def getMultiAgentTransDistribution(self, state, robot_action, env_policy):
         """
+        @param state A joint state in the form ((robot_cell, env_cell),).
+        @param robot_action An action string in the form '0_<action>' where the leading zero identifies the robot agent.
+               The '0_' action-prefix is trimmed when accessing the 'grid_prob' dictionary keys.
         @param env_policy A reference to the true or estimated policy to use for calculating the transition probability.
         """
         state_idx = self.states.index(state)
-        # Creates a transition probability vector of the same dimesion as a row in the
-        # transition probability matrix.
-        intermediate_trans_prob = np.zeros(self.num_states, self.prob_dtype)
-        for act in env_policy.keys():
-            intermediate_trans_prob += env_policy[act] * self.prob[act][state_idx, :]
-        # Renormalize distribution (sometimes sum of elements is a wee bit more or less than one) - need to deal with
-        # this in a better way.
-        intermediate_trans_prob /= intermediate_trans_prob.sum()
-        _, next_state_indices, env_trans_probs = sparse.find(intermediate_trans_prob)
+        robot_cell_idx = state[0][self.controllable_agent_idx]
+        env_cell_idx = state[0][self.uncontrollable_agent_indices[0]]
 
+        # Build a list of tuples that pair next cell indices and transition probabilities for the environmental agent.
+        if state in self.env_sink_list:
+            env_trans_list = [(env_cell_idx, 1.0)]
+        else:
+            # Creates a transition probability vector of the same dimesion as a row in the
+            # transition probability matrix.
+            env_trans_prob = np.zeros(self.mdp.num_cells, self.prob_dtype)
+            for act in env_policy.keys():
+                # Note that the actions must have the leading "<agent_idx>_" sliced off.
+                env_trans_prob += env_policy[act] * self.mdp.grid_prob[act[2:]][env_cell_idx, :]
+            next_env_cell_indices, = np.where(env_trans_prob > 0)
+            # Create a list with entries (next_cell, prob)
+            env_trans_list = zip(next_env_cell_indices, env_trans_prob[next_env_cell_indices])
+
+        # Build a list of tuples that pair next cell indices and transition probabilities for the robot agent.
+        if state in self.sink_list:
+            robot_trans_list = [(robot_cell_idx, 1.0)]
+        else:
+            # Note that the robot action needs to be sliced to match the entries in the grid_prob dictionary keys.
+            robot_trans_prob = self.mdp.grid_prob[robot_action[2:]][robot_cell_idx]
+            next_robot_cell_indices, = np.where(robot_trans_prob > 0)
+            robot_trans_list = zip(next_robot_cell_indices, robot_trans_prob[next_robot_cell_indices])
+
+        # For each permutation of the robot and env lists, record the joint probability of that next state.
+        final_trans_pairs = itertools.product(robot_trans_list, env_trans_list)
         final_trans_prob = np.zeros(self.num_states, self.prob_dtype)
-        for next_state_idx, env_trans_prob in zip(next_state_indices, env_trans_probs):
-            final_trans_prob += np.multiply(env_trans_prob, self.prob[robot_action][next_state_idx, :])
-        # Renormalize, again.
-        final_trans_prob /= final_trans_prob.sum()
+        for robot_trans_pair, env_trans_pair in final_trans_pairs:
+            next_state = ((robot_trans_pair[0], env_trans_pair[0]),)
+            next_idx = self.states.index(next_state)
+            final_trans_prob[next_idx] = robot_trans_pair[1] * env_trans_pair[1]
+
         return final_trans_prob
-
-
