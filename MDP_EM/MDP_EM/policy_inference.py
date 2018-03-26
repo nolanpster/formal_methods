@@ -378,7 +378,7 @@ class PolicyInference(object):
         if do_weighted_update:
             prior_policy = deepcopy(self.mdp.policy)
         else:
-            empty_policy_dist = {act:np.array([[0.]]) for act in self.mdp.action_list}
+            empty_policy_dist = {act: np.array([0.]) for act in self.mdp.action_list}
             self.mdp.policy = {state: deepcopy(empty_policy_dist) for state in self.mdp.states}
 
         # For every state-action pair in the history, increment each observed action.
@@ -399,19 +399,19 @@ class PolicyInference(object):
                         self.mdp.policy[this_state][act] += action_weights[act_idx]
                 else:
                     observed_action = self.mdp.action_list[observed_action_idx]
-                    self.mdp.policy[this_state][observed_action][0][0] += 1
+                    self.mdp.policy[this_state][observed_action] += 1
 
         # Weight each action by the number of times the state was visited.
         for state in self.mdp.policy.keys():
             total_state_visits = float(np.sum(self.mdp.policy[state].values()))
             if total_state_visits > 0:
                 for action in self.mdp.policy[state].keys():
-                    if self.mdp.policy[state][action][0][0]==0:
+                    if self.mdp.policy[state][action]==0:
                         # If the state was not visited, we need to give it the smalles non-zero float value so we can
                         # compute the KL-Divergence later. @todo - determine if this makes sense.
-                        self.mdp.policy[state][action][0][0] = sys.float_info.min
+                        self.mdp.policy[state][action] = np.array([sys.float_info.min])
                     else:
-                        self.mdp.policy[state][action][0][0] /= total_state_visits
+                        self.mdp.policy[state][action] /= total_state_visits
 
         if do_print:
             print("Infered-Policy as a {state: action-distribution} dictionary.")
