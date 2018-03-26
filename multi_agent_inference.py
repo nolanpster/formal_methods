@@ -176,6 +176,13 @@ ExperimentConfigs.convertSingleAgentEnvPolicyToMultiAgent(VI_mdp, labels, state_
                                                           alphabet_dict=alphabet_dict,
                                                           fixed_obstacle_labels=fixed_obs_labels)
 
+VI_policy = VI_mdp.getPolicyAsVec()
+EM_mdp = deepcopy(VI_mdp)
+EM_mdp.makeUniformPolicy()
+em_stats = EM_mdp.solve(method='expectationMaximization', do_print=False, horizon_length=20, num_iters=40)
+EM_error = EM_mdp.getPolicyL1Norm(VI_policy, EM_mdp.getPolicyAsVec())
+print 'EM L1 error: {}'.format(EM_error)
+print em_stats
 ########################################################################################################################
 # Demonstrate Trajectories
 ########################################################################################################################
@@ -263,8 +270,9 @@ if any(plot_flags):
 
     mdp_list, plot_policies, only_use_print_keys, titles, kernel_locations, action_lists, plot_key_groups = \
         PlotHelper.makePlotGroups(plot_all_grids, plot_VI_mdp_grids, plot_EM_mdp_grids, plot_inferred_mdp_grids,
-                                  VI_mdp=VI_mdp, infer_mdp=infer_mdp, robot_action_list=robot_action_list,
-                                  env_action_list=env_action_list, VI_plot_keys=VI_policy_key_groups,
+                                  VI_mdp=VI_mdp, EM_mdp=EM_mdp, infer_mdp=infer_mdp,
+                                  robot_action_list=robot_action_list, env_action_list=env_action_list,
+                                  VI_plot_keys=VI_policy_key_groups, EM_plot_keys=VI_policy_key_groups,
                                   infer_plot_keys=infer_policy_key_groups, include_kernels=True)
 
     if plot_all_grids or plot_VI_mdp_grids or plot_EM_mdp_grids or plot_inferred_mdp_grids:

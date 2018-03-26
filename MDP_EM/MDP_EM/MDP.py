@@ -365,11 +365,14 @@ class MDP(object):
         """
         if policy is None:
             policy = self.policy
+
         # List rewards available at this state for every action.
         prob_reward = 0
-        for act in self.action_list:
+        for act in policy.itervalues().next().keys():
             prob_reward += self.reward[state][act]*self.policy[state][act]
 
+        prob_reward -= self.min_reward
+        prob_reward /= self.max_less_min_reward
         return prob_reward
 
     def setProbMatGivenPolicy(self, policy=None):
@@ -386,11 +389,10 @@ class MDP(object):
         prob_keys = tuple(self.prob.keys())
         self.prob_mat_given_policy = np.zeros_like(self.prob[prob_keys[0]])
 
-        for state_idx, state_str in enumerate(self.states):
-            this_policy = self.policy[state_str]
+        for state_idx, state in enumerate(self.states):
+            this_policy = self.policy[state]
             for act in this_policy.keys():
-                self.prob_mat_given_policy[state_idx,:] += \
-                    this_policy[act]*self.prob[act][state_idx, :]
+                self.prob_mat_given_policy[state_idx,:] += this_policy[act]*self.prob[act][state_idx, :]
         return self.prob_mat_given_policy
 
     def setInitialProbDist(self, initial_state=None):
@@ -538,7 +540,7 @@ class MDP(object):
         @param an instance of @ref MDP.
         @param a string matching a method name in @ref MDP_solvers.py.
         """
-        MDP_solvers(self, method=method, write_video=write_video).solve(**kwargs)
+        return MDP_solvers(self, method=method, write_video=write_video).solve(**kwargs)
 
     @staticmethod
     def updatePolicyActionKeys(policy, old_keys, new_keys):

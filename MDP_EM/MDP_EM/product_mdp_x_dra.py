@@ -181,9 +181,7 @@ class ProductMDPxDRA(MDP):
         """
         no_reward = {act: 0.0 for act in self.action_list}
         # Go through each state and if it is a winning state, assign it's reward
-        # to be the positive reward dictionary. I have to remove the state
-        # ('5', 'q3') because there are conflicting actions due to the label of '4'
-        # being 'red'.
+        # to be the positive reward dictionary.
         reward_dict = {}
         for state in self.states:
             if state in self.acc[0][0] and not self.L[state]==self.losing_sink_label:
@@ -197,6 +195,19 @@ class ProductMDPxDRA(MDP):
                 for robot_act, env_act in zip(reward_dict[state].keys(), bonus_reward_at_state[env_state].keys()):
                     reward_dict[state][robot_act] += bonus_reward_at_state[env_state][env_act]
         self.reward = reward_dict
+
+        self.max_reward = max(winning_reward.values())
+        if bonus_reward_at_state:
+            # Find the min and max reward values. Initalize both min and max to the winning reward value and then loop
+            # through all state-actions pairs to find true minimum and maximum given that we included a bonus reward.
+            self.min_reward = max(winning_reward.values())
+            for actions in self.reward.values():
+                for reward in actions.values():
+                   self.min_reward = self.min_reward if reward >= self.min_reward else reward
+                   self.max_reward = self.max_reward if reward <= self.max_reward else reward
+        else:
+            self.min_reward = min(no_reward.values())
+        self.max_less_min_reward = self.max_reward - self.min_reward
 
     def makeUniformPolicy(self):
         # I'm so sorry for this hack, in too much of a rush to figure out multiple inheritance. <3 Nolan
@@ -295,3 +306,23 @@ class ProductMDPxDRA(MDP):
             final_trans_prob[next_idx] = robot_trans_pair[1] * env_trans_pair[1]
 
         return final_trans_prob
+
+    def setProbMatGivenPolicy(self, policy=None):
+        """
+        @brief Returns a transition probability matrix that has been summed over all actions
+        multiplied with all transition probabilities.
+
+        Rows of un-reachable states are not guranteed to sum to 1.
+        """
+        if policy is None:
+            policy = self.policy
+        # Assume that all transition probability matricies are the same size.
+        # The method below should work in python 2 and 3.
+        prob_keys = tuple(self.prob.keys())
+        self.prob_mat_given_policy = np.zeros(self.prob[prob_keys[0]].shape)
+
+        for state_idx, state in enumerate(self.states):
+            this_policy = self.policy[state]
+            for act in this_policy.keys():
+                self.prob_mat_given_policy[state_idx,:] += np.multiply(this_policy[act], self.T(state, act))
+        return self.prob_mat_given_policy

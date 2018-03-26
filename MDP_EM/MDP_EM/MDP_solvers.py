@@ -30,7 +30,7 @@ class MDP_solvers(object):
         if method is not None and (not self.method == method):
             self.setMethod(method)
         # Unbound method call requires passing in 'self'.
-        self.algorithm(self, **kwargs)
+        return self.algorithm(self, **kwargs)
     def setMethod(self, method='valueIteration'):
             # Calles a method named 'method'. So self.algorithm points to the
             # method in the MDP_solvers class.
@@ -104,18 +104,18 @@ class MDP_solvers(object):
                 pprint(self.mdp.policy)
         return run_stats
 
-    def expectationMaximization(self, do_print=False, policy_keys_to_print=None):
+    def expectationMaximization(self, do_print=False, policy_keys_to_print=None, horizon_length=25, num_iters=10):
         """
         @brief
         """
         start_time = time.time()
-        num_iters = 10
         S = deepcopy(self.mdp.S) # Initial distribution.
         for _ in range(num_iters):
             P = self.mdp.setProbMatGivenPolicy()
             R = [self.mdp.probRewardGivenX_T(state) for state in self.mdp.states]
             R = np.array(R)
-            alpha, beta, P_R, P_T_given_R, expect_T_given_R = MDP_solvers.e_step(self, S, R, P, self.mdp.gamma, H=25)
+            alpha, beta, P_R, P_T_given_R, expect_T_given_R = MDP_solvers.e_step(self, S, R, P, self.mdp.gamma,
+                                                                                 H=horizon_length)
             MDP_solvers.m_step(self, beta)
             self.mdp.removeNaNValues()
             if self.write_video:
@@ -168,10 +168,10 @@ class MDP_solvers(object):
         for state_ind, state in enumerate(self.mdp.states):
             norm_factor = 0
             # Update policy and record value in normalization factor.
-            for act in self.mdp.action_list:
+            for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]:
                 self.mdp.policy[state][act] = self.mdp.policy[state][act] * \
                     (self.mdp.reward[state][act] + np.inner(beta, self.mdp.prob[act][state_ind, :]))
                 norm_factor += self.mdp.policy[state][act]
             if norm_factor > 0:
-                for act in self.mdp.action_list:
+                for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]:
                     self.mdp.policy[state][act] /= norm_factor
