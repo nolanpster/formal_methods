@@ -46,6 +46,7 @@ class ProductMDPxDRA(MDP):
         if winning_reward is not None:
             self.configureReward(winning_reward)
         self.makeUniformPolicy()
+        self.resetState()
 
     def reconfigureConditionalInitialValues(self):
 
