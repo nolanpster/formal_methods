@@ -314,6 +314,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch, inferred_policy_L1_norm_error))
         print('L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
         recorded_inferred_policy_L1_norms.append(inferred_policy_L1_norm_error)
+        inferred_policy_variance.append(infer_mdp.theta_std_dev)
 
         # Go through and pop keys from policy_uncertainty into a dict built from policy_keys_to_print.
         bonus_reward_dict = makeBonusReward(infer_mdp.policy_uncertainty, 0.5)

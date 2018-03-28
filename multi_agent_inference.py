@@ -239,6 +239,10 @@ if perform_new_inference:
                                       monte_carlo_size=monte_carlo_size, print_iterations=True, eps=0.0001,
                                       velocity_memory=0.2, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
                                       moving_avg_min_slope=-0.5)
+    pickled_mdp_file = DataHelper.pickleMDP([demo_mdp, policy_keys_to_print], name_prefix="two_stage_multi_agent_mdps")
+else:
+    (demo_mdp, pickled_episodes_file) = DataHelper.loadPickledMDP(pickled_two_stage_mdps_file_to_load)
+    infer_mdp = demo_mdp.infer_env_mdp
 
 ########################################################################################################################
 # Print Results' analysis
@@ -327,5 +331,19 @@ if any(plot_flags):
 
         print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
                 'arrow/dot size ratio!\n'
+
+    if plot_uncertainty:
+        # Only for GaussianTheta
+        uncertainty_grid = PlotHelper.UncertaintyPlot(maze, cmap, grid_map)
+        policy_uncertainty = infer_mdp.policy_uncertainty_as_vec.reshape([infer_mdp.num_states, infer_mdp.num_actions])
+        for act_idx, act in enumerate(action_list):
+            param_vector_indeces = xrange(act_idx, len(infer_mdp.theta), len(action_list))
+            uncertainty_vals = infer_mdp.theta_std_dev[param_vector_indeces]
+            title='Param Uncertainty'
+            fig, ax = uncertainty_grid.configurePlot(title, infer_mdp.kernel_centers, uncertainty_vals, act_str=str(act))
+            # Plot aggregate uncertainty at states here
+            fig, ax = uncertainty_grid.configurePlot('Policy Uncertainty', infer_mdp.grid_map.ravel(),
+                                                     policy_uncertainty[:, act_idx], act_str=str(act))
+
 
     plt.show()
