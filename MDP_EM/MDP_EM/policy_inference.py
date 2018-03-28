@@ -17,6 +17,10 @@ import signal
 import data_helper as DataHelp
 
 class GracefulKiller:
+    """
+    @brief Captures 'Ctrl-C' from keyboard and allows inference to forcibly terminate, but allows program that called
+    the policy inference to stil perform analysis on incomplete results.
+    """
     kill_now = False
     def __init__(self):
         signal.signal(signal.SIGINT, self.exit_gracefully)
@@ -59,6 +63,9 @@ class PolicyInference(object):
         """
         @brief Precompute the observed action indeces for the instance's demonstration set.
 
+        Given the observed state histories, determine which action was observed from between state pair. The data is
+        saved as the action indices based on the ordering in @c self.mdp.action_list.
+
         @return observed_action_indeces A Num_episodes-by-(num_steps) matrix of action indeces. Each column
                 corresponds to the action taken from the state at time-step t from t=0 to T-1 so the first column is
                 invalid.
@@ -77,6 +84,11 @@ class PolicyInference(object):
         return observed_action_indeces
 
     def computePhis(self):
+        """
+        @brief Compute a |S|x|A|x|K| matrix of phi values for state, action and kernel center.
+
+        It is assumed that @c self.mdp.phi_at_state has been computed by the mdp.
+        """
         # Initialize arrays for intermediate computations.
         phis = np.zeros([self.mdp.num_states, self.mdp.num_actions, self.theta_size], dtype=self.dtype)
         for state_idx, state in enumerate(self.mdp.states):
@@ -87,8 +99,12 @@ class PolicyInference(object):
 
     def estimateHessian(self, theta, phis, exp_Q, sum_exp_Q, sum_weighted_exp_Q):
         """
-        @brief This method computes the Hessian of the objective function, which is the gradient w.r.t. the parameter
-               vector, theta.
+        @brief This method computes the Hessian of the Linear-in-parameter objective function, which is the gradient
+               w.r.t. the parameter vector, theta.
+
+        @note It is _not_ used in the @c gradientAscentGaussianTheta method since the objective function is different.
+
+        The steps and variable notation are:
 
         0) delLog(pi)_delTheta = phi - ( sum_over_actions(phi * exp(theta'*phi)) / sum_over_actions(exp(theta'*phi)) ).
 
@@ -124,7 +140,7 @@ class PolicyInference(object):
                        **kwargs):
         """
         @brief Performs Policy inference using Gradient Ascent from Section 7.2.1 of
-               Sugiyama, 2015.
+               Sugiyama, 2015 given the Linear-in-parameter mode.
 
         @note All policy differences are computed with L1-norm.
         @note For any calculations with numpy.einsum, unless otherwise noted:
@@ -418,6 +434,10 @@ class PolicyInference(object):
 
 
     def iterativeBayes(self, histories, do_print=False, reference_policy_vec=None, **kwargs):
+        """
+        @brief Repeatedly calls the historyMLE and which updates the probability of an observed action given known a
+               transition function.
+        """
         self.histories = histories
         states_in_history = set(self.histories.ravel())
         if states_in_history != set(self.mdp.grid_cell_vec):
@@ -461,7 +481,7 @@ class PolicyInference(object):
         @param phis A Num-states--by--num-actions--by--num-kernels numpy array.
         @param theta A KxNum-kernels numpy array where K is the number of times theta is sampled.
 
-        @return The log probability of all trajectorys for each theta sample.
+        @return The log probability of all trajectories for each theta-vector sample.
         """
         policy_mat = self.buildPolicyVectors(phis, theta_mat)
         log_policy_mat = np.log(policy_mat)
@@ -480,6 +500,9 @@ class PolicyInference(object):
         """
         @brief Performs Policy inference using gradient ascent on the distribution theta_i ~ (mu_i, sigma_i).
 
+        Algorithm termination is determined by observing the change in the log-probability of the demonstration set
+        (histories) given the mean values of multi-variate theta distribution.
+
         @note All policy differences are computed with L1-norm.
         @note For any calculations with numpy.einsum, unless otherwise noted:
                 - d : time-step axis
@@ -496,13 +519,29 @@ class PolicyInference(object):
         @param dtype Numpy data type to use for array computation, default is numpy.float64.
         @param monte_carlo_size The number of times to sample from theta's distribution when performing monte-carlo
                integration of the log-likelihood of a demonstration set given theta's distribution.
-        @param reference_policy_vec Not used by this implementation.
+        @param reference_policy_vec Not used by this inference implementation.
         @param precomputed_observed_action_indeces If supplied, the inference will assume the correct observed action
                indeces for each time-step in each episode in the history. This is useful if the inference is being
                called externally with the same history.
         @param theta_std_dev_0 Initial standard deviations to use, otherwise defaults to 1 for all phi entries.
         @param eps The step size for gradient ascent
-        @param moving_average_buffer_length
+        @param moving_average_buffer_length The number of log-prob of history given theta-vector means to store from
+               previous iterations.
+        @param velocity_memory How much momentum to use from previous gradient in the next update.
+        @param theta_std_dev_min At the end of _each_ iteration any std-devs below this value are set to this minimum.
+               The gradient may have caused standard deviation values to be below this value, values below 0.05 can lead
+               to floating-point overflows. Keeping this minimum value above 0.1 causes a smoothing effect on the
+               gradient update of the theta-means, and leads to solutions that have lower differences from the TRUE,
+               unobservable, policy used by the environment in the history generation.
+        @param theta_std_dev_max At the end of _each_ iteration, any std-devs above this value are set to this maximum.
+        @param moving_avg_min_slope A termination parameter. If the slope of the moving average (log-probabilities are
+               negative, and positive slope implies imrpovement) is below this value, the inference will terminate.
+               Using a minimum slow < 0 can allow the inference to recover from bad theta-mean values, and can improve
+               the overall performance of the inference. However, when the inference has a very small "log-prob of
+               history given mean theta", e.g., -10.0 > moving-avg-log-prob > 0.0, the algorithm may never terminate.
+        @param moving_avg_min_improvement Used to deal with termination issues caused by using @ref moving_avg_min_slope
+               < 0. If the final value of the moving average buffer minus the average of the previous moving averages
+               is less than this value the algorithm will terminate.
         """
         # Process input arguments
         do_plot=False
@@ -582,7 +621,7 @@ class PolicyInference(object):
             log_prob_traj_given_thetas = self.logProbOfDataSet(theta_samples, phis)
             ## Mu Update ##
             # Calculate the gradient of the log-likelihood of the sampled thetas with respect to the means of the
-            # theta distribution.
+            # theta distribution. Note that calculations are done "in-place" for efficiency.
             theta_variance = np.power(theta_std_dev_vec, 2)
             theta_sample_less_mean = theta_samples
             theta_sample_less_mean -= theta_mean_vec
