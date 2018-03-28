@@ -190,11 +190,15 @@ class ProductMDPxDRA(MDP):
                 reward_dict[state] = deepcopy(winning_reward)
             else:
                 # No reward when leaving current state.
-                reward_dict[state] = no_reward
+                reward_dict[state] = deepcopy(no_reward)
             if bonus_reward_at_state and ('q0' in state or self.product_calcs_skipped):
-                env_state = state[self.cell_state_slicer][0]
-                for robot_act, env_act in zip(reward_dict[state].keys(), bonus_reward_at_state[env_state].keys()):
-                    reward_dict[state][robot_act] += bonus_reward_at_state[env_state][env_act]
+                if state in self.sink_list and self.L[state]==self.losing_sink_label:
+                    reward_dict[state] = deepcopy(no_reward)
+                else:
+                    env_state = state[self.cell_state_slicer][0]
+                    for env_act in bonus_reward_at_state[env_state].keys():
+                        robot_act = '0_' + env_act[2:]
+                        reward_dict[state][robot_act] += bonus_reward_at_state[env_state][env_act]
         self.reward = reward_dict
 
         self.max_reward = max(winning_reward.values())
@@ -203,9 +207,10 @@ class ProductMDPxDRA(MDP):
             # through all state-actions pairs to find true minimum and maximum given that we included a bonus reward.
             self.min_reward = max(winning_reward.values())
             for actions in self.reward.values():
-                for reward in actions.values():
-                   self.min_reward = self.min_reward if reward >= self.min_reward else reward
-                   self.max_reward = self.max_reward if reward <= self.max_reward else reward
+                for action, reward in actions.iteritems():
+                    if action in self.executable_action_dict[self.controllable_agent_idx]:
+                        self.min_reward = self.min_reward if reward >= self.min_reward else reward
+                        self.max_reward = self.max_reward if reward <= self.max_reward else reward
         else:
             self.min_reward = min(no_reward.values())
         self.max_less_min_reward = self.max_reward - self.min_reward
