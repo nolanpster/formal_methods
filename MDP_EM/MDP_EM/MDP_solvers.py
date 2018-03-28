@@ -36,7 +36,7 @@ class MDP_solvers(object):
             self.method = method
             self.algorithm = getattr(MDP_solvers, method)
 
-    def valueIteration(self, do_print=False, policy_keys_to_print=None):
+    def valueIteration(self, do_print=False, policy_keys_to_print=None, **kwargs):
         """
         @brief returns a dictiionary describing the policy: keys are states,
                values are actions.
@@ -103,7 +103,8 @@ class MDP_solvers(object):
                 pprint(self.mdp.policy)
         return run_stats
 
-    def expectationMaximization(self, do_print=False, policy_keys_to_print=None, horizon_length=25, num_iters=10):
+    def expectationMaximization(self, do_print=False, policy_keys_to_print=None, horizon_length=25, num_iters=10,
+                                **kwargs):
         """
         @brief
         """
