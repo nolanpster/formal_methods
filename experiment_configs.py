@@ -334,6 +334,8 @@ def makeBonusReward(policy_uncertainty_dict, std_dev_thresh):
         for act in policy_uncertainty_dict[state].keys():
             if policy_uncertainty_dict[state][act] > std_dev_thresh:
                 bonus_reward_dict[state][act] = exploration_weight * policy_uncertainty_dict[state][act]
+            else:
+                bonus_reward_dict[state][act] = 0.0
     return bonus_reward_dict
 
 

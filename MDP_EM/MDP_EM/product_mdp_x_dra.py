@@ -187,11 +187,11 @@ class ProductMDPxDRA(MDP):
         for state in self.states:
             if state in self.acc[0][0] and not self.L[state]==self.losing_sink_label:
                 # Winning state
-                reward_dict[state] = winning_reward
+                reward_dict[state] = deepcopy(winning_reward)
             else:
                 # No reward when leaving current state.
                 reward_dict[state] = no_reward
-            if bonus_reward_at_state and 'q0' in state:
+            if bonus_reward_at_state and ('q0' in state or self.product_calcs_skipped):
                 env_state = state[self.cell_state_slicer][0]
                 for robot_act, env_act in zip(reward_dict[state].keys(), bonus_reward_at_state[env_state].keys()):
                     reward_dict[state][robot_act] += bonus_reward_at_state[env_state][env_act]
