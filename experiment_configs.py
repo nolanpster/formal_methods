@@ -182,7 +182,7 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
 def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, grid_map, gamma=0.9,
                               act_prob=dict([]), do_print=False, init_set=None,prob_dtype=np.float64,
                               fixed_obstacle_labels=dict([]), use_mobile_kernels=False, gg_kernel_centers=[],
-                              env_labels=None):
+                              env_labels=None, print_VI_iterations=True):
     """
     @brief Configure the product MDP and DRA.
 
@@ -242,7 +242,7 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
     # To enable a solution of the MDP with multiple methods, copy the MDP, set the initial state likelihood
     # distributions and then solve the MDPs.
     VI_mdp.solve(do_print=do_print, method='valueIteration', write_video=False,
-                 policy_keys_to_print=policy_keys_to_print)
+                 policy_keys_to_print=policy_keys_to_print, print_iterations=print_VI_iterations)
 
     return VI_mdp, policy_keys_to_print
 
@@ -320,8 +320,8 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         arena_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict)
 
         import pdb;pdb.set_trace()
-        arena_mdp.solve(do_print=True, method='valueIteration', write_video=False,
-                        policy_keys_to_print=policy_keys_to_print)
+        arena_mdp.solve(do_print=False, method='valueIteration', print_iterations=True,
+                        policy_keys_to_print=policy_keys_to_print, horizon_length=20, num_iters=40)
         batch_stop_time = time.time()
         print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
 
