@@ -213,7 +213,7 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
     # solved with Value Iteration.
     winning_reward = {act: 0.0 for act in grid_mdp.action_list}
     winning_reward['0_Empty'] = 1.0
-    skip_product_calcs = False
+    skip_product_calcs = True
     if skip_product_calcs:
         sink_list = [state for state, label in labels.iteritems() if label is not alphabet_dict['empty']]
         if env_labels is not None:
@@ -306,9 +306,9 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                                           use_precomputed_phi=True, monte_carlo_size=num_theta_samples,
                                           precomputed_observed_action_indeces=observed_action_indeces, eps=0.001,
                                           velocity_memory=0.2, theta_std_dev_min=theta_std_dev_min,
-                                          theta_std_dev_max=theta_std_dev_max, moving_avg_min_slope=-0.0,
+                                          theta_std_dev_max=theta_std_dev_max, moving_avg_min_slope=-0.5,
                                           print_iterations=True, theta_0=infer_mdp.theta,
-                                          theta_std_dev_0=theta_std_dev_0, moving_avg_min_improvement=0.01)
+                                          theta_std_dev_0=theta_std_dev_0, moving_avg_min_improvement=-np.inf)
         # Print Inference error
         inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
         print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch, inferred_policy_L1_norm_error))
@@ -320,15 +320,15 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         bonus_reward_dict = makeBonusReward(infer_mdp.policy_uncertainty, 0.5)
         arena_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict)
 
-        import pdb;pdb.set_trace()
         arena_mdp.solve(do_print=False, method='valueIteration', print_iterations=True,
                         policy_keys_to_print=policy_keys_to_print, horizon_length=20, num_iters=40)
         batch_stop_time = time.time()
         print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
+    import pdb; pdb.set_trace()
 
 
 def makeBonusReward(policy_uncertainty_dict, std_dev_thresh):
-    exploration_weight = 0.2
+    exploration_weight = 0.5
     bonus_reward_dict = dict.fromkeys(policy_uncertainty_dict)
     for state in policy_uncertainty_dict:
         bonus_reward_dict[state] = {}

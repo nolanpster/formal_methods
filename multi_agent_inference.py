@@ -98,7 +98,10 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180323_1125'
+solve_EM = False
+resolve_VI = False
+solve_after_inference = False
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180328_1435'
 
 
 # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -108,33 +111,25 @@ gather_new_data = False
 print_history_analysis = False
 num_episodes = 500
 steps_per_episode = 10
-pickled_episodes_file_to_load = 'multi_agent_mdps_180317_1134_HIST_500eps10steps_180317_1419'
+pickled_episodes_file_to_load = 'multi_agent_mdps_180326_1532_HIST_500eps10steps_180326_1644'
 
 # Perform/load policy inference options. If @c perform_new_inference is false, load the @pickled_inference_mdps_file.
-perform_new_inference = False
-pickled_inference_mdps_file_to_load  = 'robot_mdps_180311_1149_HIST_250eps15steps_180311_1149_Policy_180311_1149'
+perform_new_inference = True
+pickled_two_stage_mdps_file_to_load  = 'two_stage_multi_agent_mdps_180328_1453'
 inference_method = 'gradientAscentGaussianTheta'
 gg_kernel_centers = [0, 4, 12, 20, 24]
-gg_kernel_centers = range(0, num_cells, 2)
+gg_kernel_centers = range(0, num_cells, 1)
 
 # Gaussian Theta params
 num_theta_samples = 500
 
 # Plotting flags
-plot_flags = PlotHelper.default_plot_flags.copy()
-plot_flags['VI'] = True
-plot_flags['EM'] = True
-plot_flags['inference'] = True
-plot_flags['demonstration'] = True
-plot_flags['inference_statistics'] = False
-plot_flags['phi'] = True
-plot_flags['phi_std_dev'] = False
-# Plotting flags
 plot_all_grids = False
 plot_VI_mdp_grids = True
 plot_EM_mdp_grids = False
-plot_inferred_mdp_grids = False
-plot_flags = [plot_all_grids, plot_VI_mdp_grids, plot_EM_mdp_grids, plot_inferred_mdp_grids]
+plot_inferred_mdp_grids = True
+plot_uncertainty = True
+plot_flags = [plot_all_grids, plot_VI_mdp_grids, plot_EM_mdp_grids, plot_inferred_mdp_grids, plot_uncertainty]
 ########################################################################################################################
 # Create / Load Multi Agent MDP
 ########################################################################################################################
@@ -150,7 +145,7 @@ if make_new_mdp:
         use_mobile_kernels = False
     VI_mdp, policy_keys_to_print = ExperimentConfigs.makeMultiAgentGridMDPxDRA(states, initial_state, action_dict,
                                                                                alphabet_dict, labels, grid_map,
-                                                                               do_print=False, init_set=init_set,
+                                                                               do_print=True, init_set=init_set,
                                                                                prob_dtype=prob_dtype,
                                                                                fixed_obstacle_labels=fixed_obs_labels,
                                                                                use_mobile_kernels=use_mobile_kernels,
@@ -163,7 +158,7 @@ else:
 
 # Override recorded initial dist to be uniform. Note that policy_keys_to_print are the reachable initial states, and we
 # want to set the initial state-set to only include the states where the robot is at `robot_initial_cell`.
-VI_mdp.init_set = [state for state in policy_keys_to_print if state[0][robot_idx] == robot_initial_cell]
+VI_mdp.init_set = VI_mdp.states
 VI_mdp.setInitialProbDist(VI_mdp.init_set)
 
 # The original environment policy in the MDP is a random walk. So we load a file containing a more interesting
@@ -176,13 +171,18 @@ ExperimentConfigs.convertSingleAgentEnvPolicyToMultiAgent(VI_mdp, labels, state_
                                                           alphabet_dict=alphabet_dict,
                                                           fixed_obstacle_labels=fixed_obs_labels)
 
+if resolve_VI:
+    tic = time.time()
+    VI_mdp.solve(print_iterations=True)
+    print "VI: {}sec".format(time.time() - tic)
 VI_policy = VI_mdp.getPolicyAsVec()
 EM_mdp = deepcopy(VI_mdp)
 EM_mdp.makeUniformPolicy()
-em_stats = EM_mdp.solve(method='expectationMaximization', do_print=False, horizon_length=20, num_iters=40)
-EM_error = EM_mdp.getPolicyL1Norm(VI_policy, EM_mdp.getPolicyAsVec())
-print 'EM L1 error: {}'.format(EM_error)
-print em_stats
+if solve_EM:
+    em_stats = EM_mdp.solve(method='expectationMaximization', do_print=False, horizon_length=20, num_iters=10)
+    EM_error = EM_mdp.getPolicyL1Norm(VI_policy, EM_mdp.getPolicyAsVec())
+    print 'EM L1 error: {}'.format(EM_error)
+    print em_stats
 ########################################################################################################################
 # Demonstrate Trajectories
 ########################################################################################################################
@@ -241,8 +241,31 @@ if perform_new_inference:
                                       moving_avg_min_slope=-0.5)
     pickled_mdp_file = DataHelper.pickleMDP([demo_mdp, policy_keys_to_print], name_prefix="two_stage_multi_agent_mdps")
 else:
-    (demo_mdp, pickled_episodes_file) = DataHelper.loadPickledMDP(pickled_two_stage_mdps_file_to_load)
+    (demo_mdp, policy_keys_to_print, pickled_episodes_file) = \
+        DataHelper.loadPickledMDP(pickled_two_stage_mdps_file_to_load)
     infer_mdp = demo_mdp.infer_env_mdp
+
+if solve_after_inference:
+    # This will update the demo-mdp's policy and therefore its plots below.
+    bonus_reward_dict = ExperimentConfigs.makeBonusReward(infer_mdp.policy_uncertainty, 0.5)
+    winning_reward = {act: 0.0 for act in demo_mdp.action_list}
+    winning_reward['0_Empty'] = 1.0
+    demo_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict)
+
+    demo_mdp.solve(do_print=False, method='valueIteration', print_iterations=True,
+                   policy_keys_to_print=policy_keys_to_print, horizon_length=20, num_iters=40)
+    variables_to_save = [VI_mdp, policy_keys_to_print]
+    pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps_bonus_reward")
+else:
+    (demo_mdp, policy_keys_to_print, pickled_mdp_file) = \
+        DataHelper.loadPickledMDP('multi_agent_mdps_bonus_reward_180328_1024')
+
+
+
+policy_change = demo_mdp.getPolicyL1Norm(VI_policy, demo_mdp.getPolicyAsVec())
+print 'Policy Change from Bonus Reward: {}'.format(policy_change)
+#import pdb; pdb.set_trace()
+#VI_mdp = demo_mdp
 
 ########################################################################################################################
 # Print Results' analysis
