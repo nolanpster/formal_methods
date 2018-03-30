@@ -215,9 +215,9 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
     winning_reward['0_Empty'] = 1.0
     skip_product_calcs = True
     if skip_product_calcs:
-        sink_list = [state for state, label in labels.iteritems() if label is not alphabet_dict['empty']]
+        sink_list = [state for state, label in labels.iteritems() if label is alphabet_dict['red']]
         if env_labels is not None:
-            env_sink_list = [state for state, label in env_labels.iteritems() if label is not alphabet_dict['empty']]
+            env_sink_list = [state for state, label in env_labels.iteritems() if label is alphabet_dict['red']]
         else:
             env_sink_list = []
     else:
