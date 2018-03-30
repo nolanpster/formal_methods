@@ -53,14 +53,14 @@ alphabet_dict = {'empty': empty, 'green': green, 'red': red}
 # _False_ to have EM and the MDP always start from the `initial_state` below.
 solve_with_uniform_distribution = False
 robot_initial_cell = 24
-env_initial_cell = 4
+env_initial_cell = 20
 initial_state = (robot_initial_cell, env_initial_cell)
 
 # Currently assumes the robot only has one goal cell. Also, fixed obstacles only affect the robot.
-robot_goal_cell = 6 # Currently assumess only one goal.
+robot_goal_cell = 0 # Currently assumess only one goal.
 robot_goal_states = [(robot_goal_cell, cell) for cell in cell_indices]
 
-fixed_obstacle_cells = [13, 14, 20]
+fixed_obstacle_cells = []
 
 labels = {state: empty for state in states}
 env_labels = {state: empty for state in states}
@@ -101,7 +101,7 @@ make_new_mdp = False
 solve_EM = False
 resolve_VI = False
 solve_after_inference = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180328_1435'
+pickled_mdp_file_to_load  = 'multi_agent_mdps_bonus_reward_180330_1324'
 
 
 # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -109,12 +109,12 @@ pickled_mdp_file_to_load  = 'multi_agent_mdps_180328_1435'
 # determine how large the demonstration set should be.
 gather_new_data = False
 print_history_analysis = False
-num_episodes = 500
+num_episodes = 300
 steps_per_episode = 10
-pickled_episodes_file_to_load = 'multi_agent_mdps_180326_1532_HIST_500eps10steps_180326_1644'
+pickled_episodes_file_to_load = 'multi_agent_mdps_180330_1030_HIST_300eps10steps_180330_1031'
 
 # Perform/load policy inference options. If @c perform_new_inference is false, load the @pickled_inference_mdps_file.
-perform_new_inference = True
+perform_new_inference = False
 pickled_two_stage_mdps_file_to_load  = 'two_stage_multi_agent_mdps_180328_1453'
 inference_method = 'gradientAscentGaussianTheta'
 gg_kernel_centers = [0, 4, 12, 20, 24]
@@ -127,8 +127,8 @@ num_theta_samples = 500
 plot_all_grids = False
 plot_VI_mdp_grids = True
 plot_EM_mdp_grids = False
-plot_inferred_mdp_grids = True
-plot_uncertainty = True
+plot_inferred_mdp_grids = False
+plot_uncertainty = False
 plot_flags = [plot_all_grids, plot_VI_mdp_grids, plot_EM_mdp_grids, plot_inferred_mdp_grids, plot_uncertainty]
 ########################################################################################################################
 # Create / Load Multi Agent MDP
@@ -145,7 +145,7 @@ if make_new_mdp:
         use_mobile_kernels = False
     VI_mdp, policy_keys_to_print = ExperimentConfigs.makeMultiAgentGridMDPxDRA(states, initial_state, action_dict,
                                                                                alphabet_dict, labels, grid_map,
-                                                                               do_print=True, init_set=init_set,
+                                                                               do_print=False, init_set=init_set,
                                                                                prob_dtype=prob_dtype,
                                                                                fixed_obstacle_labels=fixed_obs_labels,
                                                                                use_mobile_kernels=use_mobile_kernels,
@@ -254,11 +254,11 @@ if solve_after_inference:
 
     demo_mdp.solve(do_print=False, method='valueIteration', print_iterations=True,
                    policy_keys_to_print=policy_keys_to_print, horizon_length=20, num_iters=40)
-    variables_to_save = [VI_mdp, policy_keys_to_print]
+    variables_to_save = [demo_mdp, policy_keys_to_print]
     pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps_bonus_reward")
 else:
     (demo_mdp, policy_keys_to_print, pickled_mdp_file) = \
-        DataHelper.loadPickledMDP('multi_agent_mdps_bonus_reward_180328_1024')
+        DataHelper.loadPickledMDP('multi_agent_mdps_bonus_reward_180330_1347')
 
 
 

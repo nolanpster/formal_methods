@@ -368,7 +368,7 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
     @param alphabet_dict Required if plot_policys is True
     """
     if file_with_policy is None:
-        file_with_policy =  'robot_mdps_180316_1024_HIST_500eps20steps_180316_1124_Policy_180316_1124'
+        file_with_policy =  'robot_mdps_180328_2018_HIST_500eps20steps_180328_2018_Policy_180328_2032'
 
     (single_agent_mdp, pickled_inference_file) = DataHelper.loadPickledPolicyInferenceMDP(file_with_policy)
 
@@ -381,7 +381,7 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
                                              ggk_centers=[0], std_devs=[1.0], ggk_mobile_indices=[0],
                                              state_list=joint_grid_states, state_idx_to_infer=1,
                                              mobile_kernel_state_idx=0)
-    repulsive_theta = -np.array([0.,3.,3.,3.,3.])
+    repulsive_theta = -np.array([0.,9.,9.,9.,9.])
 
 
     # Linearly combine old Q-function with repulsive Q-function.
@@ -454,4 +454,4 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
                                                  act_list, use_print_keys=True,
                                                  policy_keys_to_print=multi_agent_policy_key_groups[pose], decimals=2,
                                                  stay_action=act_list[0])
-        plt.show()
+        plt.draw()

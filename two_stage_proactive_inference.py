@@ -53,14 +53,14 @@ alphabet_dict = {'empty': empty, 'green': green, 'red': red}
 # _False_ to have EM and the MDP always start from the `initial_state` below.
 solve_with_uniform_distribution = False
 robot_initial_cell = 24
-env_initial_cell = 4
+env_initial_cell = 20
 initial_state = (robot_initial_cell, env_initial_cell)
 
 # Currently assumes the robot only has one goal cell. Also, fixed obstacles only affect the robot.
-robot_goal_cell = 6 # Currently assumess only one goal.
+robot_goal_cell = 0 # Currently assumess only one goal.
 robot_goal_states = [(robot_goal_cell, cell) for cell in cell_indices]
 
-fixed_obstacle_cells = [13, 14, 20]
+fixed_obstacle_cells = []
 
 labels = {state: empty for state in states}
 fixed_obs_labels = {state: empty for state in states}
@@ -93,11 +93,11 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180323_1125'
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180330_1241'
 
 
 # Geodesic Gaussian Kernel centers
-gg_kernel_centers = range(0, num_cells, 2)
+gg_kernel_centers = range(0, num_cells, 1)
 
 # Gaussian Theta params
 num_theta_samples = 500
@@ -128,7 +128,8 @@ else:
 
 # Override recorded initial dist to be uniform. Note that policy_keys_to_print are the reachable initial states, and we
 # want to set the initial state-set to only include the states where the robot is at `robot_initial_cell`.
-VI_mdp.init_set = [state for state in policy_keys_to_print if state[0][robot_idx] == robot_initial_cell]
+
+VI_mdp.init_set = ((24, 20),)
 VI_mdp.setInitialProbDist(VI_mdp.init_set)
 
 # The original environment policy in the MDP is a random walk. So we load a file containing a more interesting
@@ -144,6 +145,6 @@ ExperimentConfigs.convertSingleAgentEnvPolicyToMultiAgent(VI_mdp, labels, state_
 ########################################################################################################################
 # Run Batch Inference
 ########################################################################################################################
-ExperimentConfigs.rolloutInferSolve(VI_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=10,
-        num_steps_per_traj=15, inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
-        num_theta_samples=num_theta_samples)
+ExperimentConfigs.rolloutInferSolve(VI_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=300,
+        num_steps_per_traj=10, inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
+        num_theta_samples=num_theta_samples, robot_goal_states=robot_goal_states)
