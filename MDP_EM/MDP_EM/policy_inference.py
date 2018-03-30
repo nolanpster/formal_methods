@@ -544,7 +544,7 @@ class PolicyInference(object):
                is less than this value the algorithm will terminate.
         """
         # Process input arguments
-        do_plot=False
+        do_plot = False
         acts_list = self.mdp.action_list
         num_acts = self.mdp.num_actions
         num_states = self.mdp.num_states
@@ -608,7 +608,7 @@ class PolicyInference(object):
         # Loop until convergence unless killed by Crtl-C
         killer = GracefulKiller()
         while not killer.kill_now and log_prob_moving_avg_slope > moving_avg_min_slope and \
-            (moving_avg_improvement > moving_avg_min_improvement):
+            (abs(moving_avg_improvement) > moving_avg_min_improvement):
             if do_print or print_iterations:
                 iter_tic = time.time()
             iter_count += 1
@@ -672,7 +672,7 @@ class PolicyInference(object):
 
             if iter_count > moving_average_buffer_length + 1:
                 log_prob_moving_avg_slope = recorded_log_prob_moving_avg[-1] - recorded_log_prob_moving_avg[-2]
-                moving_avg_improvement = log_prob_moving_avg - moving_avg_ring_buff[-1]
+                moving_avg_improvement = np.mean(log_prob_moving_avg - recorded_log_prob_moving_avg[-20:])
 
             if do_plot:
                 means2plot = np.vstack((means2plot, theta_mean_vec))

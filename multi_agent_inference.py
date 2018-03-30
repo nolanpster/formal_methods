@@ -238,7 +238,7 @@ if perform_new_inference:
                                       reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True,
                                       monte_carlo_size=monte_carlo_size, print_iterations=True, eps=0.0001,
                                       velocity_memory=0.2, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
-                                      moving_avg_min_slope=-0.5)
+                                      moving_avg_min_slope=-0.5, moving_avg_min_improvement=0.2 )
     pickled_mdp_file = DataHelper.pickleMDP([demo_mdp, policy_keys_to_print], name_prefix="two_stage_multi_agent_mdps")
 else:
     (demo_mdp, policy_keys_to_print, pickled_episodes_file) = \

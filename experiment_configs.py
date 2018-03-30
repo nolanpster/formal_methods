@@ -308,7 +308,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                                           velocity_memory=0.2, theta_std_dev_min=theta_std_dev_min,
                                           theta_std_dev_max=theta_std_dev_max, moving_avg_min_slope=-0.5,
                                           print_iterations=True, theta_0=infer_mdp.theta,
-                                          theta_std_dev_0=theta_std_dev_0, moving_avg_min_improvement=-np.inf)
+                                          theta_std_dev_0=theta_std_dev_0, moving_avg_min_improvement=0.2)
         # Print Inference error
         inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
         print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch, inferred_policy_L1_norm_error))
