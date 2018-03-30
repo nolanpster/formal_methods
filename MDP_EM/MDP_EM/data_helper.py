@@ -241,10 +241,11 @@ def printHistoryAnalysis(run_histories, states, labels, empty, goal_state):
     print("In this demonstration 'history' there are  {} episodes, each with {} moves."
           .format(num_episodes, steps_per_episode))
     for state_idx in range(len(state_indices)):
-        reward_likelihood = float(num_rewards_from_starting_idx[state_idx]) / float(num_starts_from_idx[state_idx]) \
-                                if num_starts_from_idx[state_idx] > 0 else np.nan
-        print("State {}: Num starts = {}, Num Rewards = {}, likelihood = {}.".format(states[state_idx],
-              num_starts_from_idx[state_idx], num_rewards_from_starting_idx[state_idx], reward_likelihood))
+        if num_starts_from_idx[state_idx] > 0:
+            reward_likelihood = float(num_rewards_from_starting_idx[state_idx]) / float(num_starts_from_idx[state_idx]) \
+                                    if num_starts_from_idx[state_idx] > 0 else np.nan
+            print("State {}: Num starts = {}, Num Rewards = {}, likelihood = {}.".format(states[state_idx],
+                  num_starts_from_idx[state_idx], num_rewards_from_starting_idx[state_idx], reward_likelihood))
 
 def printStateHistories(run_histories, states):
     num_episodes = run_histories.shape[0]
