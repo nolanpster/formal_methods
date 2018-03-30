@@ -249,7 +249,7 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
 
 def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=100,
                       num_steps_per_traj=15, inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
-                      num_theta_samples=1000):
+                      num_theta_samples=1000, robot_goal_states=None):
 
     # Create a reference to the mdp used for inference.
     infer_mdp = arena_mdp.infer_env_mdp
@@ -276,6 +276,8 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     theta_std_dev_min = 0.5
     theta_std_dev_max = 1.5
 
+    use_active_learning = True
+    print "Using {} learning.".format("active" if use_active_learning else "passive")
 
     for batch in range(num_batches):
         batch_start_time = time.time()
@@ -294,17 +296,26 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                 this_state_idx = run_histories[episode, t_step]
                 this_state = arena_mdp.observable_states[this_state_idx]
                 observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(prev_state, this_state)
+        if robot_goal_states is not None:
+            DataHelper.printHistoryAnalysis(run_histories, arena_mdp.states, arena_mdp.L, None, robot_goal_states)
 
         ### Infer ###
-        if batch > 0:
+        max_additional_known_thetas_per_rollout = batch
+        thetas_added_to_known = 0
+        if batch > 0 and use_active_learning:
             theta_std_dev_0 = np.zeros(infer_mdp.theta_std_dev.shape)
             for std_dev_idx, std_dev in enumerate(infer_mdp.theta_std_dev):
-                theta_std_dev_0[std_dev_idx] = theta_std_dev_min if std_dev <= theta_std_dev_min else 1.0
+                if std_dev <= theta_std_dev_min and thetas_added_to_known < max_additional_known_thetas_per_rollout:
+                    theta_std_dev_0[std_dev_idx] = theta_std_dev_min
+                    thetas_added_to_known += 1
+                else:
+                    theta_std_dev_0[std_dev_idx] = 1.0
+            print "Number of Std-devs initialized >= 1 is {}.".format(np.sum(theta_std_dev_0 > theta_std_dev_min))
         else:
             theta_std_dev_0 = None
         theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                                           use_precomputed_phi=True, monte_carlo_size=num_theta_samples,
-                                          precomputed_observed_action_indeces=observed_action_indeces, eps=0.001,
+                                          precomputed_observed_action_indeces=observed_action_indeces, eps=0.0001,
                                           velocity_memory=0.2, theta_std_dev_min=theta_std_dev_min,
                                           theta_std_dev_max=theta_std_dev_max, moving_avg_min_slope=-0.5,
                                           print_iterations=True, theta_0=infer_mdp.theta,
@@ -315,10 +326,13 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         print('L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
         recorded_inferred_policy_L1_norms.append(inferred_policy_L1_norm_error)
         inferred_policy_variance.append(infer_mdp.theta_std_dev)
+        std_devs_above_min = [idx for idx, std_dev in enumerate(infer_mdp.theta_std_dev) if std_dev > theta_std_dev_min]
+        print 'Theta\'s with std-devs above min value {}.'.format(std_devs_above_min)
 
-        # Go through and pop keys from policy_uncertainty into a dict built from policy_keys_to_print.
-        bonus_reward_dict = makeBonusReward(infer_mdp.policy_uncertainty, 0.5)
-        arena_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict)
+        if use_active_learning:
+            # Go through and pop keys from policy_uncertainty into a dict built from policy_keys_to_print.
+            bonus_reward_dict = makeBonusReward(infer_mdp.policy_uncertainty)
+            arena_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict)
 
         arena_mdp.solve(do_print=False, method='valueIteration', print_iterations=True,
                         policy_keys_to_print=policy_keys_to_print, horizon_length=20, num_iters=40)
@@ -327,16 +341,13 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     import pdb; pdb.set_trace()
 
 
-def makeBonusReward(policy_uncertainty_dict, std_dev_thresh):
-    exploration_weight = 0.5
+def makeBonusReward(policy_uncertainty_dict):
+    exploration_weight = 0.1
     bonus_reward_dict = dict.fromkeys(policy_uncertainty_dict)
     for state in policy_uncertainty_dict:
         bonus_reward_dict[state] = {}
         for act in policy_uncertainty_dict[state].keys():
-            if policy_uncertainty_dict[state][act] > std_dev_thresh:
-                bonus_reward_dict[state][act] = exploration_weight * policy_uncertainty_dict[state][act]
-            else:
-                bonus_reward_dict[state][act] = 0.0
+            bonus_reward_dict[state][act] = exploration_weight * policy_uncertainty_dict[state][act]
     return bonus_reward_dict
 
 

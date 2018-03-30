@@ -247,7 +247,7 @@ else:
 
 if solve_after_inference:
     # This will update the demo-mdp's policy and therefore its plots below.
-    bonus_reward_dict = ExperimentConfigs.makeBonusReward(infer_mdp.policy_uncertainty, 0.5)
+    bonus_reward_dict = ExperimentConfigs.makeBonusReward(infer_mdp.policy_uncertainty)
     winning_reward = {act: 0.0 for act in demo_mdp.action_list}
     winning_reward['0_Empty'] = 1.0
     demo_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict)
