@@ -196,9 +196,11 @@ class ProductMDPxDRA(MDP):
                     reward_dict[state] = deepcopy(no_reward)
                 else:
                     env_state = state[self.cell_state_slicer][0]
+                    bonus_at_state = 0.0
                     for env_act in bonus_reward_at_state[env_state].keys():
-                        robot_act = '0_' + env_act[2:]
-                        reward_dict[state][robot_act] += bonus_reward_at_state[env_state][env_act]
+                         bonus_at_state +=  bonus_reward_at_state[env_state][env_act]
+                    for robot_act in self.executable_action_dict[self.controllable_agent_idx]:
+                        reward_dict[state][robot_act] += bonus_at_state
         self.reward = reward_dict
 
         self.max_reward = max(winning_reward.values())
