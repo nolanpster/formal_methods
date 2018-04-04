@@ -14,7 +14,9 @@ import numpy as np
 import time
 from copy import deepcopy
 from collections import OrderedDict
+from collections import deque
 import matplotlib.pyplot as plt
+import random
 
 def getActionProbabilityDictionary(dtype=np.float64):
     # Transition probabilities for each action in each cell  explodes with the number of states so we build the transition
@@ -272,6 +274,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     inferred_policy = []
     recorded_inferred_policy_L1_norms = []
     inferred_policy_variance = []
+    known_theta_indices = []
 
     theta_std_dev_min = 0.5
     theta_std_dev_max = 1.5
@@ -304,10 +307,19 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         thetas_added_to_known = 0
         if batch > 0 and use_active_learning:
             theta_std_dev_0 = np.zeros(infer_mdp.theta_std_dev.shape)
-            for std_dev_idx, std_dev in enumerate(infer_mdp.theta_std_dev):
-                if std_dev <= theta_std_dev_min and thetas_added_to_known < max_additional_known_thetas_per_rollout:
+            # Randomly shuffle the std-dev's (paired with their true index) so that we add a random sampling of the
+            # std-devs with minimum variance to the list of known thetas.
+            std_dev_and_idx_pairs = zip(enumerate(infer_mdp.theta_std_dev))
+            random.shuffle(std_dev_and_idx_pairs)
+            for pair in std_dev_and_idx_pairs:
+                std_dev_idx = pair[0][0]
+                std_dev = pair[0][1]
+                if std_dev_idx in known_theta_indices:
+                    theta_std_dev_0[std_dev_idx] = theta_std_dev_min
+                elif std_dev <= theta_std_dev_min and thetas_added_to_known < max_additional_known_thetas_per_rollout:
                     theta_std_dev_0[std_dev_idx] = theta_std_dev_min
                     thetas_added_to_known += 1
+                    known_theta_indices.append(std_dev_idx)
                 else:
                     theta_std_dev_0[std_dev_idx] = 1.0
             print "Number of Std-devs initialized >= 1 is {}.".format(np.sum(theta_std_dev_0 > theta_std_dev_min))
