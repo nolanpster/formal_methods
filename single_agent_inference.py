@@ -217,13 +217,22 @@ if __name__=='__main__':
         # Precompute observed actions for all episodes. Should do this in a "history" class.
         observation_dtype  = DataHelp.getSmallestNumpyUnsignedIntType(mdp.num_actions)
         observed_action_indeces = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
+        observed_action_probs = np.empty([num_episodes, steps_per_episode], dtype=infer_dtype)
         for episode in xrange(num_episodes):
             for t_step in xrange(1, steps_per_episode):
                 this_state_idx = run_histories[episode, t_step-1]
                 this_state = VI_mdp.observable_states[this_state_idx]
                 next_state_idx = run_histories[episode, t_step]
                 next_state = VI_mdp.observable_states[next_state_idx]
-                observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(this_state, next_state)
+                obs_act_idx = infer_mdp.graph.getObservedAction(this_state, next_state)
+                observed_action_indeces[episode, t_step] = obs_act_idx
+                observed_action_probs[episode, t_step] = infer_mdp.P(this_state[0], infer_mdp.action_list[obs_act_idx],
+                                                                    next_state[0])
+
+        import pdb; pdb.set_trace()
+        # The nominal log probability of the trajectory data sets, if the observed action at each t-step was actually
+        # the selected action.
+        nominal_log_prob_data = np.log(observed_action_probs[:, 1:]).sum()
 
         if inference_method in ['historyMLE', 'iterativeBayes', 'gradientAscentGaussianTheta'] or use_fixed_kernel_set:
            theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,
@@ -232,6 +241,7 @@ if __name__=='__main__':
                                              print_iterations=True, eps=0.0001, velocity_memory=0.1,
                                              moving_avg_min_improvement=-np.inf,
                                              precomputed_observed_action_indeces=observed_action_indeces,
+                                             nominal_log_prob_data=nominal_log_prob_data,
                                              use_precomputed_phi=True)
         else:
             if batch_size_for_kernel_set > 1:

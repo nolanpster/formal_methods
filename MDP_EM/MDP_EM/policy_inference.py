@@ -496,7 +496,8 @@ class PolicyInference(object):
                                     precomputed_observed_action_indeces=None, theta_std_dev_0=None,
                                     print_iterations=False, eps=0.2, moving_average_buffer_length=20,
                                     velocity_memory=0.9, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
-                                    moving_avg_min_slope=-0.5, moving_avg_min_improvement=0.1, **kwargs):
+                                    moving_avg_min_slope=-0.5, moving_avg_min_improvement=0.1,
+                                    nominal_log_prob_data=0.0, **kwargs):
         """
         @brief Performs Policy inference using gradient ascent on the distribution theta_i ~ (mu_i, sigma_i).
 
@@ -605,6 +606,8 @@ class PolicyInference(object):
         log_prob_traj_given_mean_thetas  = -sys.float_info.max
         log_prob_moving_avg_slope = 1.0
         moving_avg_improvement = np.inf
+        max_log_prob_theta = 0
+
         # Loop until convergence unless killed by Crtl-C
         killer = GracefulKiller()
         while not killer.kill_now and log_prob_moving_avg_slope > moving_avg_min_slope and \
@@ -618,12 +621,12 @@ class PolicyInference(object):
             theta_samples= np.random.multivariate_normal(theta_mean_vec, np.diag(np.power(theta_std_dev_vec,2)),
                                                          self.monte_carlo_size)
 
-            log_prob_traj_given_thetas = self.logProbOfDataSet(theta_samples, phis)
+            log_prob_traj_given_thetas = self.logProbOfDataSet(theta_samples, phis) + nominal_log_prob_data
             ## Mu Update ##
             # Calculate the gradient of the log-likelihood of the sampled thetas with respect to the means of the
             # theta distribution. Note that calculations are done "in-place" for efficiency.
             theta_variance = np.power(theta_std_dev_vec, 2)
-            theta_sample_less_mean = theta_samples
+            theta_sample_less_mean = deepcopy(theta_samples)
             theta_sample_less_mean -= theta_mean_vec
             grad_log_prob_theta_wrt_mu = theta_sample_less_mean
             grad_log_prob_theta_wrt_mu /= theta_variance
@@ -663,6 +666,11 @@ class PolicyInference(object):
 
             # Get log prob of mean theta vector.
             log_prob_traj_given_mean_thetas = self.logProbOfDataSet(np.expand_dims(theta_mean_vec,axis=0), phis)
+
+            # Find index of theta from previous iteration that had the best log prob.
+            max_log_prob_theta_idx = np.argmax(log_prob_traj_given_thetas)
+            max_log_prob = log_prob_traj_given_thetas[max_log_prob_theta_idx]
+            max_log_prob_theta = theta_samples[max_log_prob_theta_idx]
 
             # Append this log_prob to the front of ring buffer and pop of the oldest value.
             moving_avg_ring_buff.appendleft(log_prob_traj_given_mean_thetas[0])

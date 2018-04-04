@@ -40,6 +40,7 @@ class MDP(object):
         self.controllable_agent_idx = 0
         self.executable_action_dict = {self.controllable_agent_idx: self.action_list}
         self.num_actions = len(self.action_list)
+        self.num_executable_actions = self.num_actions
         self.updatePrimitiveActionIndices()
         self.states=states
         # Determine Number of agents based on length of state elements.
