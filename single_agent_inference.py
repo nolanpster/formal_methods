@@ -49,13 +49,16 @@ labels[(4,)] = green
 # Starting and final states
 initial_state = (15,)
 goal_state = (4,) # Currently assumess only one goal.
+labels[(13,)] = red
+labels[(14,)] = red
+labels[(20,)] = red
 
 # Numpy Data type to use for transition probability matrices (affects speed / precision)
-prob_dtype = np.float32
+prob_dtype = np.float64
 
 # Numpy Data type to use for policy inference calculations (affects speed / precision). Less than 32 bits can result in
 # 'NaN' values.
-infer_dtype = np.float32
+infer_dtype = np.float64
 
 # Action options.
 action_list = ['Empty', 'North', 'South', 'East', 'West']
@@ -73,7 +76,7 @@ solve_with_uniform_distribution = True
 if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
     make_new_mdp = False
-    pickled_mdp_file_to_load  = 'robot_mdps_180328_2018'
+    pickled_mdp_file_to_load  = 'robot_mdps_180404_1222'
     write_mdp_policy_csv = False
 
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -82,7 +85,7 @@ if __name__=='__main__':
     gather_new_data = False
     num_episodes = 500
     steps_per_episode = 20
-    pickled_episodes_file_to_load = 'robot_mdps_180328_2018_HIST_500eps20steps_180328_2018'
+    pickled_episodes_file_to_load = 'robot_mdps_180404_1222_HIST_500eps20steps_180404_1222'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
@@ -100,10 +103,11 @@ if __name__=='__main__':
     # Gradient Ascent kernel configurations
     use_fixed_kernel_set = True
     if use_fixed_kernel_set is True:
+        kernel_centers = [frozenset(range(0, num_states, 4)) | frozenset([13,14])]
         kernel_centers = [frozenset(range(0, num_states, 1))]
         #kernel_centers = [frozenset((0, 4, 12, 20, 24))]
         num_kernels_in_set = len(kernel_centers[0])
-        kernel_sigmas = np.array([0.1]*num_kernels_in_set, dtype=infer_dtype)
+        kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
         batch_size_for_kernel_set = 1
     else:
         kernel_count_start = 16
@@ -114,7 +118,7 @@ if __name__=='__main__':
         batch_size_for_kernel_set = 1
 
     if inference_method is 'gradientAscentGaussianTheta':
-        num_theta_samples = 500
+        num_theta_samples = 2000
         monte_carlo_size = num_theta_samples
     else:
         monte_carlo_size = batch_size_for_kernel_set
@@ -195,8 +199,8 @@ if __name__=='__main__':
         num_episodes = run_histories.shape[0]
         steps_per_episode = run_histories.shape[1]
 
-    DataHelp.printHistoryAnalysis(run_histories, states, labels, empty, goal_state)
-    DataHelp.printStateHistories(run_histories, VI_mdp.observable_states)
+    #DataHelp.printHistoryAnalysis(run_histories, states, labels, empty, goal_state)
+    #DataHelp.printStateHistories(run_histories, VI_mdp.observable_states)
 
     if plot_new_phi or  plot_new_kernel or perform_new_inference:
         tic = time.time()
@@ -216,7 +220,7 @@ if __name__=='__main__':
 
         # Precompute observed actions for all episodes. Should do this in a "history" class.
         observation_dtype  = DataHelp.getSmallestNumpyUnsignedIntType(mdp.num_actions)
-        observed_action_indeces = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
+        observed_action_indices = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
         observed_action_probs = np.empty([num_episodes, steps_per_episode], dtype=infer_dtype)
         for episode in xrange(num_episodes):
             for t_step in xrange(1, steps_per_episode):
@@ -225,11 +229,10 @@ if __name__=='__main__':
                 next_state_idx = run_histories[episode, t_step]
                 next_state = VI_mdp.observable_states[next_state_idx]
                 obs_act_idx = infer_mdp.graph.getObservedAction(this_state, next_state)
-                observed_action_indeces[episode, t_step] = obs_act_idx
+                observed_action_indices[episode, t_step] = obs_act_idx
                 observed_action_probs[episode, t_step] = infer_mdp.P(this_state[0], infer_mdp.action_list[obs_act_idx],
                                                                     next_state[0])
 
-        import pdb; pdb.set_trace()
         # The nominal log probability of the trajectory data sets, if the observed action at each t-step was actually
         # the selected action.
         nominal_log_prob_data = np.log(observed_action_probs[:, 1:]).sum()
@@ -238,9 +241,11 @@ if __name__=='__main__':
            theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,
                                              do_print=True, reference_policy_vec=reference_policy_vec,
                                              monte_carlo_size=monte_carlo_size, dtype=infer_dtype,
-                                             print_iterations=True, eps=0.0001, velocity_memory=0.1,
-                                             moving_avg_min_improvement=-np.inf,
-                                             precomputed_observed_action_indeces=observed_action_indeces,
+                                             print_iterations=True, eps=0.0001, velocity_memory=0.2,
+                                             moving_avg_min_improvement=-np.inf, theta_std_dev_max=1.2,
+                                             theta_std_dev_min=0.5, moving_average_buffer_length=60,
+                                             moving_avg_min_slope=0.001,
+                                             precomputed_observed_action_indices=observed_action_indices,
                                              nominal_log_prob_data=nominal_log_prob_data,
                                              use_precomputed_phi=True)
         else:
@@ -270,7 +275,7 @@ if __name__=='__main__':
                                               dtype=infer_dtype,
                                               monte_carlo_size=monte_carlo_size,
                                               reference_policy_vec=reference_policy_vec,
-                                              precomputed_observed_action_indeces=observed_action_indeces)
+                                              precomputed_observed_action_indices=observed_action_indices)
                 kernel_set_L1_err[kernel_set_idx] = batch_L1_err.mean(axis=1)
                 kernel_set_infer_time[kernel_set_idx] = batch_infer_time.mean(axis=1)
         toc = time.time() -tic
@@ -379,8 +384,8 @@ if __name__=='__main__':
         uncertainty_grid = PlotHelp.UncertaintyPlot(maze, cmap, grid_map)
         policy_uncertainty = infer_mdp.policy_uncertainty_as_vec.reshape([infer_mdp.num_states, infer_mdp.num_actions])
         for act_idx, act in enumerate(action_list):
-            param_vector_indeces = xrange(act_idx, len(infer_mdp.theta), len(action_list))
-            uncertainty_vals = infer_mdp.theta_std_dev[param_vector_indeces]
+            param_vector_indices = xrange(act_idx, len(infer_mdp.theta), len(action_list))
+            uncertainty_vals = infer_mdp.theta_std_dev[param_vector_indices]
             title='Param Uncertainty'
             fig, ax = uncertainty_grid.configurePlot(title, infer_mdp.kernel_centers, uncertainty_vals, act_str=str(act))
             # Plot aggregate uncertainty at states here
