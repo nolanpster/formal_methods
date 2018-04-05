@@ -13,6 +13,7 @@ import random
 import warnings
 import sys
 import signal
+from scipy.stats import norm
 
 import data_helper as DataHelp
 
@@ -589,9 +590,12 @@ class PolicyInference(object):
         velocity_sigma = np.zeros([self.theta_size], dtype=dtype)
 
         # Configure printing and plotting options.
-        means2plot = np.empty(self.theta_size, dtype=dtype)
-        sigmas2plot = np.empty(self.theta_size, dtype=dtype)
-        log_prob_to_plot = []
+        means2plot = deepcopy(theta_0)
+        sigmas2plot = deepcopy(theta_std_dev_0)
+        mean_log_prob_to_plot = []
+        max_log_prob_to_plot = []
+        l1_norm_mean_theta_to_plot = []
+        l1_norm_max_theta_to_plot = []
         del2print = []
 
         # This block configures the iteration parameters. Create a ring buffer of log_probabilities, and use the average
@@ -680,20 +684,45 @@ class PolicyInference(object):
 
             if iter_count > moving_average_buffer_length + 1:
                 log_prob_moving_avg_slope = recorded_log_prob_moving_avg[-1] - recorded_log_prob_moving_avg[-2]
-                moving_avg_improvement = np.mean(log_prob_moving_avg - recorded_log_prob_moving_avg[-20:])
+                moving_avg_improvement = np.max(log_prob_moving_avg - recorded_log_prob_moving_avg[-20:])
 
             if do_plot:
                 means2plot = np.vstack((means2plot, theta_mean_vec))
                 sigmas2plot = np.vstack((sigmas2plot, theta_std_dev_vec))
-                log_prob_to_plot.append(log_prob_traj_given_mean_thetas[0])
+                mean_log_prob_to_plot.append(log_prob_traj_given_mean_thetas[0])
+                max_log_prob_to_plot.append(max_log_prob)
+
+                # Compare the mean and max log-prob thetas to the true policy.
+                mean_and_max_policy_vecs = self.buildPolicyVectors(phis,
+                    np.vstack((np.expand_dims(max_log_prob_theta, axis=0), np.expand_dims(theta_mean_vec, axis=0))))
+                l1_norm_max_theta_to_plot.append((np.abs(mean_and_max_policy_vecs[0] - reference_policy_vec)).sum())
+                l1_norm_mean_theta_to_plot.append((np.abs(mean_and_max_policy_vecs[1] - reference_policy_vec)).sum())
+
             if do_print or print_iterations:
                 infer_toc = time.time() - iter_tic
-                pprint("Iter#: {}, mean_LogLike: {:0.2f}, moving_avg: {:20.2f}, iter-time: {:0.4f}sec."
-                       .format(iter_count, log_prob_traj_given_mean_thetas[0], log_prob_moving_avg, infer_toc),
-                       indent=4)
+                pprint("Iter#: {}, mean_LogLike: {:0.2f}, max_logLike: {:0.2f}, moving_avg: {:20.2f}, iter-time: "
+                       "{:0.4f}sec."
+                       .format(iter_count, log_prob_traj_given_mean_thetas[0], max_log_prob, log_prob_moving_avg,
+                               infer_toc), indent=4)
 
-        # Prepare to exit.
-        self.mdp.theta = np.expand_dims(theta_mean_vec, axis=0)
+        ## Prepare to exit.
+
+        # Sample a very large set of thetas and pick the best one to save as theta used to build the policy.
+        final_theta_samples= np.random.multivariate_normal(theta_mean_vec, np.diag(np.power(theta_std_dev_vec,2)),
+                                                           10*self.monte_carlo_size)
+        final_log_prob_traj_given_thetas = self.logProbOfDataSet(final_theta_samples, phis) + nominal_log_prob_data
+        max_log_prob_theta_idx = np.argmax(final_log_prob_traj_given_thetas)
+        max_log_prob = final_log_prob_traj_given_thetas[max_log_prob_theta_idx]
+        max_log_prob_theta = final_theta_samples[max_log_prob_theta_idx]
+        self.mdp.theta = np.expand_dims(max_log_prob_theta, axis=0)
+
+        # Record the probability of the best theta, given the distributions.
+        theta_pdfs = [norm(loc=mu, scale=sig) for mu, sig in zip(theta_mean_vec, theta_std_dev_vec)]
+        self.mdp.prob_best_theta = [theta_pdfs[theta_idx].pdf(
+                                        abs(max_log_prob_theta[theta_idx] - theta_mean_vec[theta_idx]))
+                                    for theta_idx in xrange(self.theta_size)]
+        self.mdp.theta_mean = np.expand_dims(theta_mean_vec, axis=0)
+
 
         if do_print:
             pprint('Found Theta:')
@@ -715,16 +744,25 @@ class PolicyInference(object):
 
         if do_plot:
             repeated_indeces = np.repeat(np.expand_dims(range(self.mdp.theta.size), 0), iter_count, 0).T
-            repeated_indeces = np.repeat(np.expand_dims(range(iter_count), 0), self.theta_size, 0).T
+            repeated_indeces = np.repeat(np.expand_dims(range(iter_count+1), 0), self.theta_size, 0).T
             plt.figure()
-            plt.plot(repeated_indeces, means2plot[1:, :])
+            plt.plot(repeated_indeces, means2plot)
             plt.figure()
-            plt.plot(repeated_indeces, sigmas2plot[1:, :])
+            plt.plot(repeated_indeces, sigmas2plot)
 
-            plt.figure()
-            plt.plot(range(iter_count), log_prob_to_plot, 'r')
-            plt.plot(range(iter_count), recorded_log_prob_moving_avg, 'b')
-            plt.ylim(ymin=min(log_prob_to_plot))
+            fig, ax = plt.subplots()
+            plt.plot(range(iter_count), mean_log_prob_to_plot, 'b', label='Log prob of sample mean')
+            plt.plot(range(iter_count), max_log_prob_to_plot, 'r', label='Max Log prob of samples')
+            plt.plot(range(iter_count), recorded_log_prob_moving_avg, 'g', label='Log prob of mean moving average')
+            plt.ylim(ymin=min(mean_log_prob_to_plot))
+            plt.legend()
+            plt.title('Log Prob of Demo | theta')
+
+            fig, ax = plt.subplots()
+            plt.plot(range(iter_count), l1_norm_max_theta_to_plot, 'r', label='Max log-prob')
+            plt.plot(range(iter_count), l1_norm_mean_theta_to_plot, 'b', label='Mean log-prob')
+            plt.title('L1-norm from ref')
+            ax.legend()
             plt.draw()
 
         if killer.kill_now is True:
