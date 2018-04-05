@@ -193,16 +193,20 @@ if gather_new_data:
     # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
     hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(demo_mdp.num_observable_states)
     run_histories = np.zeros([num_episodes, steps_per_episode], dtype=hist_dtype)
+    executed_robot_actions = np.zeros([num_episodes, steps_per_episode], dtype=hist_dtype)
     for episode in range(num_episodes):
         # Create time-history for this episode.
         _, run_histories[episode, 0] = demo_mdp.resetState()
         for t_step in range(1, steps_per_episode):
-            _, run_histories[episode, t_step] = demo_mdp.step()
-    pickled_episodes_file = DataHelper.pickleEpisodes(variables_to_save=[run_histories], name_prefix=pickled_mdp_file,
-                                                      num_episodes=num_episodes, steps_per_episode=steps_per_episode)
+            _, run_histories[episode, t_step], executed_robot_action = demo_mdp.step()
+            executed_robot_actions[episode, t_step] = robot_action_list.index(executed_robot_action)
+    pickled_episodes_file = DataHelper.pickleEpisodes(variables_to_save=[run_histories, executed_robot_actions],
+                                                      name_prefix=pickled_mdp_file, num_episodes=num_episodes,
+                                                      steps_per_episode=steps_per_episode)
 else:
     # Load pickled episodes. Note that trailing comma on assignment automatically unpacks run_histories from a list.
-    (run_histories, pickled_episodes_file) = DataHelper.loadPickledEpisodes(pickled_episodes_file_to_load)
+    (run_histories, executed_robot_actions, pickled_episodes_file) = \
+        DataHelper.loadPickledEpisodes(pickled_episodes_file_to_load)
     num_episodes = run_histories.shape[0]
     steps_per_episode = run_histories.shape[1]
 
@@ -225,20 +229,31 @@ if perform_new_inference:
 
     # Precompute observed actions for all episodes. Should do this in a "history" class.
     observation_dtype  = DataHelper.getSmallestNumpyUnsignedIntType(demo_mdp.num_actions)
-    observed_action_indeces = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
+    observed_action_indices = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
+    observed_action_probs = np.empty([num_episodes, steps_per_episode], dtype=infer_dtype)
     for episode in xrange(num_episodes):
         for t_step in xrange(1, steps_per_episode):
             this_state_idx = run_histories[episode, t_step-1]
             this_state = demo_mdp.observable_states[this_state_idx]
             next_state_idx = run_histories[episode, t_step]
             next_state = demo_mdp.observable_states[next_state_idx]
-            observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(this_state, next_state)
+            observed_action_indices[episode, t_step] = infer_mdp.graph.getObservedAction(this_state, next_state)
+            robot_act = robot_action_list[executed_robot_actions[episode, t_step]]
+            env_act = env_action_list[observed_action_indices[episode, t_step]]
+            # This is a bit of a hack since `type(demo_mdp.mdp)` is a MultiAgentMDP and that has an overloaded self.P
+            # function to return the probability of the joint state transition given two actions.
+            observed_action_probs[episode, t_step] = demo_mdp.mdp.P(this_state, robot_act, env_act, next_state)
+
+    # The nominal log probability of the trajectory data sets, if the observed action at each t-step was actually
+    # the selected action.
+    nominal_log_prob_data = np.log(observed_action_probs[:, 1:]).sum()
 
     theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                                       reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True,
                                       monte_carlo_size=monte_carlo_size, print_iterations=True, eps=0.0001,
                                       velocity_memory=0.2, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
-                                      moving_avg_min_slope=-0.5, moving_avg_min_improvement=0.2 )
+                                      moving_avg_min_slope=-0.5, moving_avg_min_improvement=0.2,
+                                      moving_average_buffer_length=60)
     pickled_mdp_file = DataHelper.pickleMDP([demo_mdp, policy_keys_to_print], name_prefix="two_stage_multi_agent_mdps")
 else:
     (demo_mdp, policy_keys_to_print, pickled_episodes_file) = \

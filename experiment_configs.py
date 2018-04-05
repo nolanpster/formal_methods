@@ -255,7 +255,8 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
 
     # Create a reference to the mdp used for inference.
     infer_mdp = arena_mdp.infer_env_mdp
-    true_env_policy_vec = infer_mdp.getPolicyAsVec(policy_to_convert=arena_mdp.env_policy[env_idx])
+    true_env_policy_vec = infer_mdp.getPolicyAsVec(policy_to_convert=arena_mdp.env_policy[env_idx],
+                                                   action_list=env_action_list)
     infer_mdp.theta = np.zeros(len(infer_mdp.phi))
     infer_mdp.theta_std_dev = np.ones(infer_mdp.theta.size)
 

@@ -506,7 +506,7 @@ class MDP(object):
                 prob_of_traj_given_policy[episode] *= self.policy[this_state][observed_action]
         return np.sum(np.multiply(episode_freq, np.log(np.divide(episode_freq, prob_of_traj_given_policy))))
 
-    def getPolicyAsVec(self, policy_keys_to_use=None, policy_to_convert=None):
+    def getPolicyAsVec(self, policy_keys_to_use=None, policy_to_convert=None, action_list=None):
         """
         @brief returns a numpy array representing the policy  with actions listed in the same order as self.action_list.
 
@@ -519,7 +519,10 @@ class MDP(object):
         if policy_to_convert is None:
             policy_to_convert = self.policy
 
-        action_list = policy_to_convert.itervalues().next().keys()
+        if action_list is None:
+            action_list = self.executable_action_dict[self.controllable_agent_idx]
+        else:
+            action_list = action_list
         num_actions = len(action_list)
         if policy_keys_to_use is not None:
             policy_vec = np.empty(len(policy_keys_to_use) * num_actions, self.prob_dtype)

@@ -54,6 +54,7 @@ class ProductMDPxDRA(MDP):
         # I'm so sorry for this hack, in too much of a rush to figure out multiple inheritance. <3 Nolan
         self.controllable_agent_idx = self.mdp.controllable_agent_idx
         self.executable_action_dict = self.mdp.executable_action_dict
+        self.num_executable_actions = len(self.executable_action_dict[self.controllable_agent_idx])
         if type(self.mdp) is MultiAgentMDP:
             self.uncontrollable_agent_indices = self.mdp.uncontrollable_agent_indices
             self.env_policy = self.mdp.env_policy # TRUE Env Policy
@@ -250,14 +251,15 @@ class ProductMDPxDRA(MDP):
         if type(self.mdp) is MultiAgentMDP:
             true_env_policy = self.env_policy[self.uncontrollable_agent_indices[0]] \
                                              [self.current_state[self.cell_state_slicer][0]]
-            # Creates a transition probability vector of the same dimesion as a row in the
-            # transition probability matrix.
-            this_trans_prob = np.zeros(self.num_states, self.prob_dtype)
+            # Sample a robot action from it's policy.
             robot_policy = self.policy[self.current_state]
-            for act in robot_policy.keys():
-                joint_trans_prob = self.getMultiAgentTransDistribution(self.current_state, act, true_env_policy)
-                this_trans_prob += robot_policy[act] * joint_trans_prob
-            # Renormalize distribution - need to deal with this in a better way.
+            robot_act_prob = [robot_policy[act] for act in self.executable_action_dict[self.controllable_agent_idx]]
+            robot_act_idx = np.random.choice(self.num_executable_actions, 1, p=robot_act_prob)[0]
+            executed_robot_act = self.executable_action_dict[self.controllable_agent_idx][robot_act_idx]
+
+            # Get trans prob given robot action, then renormalize distribution - need to deal with this in a better way.
+            this_trans_prob = self.getMultiAgentTransDistribution(self.current_state, executed_robot_act,
+                                                                  true_env_policy)
             this_trans_prob /= this_trans_prob.sum()
             # Sample a new state given joint distribution of states and actions.
             try:
@@ -266,7 +268,7 @@ class ProductMDPxDRA(MDP):
                 import pdb; pdb.set_trace()
             self.current_state = self.states[next_index]
             observable_index = self.observable_states.index(self.current_state[self.cell_state_slicer])
-            return self.current_state[self.cell_state_slicer], observable_index
+            return self.current_state[self.cell_state_slicer], observable_index, executed_robot_act
 
         else:
             return super(self.__class__, self).step()
