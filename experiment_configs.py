@@ -184,7 +184,7 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
 def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, grid_map, gamma=0.9,
                               act_prob=dict([]), do_print=False, init_set=None,prob_dtype=np.float64,
                               fixed_obstacle_labels=dict([]), use_mobile_kernels=False, gg_kernel_centers=[],
-                              env_labels=None, print_VI_iterations=True):
+                              env_labels=None, print_VI_iterations=True, inference_temperature=1.0):
     """
     @brief Configure the product MDP and DRA.
 
@@ -201,7 +201,8 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
                                  act_prob=deepcopy(act_prob), gamma=gamma, AP=alphabet_dict.items(), L=labels,
                                  grid_map=grid_map, init_set=init_set, prob_dtype=prob_dtype,
                                  fixed_obstacle_labels=fixed_obstacle_labels, use_mobile_kernels=use_mobile_kernels,
-                                 ggk_centers=gg_kernel_centers, env_labels=env_labels)
+                                 ggk_centers=gg_kernel_centers, env_labels=env_labels,
+                                 inference_temperature=inference_temperature)
     else:
         grid_mdp = MDP(init=initial_state, action_list=action_set, states=states, act_prob=deepcopy(act_prob),
                        gamma=gamma, AP=alphabet_dict.items(), L=labels, grid_map=grid_map, init_set=init_set,
@@ -398,14 +399,15 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
 
 
     # Linearly combine old Q-function with repulsive Q-function.
+    temperature = 1.0
     new_env_policy = dict.fromkeys(joint_grid_states)
     for state in joint_grid_states:
         new_env_policy[state] = {}
         Q_at_state = {act: (np.dot(copied_single_agent_mdp.theta,
                                    copied_single_agent_mdp.phi_at_state[(state[state_env_idx],)][act])
-                            + np.dot(repulsive_theta, repulsive_feature_vector(state, act))) / 1.
+                            + np.dot(repulsive_theta, repulsive_feature_vector(state, act))) / temperature
                       for act in env_action_list}
-        new_env_policy[state] = InferenceMDP.evalGibbsPolicy(Q_at_state)
+        new_env_policy[state] = InferenceMDP.evalGibbsPolicy(Q_at_state, temperature)
     new_env_policy = MDP.updatePolicyActionKeys(new_env_policy, env_action_list,
                                                 multi_agent_mdp.executable_action_dict[state_env_idx])
     multi_agent_mdp.env_policy[1] = new_env_policy

@@ -122,6 +122,7 @@ gg_kernel_centers = range(0, num_cells, 1)
 
 # Gaussian Theta params
 num_theta_samples = 500
+inference_temp = 1.0
 
 # Plotting flags
 plot_all_grids = False
@@ -247,6 +248,10 @@ if perform_new_inference:
     # The nominal log probability of the trajectory data sets, if the observed action at each t-step was actually
     # the selected action.
     nominal_log_prob_data = np.log(observed_action_probs[:, 1:]).sum()
+
+    # Set the temperature to the desired value since it might be different than the one that the InferenceMDP was built
+    # with.
+    infer_mdp.temp = inference_temp
 
     theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                                       reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True,

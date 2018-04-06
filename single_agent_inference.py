@@ -209,7 +209,7 @@ if __name__=='__main__':
         # between two grid-cells.
         infer_mdp = InferenceMDP(init=initial_state, action_list=action_list, states=states,
                                  act_prob=deepcopy(act_prob), grid_map=grid_map, L=labels,
-                                 gg_kernel_centers=kernel_centers[0], kernel_sigmas=kernel_sigmas)
+                                 gg_kernel_centers=kernel_centers[0], kernel_sigmas=kernel_sigmas, temp=0.1)
         print 'Built InferenceMDP with kernel set:'
         print(kernel_centers[0])
         if not perform_new_inference and (plot_new_phi or plot_new_kernel):

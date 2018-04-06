@@ -20,7 +20,7 @@ class InferenceMDP(MDP):
     def __init__(self, init=None, action_list=[], states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
                  reward=dict([]), grid_map=None, act_prob=dict([]), gg_kernel_centers=frozenset([]),
                  og_kernel_centers=frozenset([]), kernel_sigmas=None, prob_dtype=np.float64, state_idx_to_observe=0,
-                 fixed_obstacle_labels=dict([]), ggk_mobile_indices=[], ogk_mobile_indices=[],
+                 fixed_obstacle_labels=dict([]), ggk_mobile_indices=[], ogk_mobile_indices=[], temp=1.0,
                  state_idx_of_mobile_kernel=None):
         """
         @brief Construct an MDP meant to perform inference.
@@ -59,6 +59,8 @@ class InferenceMDP(MDP):
                                    state_idx_to_observe=self.state_idx_to_observe)
         else:
             self.graph = None
+
+        self.temp = temp
 
         self.gg_kernel_centers = gg_kernel_centers
         self.ggk_mobile_indices = ggk_mobile_indices
@@ -133,8 +135,8 @@ class InferenceMDP(MDP):
         """
         @brief Method to build the policy during/after policy inference.
         """
-        exp_Q = {state: {act: np.exp(np.dot(self.theta, self.phi_at_state[state][act])) for act in self.action_list}
-                 for state in self.observable_states}
+        exp_Q = {state: {act: np.exp(np.dot(self.theta, self.phi_at_state[state][act])/self.temp)
+                         for act in self.action_list} for state in self.observable_states}
         sum_exp_Q = {state: sum(exp_Q[state].values()) for state in self.observable_states}
         self.policy = {state: {act: exp_Q[state][act]/sum_exp_Q[state] for act in self.action_list}
                        for state in self.observable_states}
@@ -149,14 +151,14 @@ class InferenceMDP(MDP):
         return PolicyInference(self, method=method, write_video=write_video).infer(**kwargs)
 
     @staticmethod
-    def evalGibbsPolicy(Q_dict):
+    def evalGibbsPolicy(Q_dict, temp=1.0):
         """
         @brief Evaluates the policy at a single state given Q values.
 
         @param a dictionary with action keys and  Q-values for values
         @return a policy distribution dictionary
         """
-        exp_Q = {act: np.exp(Q_dict[act]) for act in Q_dict.keys()}
+        exp_Q = {act: np.exp(Q_dict[act]/temp) for act in Q_dict.keys()}
         sum_exp_Q = sum(exp_Q.values())
         policy = {act: exp_Q[act]/sum_exp_Q for act in Q_dict.keys()}
         return policy

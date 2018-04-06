@@ -27,7 +27,7 @@ class MultiAgentMDP(MDP):
     def __init__(self, init=None, action_dict={}, states=[], prob=dict([]), gamma=.9, AP=set([]), L=dict([]),
                  reward=dict([]), grid_map=None, act_prob=dict([]), init_set=None, prob_dtype=np.float64,
                  index_of_controllable_agent=0, infer_dtype=np.float64, fixed_obstacle_labels=dict([]),
-                 use_mobile_kernels=False, ggk_centers=[], env_labels=dict([])):
+                 use_mobile_kernels=False, ggk_centers=[], env_labels=dict([]), inference_temperature=1.0):
         """
         @brief Construct an MDP meant to perform inference.
         @param init @todo
@@ -135,7 +135,8 @@ class MultiAgentMDP(MDP):
                                           state_idx_to_observe=self.uncontrollable_agent_indices[0],
                                           fixed_obstacle_labels=self.fixed_obstacle_labels,
                                           ggk_mobile_indices=ggk_mobile_indices,
-                                          state_idx_of_mobile_kernel=state_idx_of_mobile_kernel)
+                                          state_idx_of_mobile_kernel=state_idx_of_mobile_kernel,
+                                          temp=inference_temperature)
 
         self.env_policy = {agent_idx:{} for agent_idx in self.uncontrollable_agent_indices}
 

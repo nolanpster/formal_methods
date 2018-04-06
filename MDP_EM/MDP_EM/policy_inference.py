@@ -469,7 +469,7 @@ class PolicyInference(object):
         # See note about numpy.einsum axes in PolicyInference.gradientAscent(). In this case, 'h' is used to referce the
         # rows (number of samples) of theta.
         if 'gradientAscent' in self.method:
-            exp_Q = np.exp(np.einsum('ijk,hk->hij', phis, theta))
+            exp_Q = np.exp(np.einsum('ijk,hk->hij', phis, theta)/self.mdp.temp)
             reciprocal_sum_exp_Q = np.reciprocal(np.einsum('hij->hi', exp_Q))
             policy_matrix = np.einsum('hij,hi->hij', exp_Q, reciprocal_sum_exp_Q)
             return policy_matrix.reshape(theta.shape[0], self.policy_vec_length)
@@ -801,7 +801,7 @@ class PolicyInference(object):
         return act_prob_given_state_pair
 
     @staticmethod
-    def evalGibbsPolicy(theta, phi, action, action_list):
+    def evalGibbsPolicy(theta, phi, action, action_list, temp):
         """
         @brief Returns an approximated policy update.
 
@@ -810,6 +810,6 @@ class PolicyInference(object):
         @param action
         @param action_list
         """
-        exp_Q = {act:np.exp(np.dot(theta, phi)) for act in action_list}
+        exp_Q = {act:np.exp(np.dot(theta, phi)/temp) for act in action_list}
 
         return exp_Q[action]/sum(exp_Q.values())
