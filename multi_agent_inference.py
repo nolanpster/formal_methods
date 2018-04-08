@@ -101,7 +101,7 @@ make_new_mdp = False
 solve_EM = False
 resolve_VI = False
 solve_after_inference = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_bonus_reward_180330_1324'
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180408_1502'
 
 
 # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -109,13 +109,13 @@ pickled_mdp_file_to_load  = 'multi_agent_mdps_bonus_reward_180330_1324'
 # determine how large the demonstration set should be.
 gather_new_data = False
 print_history_analysis = False
-num_episodes = 300
+num_episodes = 500
 steps_per_episode = 10
-pickled_episodes_file_to_load = 'multi_agent_mdps_180330_1030_HIST_300eps10steps_180330_1031'
+pickled_episodes_file_to_load = 'multi_agent_mdps_180408_1502_HIST_500eps10steps_180408_1550'
 
 # Perform/load policy inference options. If @c perform_new_inference is false, load the @pickled_inference_mdps_file.
-perform_new_inference = False
-pickled_two_stage_mdps_file_to_load  = 'two_stage_multi_agent_mdps_180328_1453'
+perform_new_inference = True
+pickled_two_stage_mdps_file_to_load  = 'two_stage_multi_agent_mdps_180408_1424'
 inference_method = 'gradientAscentGaussianTheta'
 gg_kernel_centers = [0, 4, 12, 20, 24, 24]  # Last kernel is the 'mobile' kernel
 gg_kernel_centers = range(0, num_cells, 1) + [24]
@@ -124,8 +124,8 @@ kernel_sigmas = np.array([1.0]*num_kernels_in_set, dtype=infer_dtype)
 ggk_mobile_indices = [num_kernels_in_set-1]
 
 # Gaussian Theta params
-num_theta_samples = 500
-inference_temp = 1.0
+inference_temp = 0.8
+num_theta_samples = 3000
 
 # Plotting flags
 plot_all_grids = False
@@ -262,9 +262,9 @@ if perform_new_inference:
 
     theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                                       reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True,
-                                      monte_carlo_size=monte_carlo_size, print_iterations=True, eps=0.0001,
-                                      velocity_memory=0.2, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
-                                      moving_avg_min_slope=-0.5, moving_avg_min_improvement=0.2,
+                                      monte_carlo_size=monte_carlo_size, print_iterations=True, eps=0.0005,
+                                      velocity_memory=0.2, theta_std_dev_min=0.5, theta_std_dev_max=1.2,
+                                      nominal_log_prob_data=nominal_log_prob_data, moving_avg_min_slope=0.001,
                                       moving_average_buffer_length=60)
     pickled_mdp_file = DataHelper.pickleMDP([demo_mdp, policy_keys_to_print], name_prefix="two_stage_multi_agent_mdps")
 else:
