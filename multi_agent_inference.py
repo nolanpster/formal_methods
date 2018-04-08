@@ -117,8 +117,11 @@ pickled_episodes_file_to_load = 'multi_agent_mdps_180330_1030_HIST_300eps10steps
 perform_new_inference = False
 pickled_two_stage_mdps_file_to_load  = 'two_stage_multi_agent_mdps_180328_1453'
 inference_method = 'gradientAscentGaussianTheta'
-gg_kernel_centers = [0, 4, 12, 20, 24]
-gg_kernel_centers = range(0, num_cells, 1)
+gg_kernel_centers = [0, 4, 12, 20, 24, 24]  # Last kernel is the 'mobile' kernel
+gg_kernel_centers = range(0, num_cells, 1) + [24]
+num_kernels_in_set = len(gg_kernel_centers)
+kernel_sigmas = np.array([1.0]*num_kernels_in_set, dtype=infer_dtype)
+ggk_mobile_indices = [num_kernels_in_set-1]
 
 # Gaussian Theta params
 num_theta_samples = 500
@@ -248,6 +251,10 @@ if perform_new_inference:
     # The nominal log probability of the trajectory data sets, if the observed action at each t-step was actually
     # the selected action.
     nominal_log_prob_data = np.log(observed_action_probs[:, 1:]).sum()
+
+    # Also update the kernels if they've changed.
+    infer_mdp.buildKernels(gg_kernel_centers=gg_kernel_centers, kernel_sigmas=kernel_sigmas,
+                           ggk_mobile_indices=ggk_mobile_indices, state_idx_of_mobile_kernel=0)
 
     # Set the temperature to the desired value since it might be different than the one that the InferenceMDP was built
     # with.
