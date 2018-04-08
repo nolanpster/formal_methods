@@ -455,7 +455,7 @@ class PolicyInference(object):
             print('L1:{}'.format(L1Norm))
             self.historyMLE(histories, do_weighted_update=True)
 
-    def buildPolicyVectors(self, phis, theta):
+    def buildPolicyVectors(self, phis, theta, is_monte_carlo=True):
         """
         @brief Given Q(s,a) = <phi, theta>, this build the Boltzman policy as a vector.
 
@@ -463,32 +463,52 @@ class PolicyInference(object):
 
         @param phis A Num-states--by--num-actions--by--num-kernels numpy array.
         @param theta A KxNum-kernels numpy array. Where K is the number of samples of the theta vector.
+        @param is_monte_carlo If true, only the policy state-action elements that were observed in self.histories will
+               be computed, otherwise, generate the entire matrix. This saves a lot of time if 'True', but makes the
+               code harder to read. This should not be used for building a final policy because the resulting
+               policy_matrix will be the wrong size. Only logProbOfDataSet should pass this as 'True'.
 
         @return policy_matrix  A matrix of action probabilities of shape K-by-(num-actions*num-states).
         """
         # See note about numpy.einsum axes in PolicyInference.gradientAscent(). In this case, 'h' is used to referce the
         # rows (number of samples) of theta.
         if 'gradientAscent' in self.method:
-            exp_Q = np.exp(np.einsum('ijk,hk->hij', phis, theta)/self.mdp.temp)
-            reciprocal_sum_exp_Q = np.reciprocal(np.einsum('hij->hi', exp_Q))
-            policy_matrix = np.einsum('hij,hi->hij', exp_Q, reciprocal_sum_exp_Q)
-            return policy_matrix.reshape(theta.shape[0], self.policy_vec_length)
+            # Set-up conditional variables depending on if we're only calculating necessary policy elements, or all of
+            # them.
+            theta_shape = self.monte_carlo_size if is_monte_carlo else theta.shape[0]
+            policy_vec_slicer = self.unique_policy_vec_indices if is_monte_carlo else slice(None)
+            final_num_columns = self.num_unique_policy_vec_indices if is_monte_carlo else self.policy_vec_length
 
-    def logProbOfDataSet(self, theta_mat, phis):
+            exp_Q = np.exp(np.einsum('ijk,hk->hij', phis, theta)/self.mdp.temp)
+            # We need to repeat the sum over all actions of exp(Q) to maintain the right shape for exp(Q)/sum(exp(Q)),
+            # especially when we're only computing the policy-elements observed in the histories.
+            reciprocal_sum_exp_Q = np.dstack((np.reciprocal(np.einsum('hij->hi', exp_Q)),)*self.mdp.num_actions)
+            flat_exp_Q = exp_Q.reshape([theta_shape, self.policy_vec_length])
+            flat_recip_sum_exp_Q = reciprocal_sum_exp_Q.reshape([theta_shape, self.policy_vec_length])
+            policy_matrix = np.einsum('hl,hl->hl', flat_exp_Q[:, policy_vec_slicer],
+                                      flat_recip_sum_exp_Q[:, policy_vec_slicer])
+            return policy_matrix.reshape(theta_shape, final_num_columns)
+
+    def logProbOfDataSet(self, theta_mat, phis, is_monte_carlo=True):
         """
         @brief Given Q(s,a) = <phi(s,a), theta>, this evaluates the log probability of all trajectory given the
                parameter vector, theta.
 
         @param phis A Num-states--by--num-actions--by--num-kernels numpy array.
         @param theta A KxNum-kernels numpy array where K is the number of times theta is sampled.
+        @param is_monte_carlo If true, buildPolicyVectors won't generate every state-action pair in the policy_mat, only the ones
+               observed in the run-histories.
 
         @return The log probability of all trajectories for each theta-vector sample.
         """
-        policy_mat = self.buildPolicyVectors(phis, theta_mat)
+        policy_mat = self.buildPolicyVectors(phis, theta_mat, is_monte_carlo)
         log_policy_mat = np.log(policy_mat)
 
         # Compute the log-likelihood of a trajectory given the sampled theta values.
-        log_prob_traj_given_thetas = np.sum(log_policy_mat[:, self.episode_policy_vec_indeces], axis=1)
+        if is_monte_carlo:
+            log_prob_traj_given_thetas = np.einsum('hl,l->h', log_policy_mat, self.policy_vec_counts)
+        else:
+            log_prob_traj_given_thetas = np.sum(log_policy_mat[:, self.episode_policy_vec_indices], axis=1)
 
         return log_prob_traj_given_thetas
 
@@ -555,10 +575,10 @@ class PolicyInference(object):
         (num_episodes, num_steps) = self.histories.shape
         self.dtype = dtype
         if precomputed_observed_action_indeces is not None:
-            observed_action_indeces = precomputed_observed_action_indeces
+            self.observed_action_indeces = precomputed_observed_action_indeces
         else:
             # Precompute observed actions for all episodes.
-            observed_action_indeces = self.getObservedActionIndeces()
+            self.observed_action_indeces = self.getObservedActionIndeces()
 
         # Initialize Weight vector, theta.
         if theta_0 is None:
@@ -579,8 +599,11 @@ class PolicyInference(object):
         #  Precompute the indeces in a policy vector of length (num-states * num-actions) given the observed actions and
         #  the episodes. Note that the histories are (num-episodes by num-time-steps) large, but the matrix of policy
         #  vector indeces is (num-episodes by num-time-steps - 1).
-        self.episode_policy_vec_indeces = (histories[:, :-1] * self.mdp.num_actions
-                                           + observed_action_indeces[:, 1:]).ravel()
+        self.episode_policy_vec_indices = (histories[:, :-1] * self.mdp.num_actions
+                                           + self.observed_action_indeces[:, 1:]).ravel()
+        self.unique_policy_vec_indices, self.policy_vec_counts = np.unique(self.episode_policy_vec_indices,
+                                                                           return_counts=True)
+        self.num_unique_policy_vec_indices = len(self.unique_policy_vec_indices)
         self.policy_vec_length = self.mdp.num_actions * self.mdp.num_states
 
         # Velocity vector can be thought of as the momentum of the gradient descent. It is used to carry the theta
@@ -669,7 +692,8 @@ class PolicyInference(object):
             theta_std_dev_vec[theta_std_dev_vec > theta_std_dev_max] = theta_std_dev_max
 
             # Get log prob of mean theta vector.
-            log_prob_traj_given_mean_thetas = self.logProbOfDataSet(np.expand_dims(theta_mean_vec,axis=0), phis)
+            log_prob_traj_given_mean_thetas = self.logProbOfDataSet(np.expand_dims(theta_mean_vec,axis=0), phis,
+                                                                    is_monte_carlo=False)
 
             # Find index of theta from previous iteration that had the best log prob.
             max_log_prob_theta_idx = np.argmax(log_prob_traj_given_thetas)
@@ -694,7 +718,8 @@ class PolicyInference(object):
 
                 # Compare the mean and max log-prob thetas to the true policy.
                 mean_and_max_policy_vecs = self.buildPolicyVectors(phis,
-                    np.vstack((np.expand_dims(max_log_prob_theta, axis=0), np.expand_dims(theta_mean_vec, axis=0))))
+                    np.vstack((np.expand_dims(max_log_prob_theta, axis=0), np.expand_dims(theta_mean_vec, axis=0))),
+                    is_monte_carlo=False)
                 l1_norm_max_theta_to_plot.append((np.abs(mean_and_max_policy_vecs[0] - reference_policy_vec)).sum())
                 l1_norm_mean_theta_to_plot.append((np.abs(mean_and_max_policy_vecs[1] - reference_policy_vec)).sum())
 
