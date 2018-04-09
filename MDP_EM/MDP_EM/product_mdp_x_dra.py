@@ -217,6 +217,10 @@ class ProductMDPxDRA(MDP):
         else:
             self.min_reward = min(no_reward.values())
         self.max_less_min_reward = self.max_reward - self.min_reward
+        self.reward_mat = (self.getPolicyAsVec(policy_to_convert=self.reward)).reshape((self.num_states,
+                                                                                        self.num_executable_actions))
+        self.reward_mat -= self.min_reward
+        self.reward_mat /= self.max_less_min_reward
 
     def makeUniformPolicy(self):
         # I'm so sorry for this hack, in too much of a rush to figure out multiple inheritance. <3 Nolan
@@ -317,7 +321,7 @@ class ProductMDPxDRA(MDP):
 
         return final_trans_prob
 
-    def setProbMatGivenPolicy(self, policy=None):
+    def setProbMatGivenPolicy(self, policy=None, policy_mat=None):
         """
         @brief Returns a transition probability matrix that has been summed over all actions
         multiplied with all transition probabilities.
@@ -326,13 +330,22 @@ class ProductMDPxDRA(MDP):
         """
         if policy is None:
             policy = self.policy
-        # Assume that all transition probability matricies are the same size.
-        # The method below should work in python 2 and 3.
-        prob_keys = tuple(self.prob.keys())
-        self.prob_mat_given_policy = np.zeros(self.prob[prob_keys[0]].shape)
 
-        for state_idx, state in enumerate(self.states):
-            this_policy = self.policy[state]
-            for act in this_policy.keys():
-                self.prob_mat_given_policy[state_idx,:] += np.multiply(this_policy[act], self.T(state, act))
+        if policy_mat is None:
+            policy_mat = (self.getPolicyAsVec(policy_to_convert=policy)).reshape((self.num_states,
+                                                                                  self.num_executable_actions))
+        self.prob_mat_given_policy = np.einsum('ij,ikj->ik', policy_mat, self.trans_prob_mat)
+
         return self.prob_mat_given_policy
+
+    def buildEntireTransProbMat(self):
+        """
+        @brief Call self.T repeately to build a |S|x|S|x|A| matrix. If self.T evaluates an inferred environmental policy
+        this must be rebuilt before use.
+
+        @Note This only builds the matrix with _executable_ actions.
+        """
+        self.trans_prob_mat = np.empty((self.num_states, self.num_states, self.num_executable_actions))
+        for state_idx, state in enumerate(self.states):
+            for act_idx, act in enumerate(self.executable_action_dict[self.controllable_agent_idx]):
+                self.trans_prob_mat[state_idx,:, act_idx] = self.T(state, act)

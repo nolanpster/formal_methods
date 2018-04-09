@@ -357,7 +357,7 @@ class MDP(object):
         """
         raise NotImplementedError('Unsure of best way to configure the reward dictionary in the base class. Any ideas?')
 
-    def probRewardGivenX_T(self, state, policy=None):
+    def probRewardGivenX_T(self, state=None, policy=None, use_reward_mat=False, policy_mat=None):
         """
         @brief The probability of a reward given a final state x at final time
         T, and a policy.
@@ -368,13 +368,21 @@ class MDP(object):
             policy = self.policy
 
         # List rewards available at this state for every action.
-        prob_reward = 0
-        for act in policy.itervalues().next().keys():
-            prob_reward += self.reward[state][act]*self.policy[state][act]
+        if use_reward_mat and policy_mat is not None and state is None:
+            # Calc whole reward vector in one go if 'state' is none
+            prob_reward = np.multiply(self.reward_mat, policy_mat)
+            prob_reward = np.sum(prob_reward, axis=1)
+            return prob_reward
 
-        prob_reward -= self.min_reward
-        prob_reward /= self.max_less_min_reward
-        return prob_reward
+        else:
+            prob_reward = 0
+            action_list = self.executable_action_dict[self.controllable_agent_idx]
+            for act in action_list:
+                prob_reward += self.reward[state][act]*self.policy[state][act]
+
+            prob_reward -= self.min_reward
+            prob_reward /= self.max_less_min_reward
+            return prob_reward
 
     def setProbMatGivenPolicy(self, policy=None):
         """
@@ -465,10 +473,6 @@ class MDP(object):
             if this_total_prob == 0:
                 # Zero policy, just pick sink_action.
                 self.policy[state][self.sink_action] = 1
-            elif this_total_prob > 1.0+sys.float_info.epsilon:
-                pass
-                #import pdb; pdb.set_trace()
-                #raise ValueError('Total probability greater than 1!')
 
     def computeKLDivergenceOfPolicyFromHistories(self, histories):
         """

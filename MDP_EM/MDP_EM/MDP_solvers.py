@@ -106,22 +106,36 @@ class MDP_solvers(object):
         return run_stats
 
     def expectationMaximization(self, do_print=False, policy_keys_to_print=None, horizon_length=25, num_iters=10,
-                                **kwargs):
+                                do_incremental_e_step=False, print_iterations=False, **kwargs):
         """
         @brief
         """
         start_time = time.time()
         S = deepcopy(self.mdp.S) # Initial distribution.
-        for _ in range(num_iters):
-            P = self.mdp.setProbMatGivenPolicy()
-            R = [self.mdp.probRewardGivenX_T(state) for state in self.mdp.states]
-            R = np.array(R)
-            alpha, beta, P_R, P_T_given_R, expect_T_given_R = MDP_solvers.e_step(self, S, R, P, self.mdp.gamma,
-                                                                                 H=horizon_length)
-            MDP_solvers.m_step(self, beta)
-            self.mdp.removeNaNValues()
-            if self.write_video:
-                self.video_writer.render(self.mdp.policy)
+        self.sink_act_distribution = {act:0 for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]}
+        self.sink_act_distribution[self.mdp.sink_action] = 1.0
+
+        # Precompute everything we can.
+        if do_incremental_e_step:
+            horizon_generator = xrange(1, horizon_length+1)
+        self.mdp.buildEntireTransProbMat()
+
+        for _iter in xrange(num_iters):
+            if do_print or print_iterations:
+                iter_start_time = time.time()
+            self.policy_vec = self.mdp.getPolicyAsVec()
+            self.policy_mat = self.policy_vec.reshape((self.mdp.num_states, self.mdp.num_executable_actions))
+            P = self.mdp.setProbMatGivenPolicy(policy_mat=self.policy_mat)
+            R = self.mdp.probRewardGivenX_T(use_reward_mat=True, policy_mat=self.policy_mat)
+            if do_incremental_e_step:
+                beta = self.mdp.gamma * R
+                beta = self.incrementalEStep(beta, R, P, self.mdp.gamma, horizon_generator)
+            else:
+                alpha, beta, P_R, P_T_given_R, expect_T_given_R = MDP_solvers.e_step(self, S, R, P, self.mdp.gamma,
+                                                                                     H=horizon_length)
+            self.m_step(beta)
+            if do_print or print_iterations and (not _iter % 25):
+                print 'EM Iter:{} in {}sec'.format(_iter, time.time() - iter_start_time)
         elapsed_time = time.time() - start_time
         stats = {'run_time': elapsed_time, 'iterations': num_iters}
         if do_print:
@@ -134,13 +148,23 @@ class MDP_solvers(object):
                 policy_out  = {state: policy_out[state] for state in policy_keys_to_print}
             print("EM found the following policy: {}")
             pprint(policy_out)
-            print("Prob. or reward = {0:.3f}, expectation of T given R = "
-                  "{1:.3f}.".format(P_R, expect_T_given_R))
+            if not do_incremental_e_step:
+                # We calculated E{T|R} and P(R) along the way.
+                print("Prob. or reward = {0:.3f}, expectation of T given R = "
+                      "{1:.3f}.".format(P_R, expect_T_given_R))
         return stats
+
+    def incrementalEStep(self, beta, R, P, gamma, horizon_generator):
+        for h in horizon_generator:
+            beta = np.multiply(gamma, np.add(R, np.inner(beta, P)))
+        return beta
 
     def e_step(self, S, R, P, gamma, H=25):
         """
         @brief Algorithm 1 from Toussaint and Storkey 2010.
+
+        Note that this is not optimized for speed. Many variables could be pre-computed, pre-allocated, and we could use
+        something faster for matrix multiplication (e.g. einsum). If speed is an issue, use the incrementalEStep.
 
         @param H Horizon length.
         """
@@ -167,13 +191,15 @@ class MDP_solvers(object):
         return alpha, beta, P_R, P_T_given_R, expect_T_given_R
 
     def m_step(self, beta):
+        beta_times_T_mat = np.einsum('j,ijk->ik', beta, self.mdp.trans_prob_mat)
+        new_policy_mat = np.multiply(self.policy_mat,  (self.mdp.reward_mat + beta_times_T_mat))
+        norm_factors = np.sum(new_policy_mat, axis=1)
+        new_policy_mat = np.einsum('ij,i->ij', new_policy_mat, np.reciprocal(norm_factors))
         for state_ind, state in enumerate(self.mdp.states):
-            norm_factor = 0
             # Update policy and record value in normalization factor.
-            for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]:
-                self.mdp.policy[state][act] = self.mdp.policy[state][act] * \
-                    (self.mdp.reward[state][act] + np.dot(beta, self.mdp.T(state, act)))
-                norm_factor += self.mdp.policy[state][act]
-            if norm_factor > 0:
-                for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]:
-                    self.mdp.policy[state][act] /= norm_factor
+            if norm_factors[state_ind] > 0:
+                for act_ind, act in enumerate(self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]):
+                    self.mdp.policy[state][act] = new_policy_mat[state_ind, act_ind]
+            else:
+                # Zero policy, just pick sink_action.
+                self.mdp.policy[state] = self.sink_act_distribution
