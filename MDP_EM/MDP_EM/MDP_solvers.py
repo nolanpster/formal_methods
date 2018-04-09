@@ -149,21 +149,21 @@ class MDP_solvers(object):
         _b = R
         alpha = _a
         beta = gamma*_b
-        L[0] = np.dot(_a, _b)
+        L[0] = np.inner(_a, _b)
         for h in range(1, H+1):
-            _a = np.dot(P,_a)
+            _a = np.inner(P,_a)
             l_ind = 2*h-1
-            L[l_ind] = gamma**(l_ind) * np.dot(_a, _b)
+            L[l_ind] = gamma**(l_ind) * np.inner(_a, _b)
             l_ind += 1
-            _b = np.dot(_b, P)
-            L[l_ind] = gamma**(l_ind) * np.dot(_a, _b)
+            _b = np.inner(_b, P)
+            L[l_ind] = gamma**(l_ind) * np.inner(_a, _b)
             alpha += gamma**h * _a
             beta += gamma**(h+1) * _b
         L *= (1-gamma)
         alpha *= (1-gamma)
         P_R = np.sum(L)
         P_T_given_R = L / P_R
-        expect_T_given_R = np.dot(range(2*H+1), L) / P_R
+        expect_T_given_R = np.inner(range(2*H+1), L) / P_R
         return alpha, beta, P_R, P_T_given_R, expect_T_given_R
 
     def m_step(self, beta):
