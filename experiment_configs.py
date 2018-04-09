@@ -384,6 +384,7 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
     if file_with_policy is None:
         file_with_policy =  'robot_mdps_180328_2018_HIST_500eps20steps_180328_2018_Policy_180328_2032'
 
+    print 'Next File loaded is for building environmental policy:'
     (single_agent_mdp, pickled_inference_file) = DataHelper.loadPickledPolicyInferenceMDP(file_with_policy)
 
     # Build a feature vector that only has a mobile kernel on the robot location.
