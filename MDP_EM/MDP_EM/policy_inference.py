@@ -779,7 +779,7 @@ class PolicyInference(object):
             plt.plot(range(iter_count), mean_log_prob_to_plot, 'b', label='Log prob of sample mean')
             plt.plot(range(iter_count), max_log_prob_to_plot, 'r', label='Max Log prob of samples')
             plt.plot(range(iter_count), recorded_log_prob_moving_avg, 'g', label='Log prob of mean moving average')
-            plt.ylim(ymin=min(mean_log_prob_to_plot))
+            plt.ylim(ymin=min(min(mean_log_prob_to_plot), min(max_log_prob_to_plot)))
             plt.legend()
             plt.title('Log Prob of Demo | theta')
 
