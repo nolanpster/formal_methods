@@ -184,7 +184,7 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
 def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, grid_map, gamma=0.9,
                               act_prob=dict([]), do_print=False, init_set=None,prob_dtype=np.float64,
                               fixed_obstacle_labels=dict([]), use_mobile_kernels=False, gg_kernel_centers=[],
-                              env_labels=None, print_VI_iterations=True, inference_temperature=1.0):
+                              env_labels=None, print_VI_iterations=True, inference_temperature=1.0, act_cost=0.0):
     """
     @brief Configure the product MDP and DRA.
 
@@ -214,7 +214,7 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
     # Note that an MDPxDRA receives a binary reward upon completion of the specification so define the reward function
     # to re given when leaving the winning state on the winning action (from 'q1' to 'q3'). 'VI' implies this is to be
     # solved with Value Iteration.
-    winning_reward = {act: 0.0 for act in grid_mdp.action_list}
+    winning_reward = {act: act_cost for act in grid_mdp.action_list}
     winning_reward['0_Empty'] = 1.0
     skip_product_calcs = True
     if skip_product_calcs:
@@ -229,7 +229,7 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
     VI_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='0_Empty', sink_list=sink_list,
                                  losing_sink_label=alphabet_dict['red'], winning_reward=winning_reward,
                                  prob_dtype=prob_dtype, skip_product_calcs=skip_product_calcs,
-                                 winning_label=alphabet_dict['green'], env_sink_list=env_sink_list)
+                                 winning_label=alphabet_dict['green'], env_sink_list=env_sink_list, act_cost=act_cost)
 
     # @TODO Prune unreachable states from MDP.
 

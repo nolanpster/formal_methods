@@ -20,7 +20,7 @@ class ProductMDPxDRA(MDP):
     of atomic propositions. Each proposition is identified by an index between 0 -N.  L: the labeling function,
     implemented as a dictionary: state: a subset of AP."""
     def __init__(self, mdp, dra, sink_action=None, sink_list=[], losing_sink_label=None, winning_reward=None,
-                 prob_dtype=np.float64, winning_label=None, skip_product_calcs=False, env_sink_list=None):
+                 prob_dtype=np.float64, winning_label=None, skip_product_calcs=False, env_sink_list=None, act_cost=0.0):
         """
         @brief
         """
@@ -44,7 +44,7 @@ class ProductMDPxDRA(MDP):
         self.reconfigureConditionalInitialValues()
         self.setSinks(sink_list, env_sink_list)
         if winning_reward is not None:
-            self.configureReward(winning_reward)
+            self.configureReward(winning_reward, act_cost=act_cost)
         self.makeUniformPolicy()
         self.resetState()
 
@@ -162,7 +162,7 @@ class ProductMDPxDRA(MDP):
         else:
             super(self.__class__, self).setSinks(sink_list)
 
-    def configureReward(self, winning_reward, bonus_reward_at_state=dict([])):
+    def configureReward(self, winning_reward, bonus_reward_at_state=dict([]), act_cost=0.0):
         """
         @breif Configure the reward dictionary for the MDPxDRA.
 
@@ -181,7 +181,7 @@ class ProductMDPxDRA(MDP):
         @note This method assigns the same dictionary _reference_ to each winning state, so if you change one, you change
         them all.
         """
-        no_reward = {act: 0.0 for act in self.action_list}
+        no_reward = {act: deepcopy(act_cost) for act in self.action_list}
         # Go through each state and if it is a winning state, assign it's reward
         # to be the positive reward dictionary.
         reward_dict = {}

@@ -154,7 +154,7 @@ if make_new_mdp:
                                                                                fixed_obstacle_labels=fixed_obs_labels,
                                                                                use_mobile_kernels=use_mobile_kernels,
                                                                                gg_kernel_centers=gg_kernel_centers,
-                                                                               env_labels=env_labels)
+                                                                               env_labels=env_labels, act_cost=act_cost)
     variables_to_save = [VI_mdp, policy_keys_to_print]
     pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps")
 else:
