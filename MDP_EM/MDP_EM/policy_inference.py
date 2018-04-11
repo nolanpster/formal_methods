@@ -496,8 +496,8 @@ class PolicyInference(object):
 
         @param phis A Num-states--by--num-actions--by--num-kernels numpy array.
         @param theta A KxNum-kernels numpy array where K is the number of times theta is sampled.
-        @param is_monte_carlo If true, buildPolicyVectors won't generate every state-action pair in the policy_mat, only the ones
-               observed in the run-histories.
+        @param is_monte_carlo If true, buildPolicyVectors won't generate every state-action pair in the policy_mat, only
+               the ones observed in the run-histories.
 
         @return The log probability of all trajectories for each theta-vector sample.
         """
@@ -513,6 +513,9 @@ class PolicyInference(object):
         return log_prob_traj_given_thetas
 
     def resetGaussianThetaTerminationParams(self):
+        # This block configures the iteration parameters. Create a ring buffer of log_probabilities, and use the average
+        # of this buffer a convergence metric. The length of the buffer is specified by @param
+        # moving_average_buffer_size. Initially, the ring buffer is populated with -Inf values.
         self.iter_count = 0
         self.log_prob_traj_given_mean_thetas  = -sys.float_info.max
         self.log_prob_moving_avg_slope = 1.0
@@ -662,6 +665,10 @@ class PolicyInference(object):
                 - j : action-axis
                 - k : theta/phi vector axis
                 - l : a policy represented as a vector
+
+        @note Velocity vector can be thought of as the momentum of the gradient descent. It is used to carry the theta
+              estimate through local minimums. https://wiseodd.github.io/techblog/2016/06/22/nn-optimization/. Set at
+              top of for-loop.
 
         @param histories A num-episodes - by - num-time-steps matrix of observed states.
         @param theta_0 Vector of initial theta distribution mean values.
