@@ -253,6 +253,7 @@ class ProductMDPxDRA(MDP):
         Returns the current state number as an integer.
         """
         if type(self.mdp) is MultiAgentMDP:
+            prev_state = self.current_state
             true_env_policy = self.env_policy[self.uncontrollable_agent_indices[0]] \
                                              [self.current_state[self.cell_state_slicer][0]]
             # Sample a robot action from it's policy.
@@ -272,6 +273,8 @@ class ProductMDPxDRA(MDP):
                 import pdb; pdb.set_trace()
             self.current_state = self.states[next_index]
             observable_index = self.observable_states.index(self.current_state[self.cell_state_slicer])
+            if self.current_state == prev_state:
+                executed_robot_act = self.sink_action
             return self.current_state[self.cell_state_slicer], observable_index, executed_robot_act
 
         else:
