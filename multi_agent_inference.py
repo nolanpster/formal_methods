@@ -154,7 +154,8 @@ if make_new_mdp:
                                                                                fixed_obstacle_labels=fixed_obs_labels,
                                                                                use_mobile_kernels=use_mobile_kernels,
                                                                                gg_kernel_centers=gg_kernel_centers,
-                                                                               env_labels=env_labels, act_cost=act_cost)
+                                                                               env_labels=env_labels, act_cost=act_cost,
+                                                                               use_em=True)
     variables_to_save = [VI_mdp, policy_keys_to_print]
     pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps")
 else:
@@ -181,16 +182,18 @@ if resolve_VI:
     print "VI: {}sec".format(time.time() - tic)
 VI_policy = VI_mdp.getPolicyAsVec()
 EM_mdp = deepcopy(VI_mdp)
-EM_mdp.makeUniformPolicy()
 if solve_EM:
-    em_stats = EM_mdp.solve(method='expectationMaximization', do_print=False, horizon_length=20, num_iters=10)
-    EM_error = EM_mdp.getPolicyL1Norm(VI_policy, EM_mdp.getPolicyAsVec())
+    EM_mdp.makeUniformPolicy()
+    em_stats = EM_mdp.solve(method='expectationMaximization', do_print=False, print_iterations=True, horizon_length=15,
+                            num_iters=100, do_incremental_e_step=True)
+    EM_policy = EM_mdp.getPolicyAsVec()
+    EM_error = EM_mdp.getPolicyL1Norm(VI_policy, EM_policy)
     print 'EM L1 error: {}'.format(EM_error)
     print em_stats
 ########################################################################################################################
 # Demonstrate Trajectories
 ########################################################################################################################
-demo_mdp = VI_mdp
+demo_mdp = EM_mdp
 if gather_new_data:
     # Use policy to simulate and record results.
     #
@@ -272,6 +275,7 @@ else:
         DataHelper.loadPickledMDP(pickled_two_stage_mdps_file_to_load)
     infer_mdp = demo_mdp.infer_env_mdp
 
+EM_policy = demo_mdp.getPolicyAsVec()
 if solve_after_inference:
     # This will update the demo-mdp's policy and therefore its plots below.
     bonus_reward_dict = ExperimentConfigs.makeBonusReward(infer_mdp.policy_uncertainty)
@@ -279,17 +283,18 @@ if solve_after_inference:
     winning_reward['0_Empty'] = 1.0
     demo_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict)
 
-    demo_mdp.solve(do_print=False, method='valueIteration', print_iterations=True,
-                   policy_keys_to_print=policy_keys_to_print, horizon_length=20, num_iters=40)
+    demo_mdp.makeUniformPolicy()
+    demo_mdp.solve(do_print=False, method='expectationMaximization', print_iterations=True,
+                   policy_keys_to_print=policy_keys_to_print, horizon_length=15, num_iters=100,
+                   do_incremental_e_step=True)
     variables_to_save = [demo_mdp, policy_keys_to_print]
     pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps_bonus_reward")
 else:
     (demo_mdp, policy_keys_to_print, pickled_mdp_file) = \
         DataHelper.loadPickledMDP('multi_agent_mdps_bonus_reward_180330_1347')
 
-
-
-policy_change = demo_mdp.getPolicyL1Norm(VI_policy, demo_mdp.getPolicyAsVec())
+EM_mdp = demo_mdp
+policy_change = demo_mdp.getPolicyL1Norm(EM_policy, demo_mdp.getPolicyAsVec())
 print 'Policy Change from Bonus Reward: {}'.format(policy_change)
 #import pdb; pdb.set_trace()
 #VI_mdp = demo_mdp

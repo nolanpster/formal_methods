@@ -190,7 +190,8 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
 def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, grid_map, gamma=0.9,
                               act_prob=dict([]), do_print=False, init_set=None,prob_dtype=np.float64,
                               fixed_obstacle_labels=dict([]), use_mobile_kernels=False, gg_kernel_centers=[],
-                              env_labels=None, print_VI_iterations=True, inference_temperature=1.0, act_cost=0.0):
+                              env_labels=None, print_demo_iterations=True, inference_temperature=1.0, act_cost=0.0,
+                              use_em=True):
     """
     @brief Configure the product MDP and DRA.
 
@@ -232,28 +233,32 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
     else:
         sink_list = ['q2', 'q3']
         env_sink_list = []
-    VI_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='0_Empty', sink_list=sink_list,
-                                 losing_sink_label=alphabet_dict['red'], winning_reward=winning_reward,
-                                 prob_dtype=prob_dtype, skip_product_calcs=skip_product_calcs,
-                                 winning_label=alphabet_dict['green'], env_sink_list=env_sink_list, act_cost=act_cost)
+    demo_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='0_Empty', sink_list=sink_list,
+                              losing_sink_label=alphabet_dict['red'], winning_reward=winning_reward,
+                              prob_dtype=prob_dtype, skip_product_calcs=skip_product_calcs,
+                              winning_label=alphabet_dict['green'], env_sink_list=env_sink_list, act_cost=act_cost)
 
     # @TODO Prune unreachable states from MDP.
 
     # Create a dictionary of observable states for printing.
     if skip_product_calcs:
-        policy_keys_to_print = VI_mdp.states
+        policy_keys_to_print = demo_mdp.states
     else:
-        policy_keys_to_print = deepcopy([(state[0], VI_mdp.dra.get_transition(VI_mdp.L[state], state[1])) for state in
-                                         VI_mdp.states if 'q0' in state])
-    VI_mdp.setObservableStates(observable_states=policy_keys_to_print)
+        policy_keys_to_print = deepcopy([(state[0], demo_mdp.dra.get_transition(demo_mdp.L[state], state[1])) for state
+                                         in demo_mdp.states if 'q0' in state])
+    demo_mdp.setObservableStates(observable_states=policy_keys_to_print)
 
     ##### SOLVE #####
     # To enable a solution of the MDP with multiple methods, copy the MDP, set the initial state likelihood
     # distributions and then solve the MDPs.
-    VI_mdp.solve(do_print=do_print, method='valueIteration', write_video=False,
-                 policy_keys_to_print=policy_keys_to_print, print_iterations=print_VI_iterations)
+    if use_em:
+        method = 'expectationMaximization'
+    else:
+        method = 'valueIteration'
+    demo_mdp.solve(do_print=do_print, method=method, horizon_length=15, num_iters=100, do_incremental_e_step=True,
+                   policy_keys_to_print=policy_keys_to_print, print_iterations=print_demo_iterations)
 
-    return VI_mdp, policy_keys_to_print
+    return demo_mdp, policy_keys_to_print
 
 
 def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=100,
