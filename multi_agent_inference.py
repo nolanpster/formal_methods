@@ -101,7 +101,8 @@ make_new_mdp = False
 solve_EM = False
 resolve_VI = False
 solve_after_inference = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180408_1502'
+pickled_mdp_file_to_load  = 'two_stage_multi_agent_mdps_180409_1715'
+act_cost = -0.1
 
 
 # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -111,11 +112,11 @@ gather_new_data = False
 print_history_analysis = False
 num_episodes = 500
 steps_per_episode = 10
-pickled_episodes_file_to_load = 'multi_agent_mdps_180408_1502_HIST_500eps10steps_180408_1550'
+pickled_episodes_file_to_load = 'two_stage_multi_agent_mdps_180409_1715_HIST_500eps10steps_180409_1743'
 
 # Perform/load policy inference options. If @c perform_new_inference is false, load the @pickled_inference_mdps_file.
-perform_new_inference = True
-pickled_two_stage_mdps_file_to_load  = 'two_stage_multi_agent_mdps_180408_1424'
+perform_new_inference = False
+pickled_two_stage_mdps_file_to_load  = 'two_stage_multi_agent_mdps_180409_1744'
 inference_method = 'gradientAscentGaussianTheta'
 gg_kernel_centers = [0, 4, 12, 20, 24, 24]  # Last kernel is the 'mobile' kernel
 gg_kernel_centers = range(0, num_cells, 1) + [24]
@@ -129,7 +130,7 @@ num_theta_samples = 3000
 
 # Plotting flags
 plot_all_grids = False
-plot_VI_mdp_grids = True
+plot_VI_mdp_grids = False
 plot_EM_mdp_grids = False
 plot_inferred_mdp_grids = False
 plot_uncertainty = False
@@ -163,7 +164,8 @@ else:
 
 # Override recorded initial dist to be uniform. Note that policy_keys_to_print are the reachable initial states, and we
 # want to set the initial state-set to only include the states where the robot is at `robot_initial_cell`.
-VI_mdp.init_set = VI_mdp.states
+#VI_mdp.init_set = VI_mdp.states
+VI_mdp.init_set = ((24, 20),)
 VI_mdp.setInitialProbDist(VI_mdp.init_set)
 
 # The original environment policy in the MDP is a random walk. So we load a file containing a more interesting
@@ -176,6 +178,10 @@ ExperimentConfigs.convertSingleAgentEnvPolicyToMultiAgent(VI_mdp, labels, state_
                                                           alphabet_dict=alphabet_dict,
                                                           fixed_obstacle_labels=fixed_obs_labels)
 
+act_cost = -0.1
+winning_reward = {act: act_cost for act in VI_mdp.action_list}
+winning_reward['0_Empty'] = 1.0
+VI_mdp.configureReward(winning_reward, act_cost=act_cost)
 if resolve_VI:
     tic = time.time()
     VI_mdp.solve(print_iterations=True)
@@ -279,9 +285,9 @@ EM_policy = demo_mdp.getPolicyAsVec()
 if solve_after_inference:
     # This will update the demo-mdp's policy and therefore its plots below.
     bonus_reward_dict = ExperimentConfigs.makeBonusReward(infer_mdp.policy_uncertainty)
-    winning_reward = {act: 0.0 for act in demo_mdp.action_list}
+    winning_reward = {act: act_cost for act in demo_mdp.action_list}
     winning_reward['0_Empty'] = 1.0
-    demo_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict)
+    demo_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict, act_cost=act_cost)
 
     demo_mdp.makeUniformPolicy()
     demo_mdp.solve(do_print=False, method='expectationMaximization', print_iterations=True,
