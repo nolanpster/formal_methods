@@ -512,13 +512,142 @@ class PolicyInference(object):
 
         return log_prob_traj_given_thetas
 
-    def gradientAscentGaussianTheta(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False,
+    def resetGaussianThetaTerminationParams(self):
+        self.iter_count = 0
+        self.log_prob_traj_given_mean_thetas  = -sys.float_info.max
+        self.log_prob_moving_avg_slope = 1.0
+        self.moving_avg_improvement = np.inf
+        self.max_log_prob_theta = 0
+        self.moving_avg_ring_buff = deque([-np.inf] * self.moving_average_buffer_length)
+        self.log_prob_moving_avg = np.average(self.moving_avg_ring_buff)
+        self.recorded_log_prob_moving_avg = []
+
+    def resetGaussianThetaPlottingParams(self):
+        self.means2plot = deepcopy(self.theta_0)
+        self.sigmas2plot = deepcopy(self.theta_std_dev_0)
+        self.mean_log_prob_to_plot = []
+        self.max_log_prob_to_plot = []
+        self.l1_norm_mean_theta_to_plot = []
+        self.l1_norm_max_theta_to_plot = []
+
+    def resetGaussianThetaInferenceParamInitialValues(self):
+        self.mdp.theta = deepcopy(self.theta_0)
+        self.theta_mean_vec = deepcopy(self.theta_0) # Vector to compute SGD with.
+        self.theta_std_dev_vec = deepcopy(self.theta_std_dev_0) # Vector to compute SGD with.
+        # Velocity vector can be thought of as the momentum of the gradient descent. It is used to carry the theta
+        # estimate through local minimums. https://wiseodd.github.io/techblog/2016/06/22/nn-optimization/. Set at top of
+        # for-loop.
+        self.velocity_mu = np.zeros([self.theta_size], dtype=self.dtype)
+        self.velocity_sigma = np.zeros([self.theta_size], dtype=self.dtype)
+
+    def performGaussianThetaInference(self):
+        # Loop until convergence unless killed by Crtl-C
+        self.killer = GracefulKiller()
+        while not self.killer.kill_now and self.log_prob_moving_avg_slope > self.moving_avg_min_slope and \
+            (abs(self.moving_avg_improvement) > self.moving_avg_min_improvement):
+            if self.do_print or self.print_iterations:
+                iter_tic = time.time()
+            self.iter_count += 1
+
+            # Sample monte_carlo_size theta vectors from their distributions. This forms a
+            # monte_carlo_size-by-theta_size matrix.
+            theta_samples = np.random.multivariate_normal(self.theta_mean_vec,
+                                                          np.diag(np.power(self.theta_std_dev_vec,2)),
+                                                          self.monte_carlo_size)
+
+            log_prob_traj_given_thetas = self.logProbOfDataSet(theta_samples, self.phis) + self.nominal_log_prob_data
+            ## Mu Update ##
+            # Calculate the gradient of the log-likelihood of the sampled thetas with respect to the means of the
+            # theta distribution. Note that calculations are done "in-place" for efficiency.
+            theta_variance = np.power(self.theta_std_dev_vec, 2)
+            theta_sample_less_mean = deepcopy(theta_samples)
+            theta_sample_less_mean -= self.theta_mean_vec
+            grad_log_prob_theta_wrt_mu = theta_sample_less_mean
+            grad_log_prob_theta_wrt_mu /= theta_variance
+
+            # Calculate the gradient of the log-likelihood of the trajectory with respect to the means of the theta
+            # distribution.
+            grad_log_prob_hist_given_theta_dist_wrt_mu = np.einsum('hk,h->k', grad_log_prob_theta_wrt_mu,
+                                                                   log_prob_traj_given_thetas)
+            grad_log_prob_hist_given_theta_dist_wrt_mu /= self.monte_carlo_size
+
+            # Update the gradient with the velocity of theta_mu.
+            self.velocity_mu *= self.velocity_memory
+            self.velocity_mu += np.multiply(self.eps, grad_log_prob_hist_given_theta_dist_wrt_mu)
+            self.theta_mean_vec += self.velocity_mu
+
+            ## Sigma Update ##
+            # Calculate the gradient of the log-likelihood of the sampled thetas with respect to the standard
+            # deviations of the theta distribution.
+            grad_log_prob_theta_wrt_sigma = np.power(theta_sample_less_mean, 2)
+            grad_log_prob_theta_wrt_sigma -= theta_variance
+            grad_log_prob_theta_wrt_sigma /= np.multiply(theta_variance, self.theta_std_dev_vec) # Sigma^3
+
+            # Calculate the gradient of the log-likelihood of the trajectory with respect to the standard deviations
+            # of the theta distribution.
+            grad_log_prob_hist_given_theta_dist_wrt_sigma = np.einsum('hk,h->k', grad_log_prob_theta_wrt_sigma,
+                                                                      log_prob_traj_given_thetas)
+            grad_log_prob_hist_given_theta_dist_wrt_sigma /= self.monte_carlo_size
+
+            # Update the gradient with the velocity of theta_std_devs
+            self.velocity_sigma *= self.velocity_memory
+            self.velocity_sigma += np.multiply(self.eps, grad_log_prob_hist_given_theta_dist_wrt_sigma)
+            self.theta_std_dev_vec += self.velocity_sigma
+
+            # Check for any invalid standard deviations.
+            self.theta_std_dev_vec[self.theta_std_dev_vec < self.theta_std_dev_min] = self.theta_std_dev_min
+            self.theta_std_dev_vec[self.theta_std_dev_vec > self.theta_std_dev_max] = self.theta_std_dev_max
+
+            # Get log prob of mean theta vector.
+            self.log_prob_traj_given_mean_thetas = self.logProbOfDataSet(np.expand_dims(self.theta_mean_vec,axis=0),
+                                                                         self.phis, is_monte_carlo=False)
+
+            # Find index of theta from previous iteration that had the best log prob.
+            max_log_prob_theta_idx = np.argmax(log_prob_traj_given_thetas)
+            max_log_prob = log_prob_traj_given_thetas[max_log_prob_theta_idx]
+            self.max_log_prob_theta = theta_samples[max_log_prob_theta_idx]
+
+            # Append this log_prob to the front of ring buffer and pop of the oldest value.
+            self.moving_avg_ring_buff.appendleft(self.log_prob_traj_given_mean_thetas[0])
+            self.moving_avg_ring_buff.pop()
+            self.log_prob_moving_avg = np.average(self.moving_avg_ring_buff)
+            self.recorded_log_prob_moving_avg.append(self.log_prob_moving_avg)
+
+            if self.iter_count > self.moving_average_buffer_length + 1:
+                self.log_prob_moving_avg_slope = (self.recorded_log_prob_moving_avg[-1]
+                                                  - self.recorded_log_prob_moving_avg[-2])
+                self.moving_avg_improvement = np.max(self.log_prob_moving_avg - self.recorded_log_prob_moving_avg[-20:])
+
+            if self.do_plot:
+                self.means2plot = np.vstack((self.means2plot, self.theta_mean_vec))
+                self.sigmas2plot = np.vstack((self.sigmas2plot, self.theta_std_dev_vec))
+                self.mean_log_prob_to_plot.append(self.log_prob_traj_given_mean_thetas[0])
+                self.max_log_prob_to_plot.append(max_log_prob)
+
+                # Compare the mean and max log-prob thetas to the true policy.
+                mean_and_max_policy_vecs = \
+                    self.buildPolicyVectors(self.phis,
+                                            np.vstack((np.expand_dims(self.max_log_prob_theta, axis=0),
+                                                       np.expand_dims(self.theta_mean_vec, axis=0))),
+                                            is_monte_carlo=False)
+                self.l1_norm_max_theta_to_plot.append((np.abs(mean_and_max_policy_vecs[0]
+                                                              - self.reference_policy_vec)).sum())
+                self.l1_norm_mean_theta_to_plot.append((np.abs(mean_and_max_policy_vecs[1]
+                                                               - self.reference_policy_vec)).sum())
+
+            if self.do_print or self.print_iterations:
+                infer_toc = time.time() - iter_tic
+                pprint("Iter#: {}, mean_LogLike: {:0.2f}, max_logLike: {:0.2f}, moving_avg: {:20.2f}, iter-time: "
+                       "{:0.4f}sec.".format(self.iter_count, self.log_prob_traj_given_mean_thetas[0], max_log_prob,
+                                            self.log_prob_moving_avg, infer_toc), indent=4)
+
+    def gradientAscentGaussianTheta(self, histories, theta_0=None, do_print=False,
                                     dtype=np.float64, monte_carlo_size=10, reference_policy_vec=None,
                                     precomputed_observed_action_indeces=None, theta_std_dev_0=None,
                                     print_iterations=False, eps=0.2, moving_average_buffer_length=20,
                                     velocity_memory=0.9, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
                                     moving_avg_min_slope=-0.5, moving_avg_min_improvement=0.1,
-                                    nominal_log_prob_data=0.0, **kwargs):
+                                    nominal_log_prob_data=0.0, do_plot=True, **kwargs):
         """
         @brief Performs Policy inference using gradient ascent on the distribution theta_i ~ (mu_i, sigma_i).
 
@@ -566,35 +695,62 @@ class PolicyInference(object):
                is less than this value the algorithm will terminate.
         """
         # Process input arguments
-        do_plot = False
+        self.do_plot = do_plot
+        self.do_print = do_print
+        self.print_iterations = print_iterations
+        self.histories = histories
+        self.monte_carlo_size = monte_carlo_size
+        self.dtype = dtype
+        self.moving_average_buffer_length = moving_average_buffer_length
+        self.moving_avg_min_slope = moving_avg_min_slope
+        self.moving_avg_min_improvement = moving_avg_min_improvement
+        self.nominal_log_prob_data = nominal_log_prob_data
+        self.reference_policy_vec = reference_policy_vec
+        self.eps = eps
+        self.velocity_memory = velocity_memory
+        self.theta_std_dev_min = theta_std_dev_min
+        self.theta_std_dev_max = theta_std_dev_max
+
+        # Extract parameters from the MDP that called 'self.infer(...)'.
         acts_list = self.mdp.action_list
         num_acts = self.mdp.num_actions
         num_states = self.mdp.num_states
-        self.monte_carlo_size = monte_carlo_size
-        self.histories = histories
+
+        # Configure data about histories, and state-action outcomes that were observed.
         (num_episodes, num_steps) = self.histories.shape
-        self.dtype = dtype
         if precomputed_observed_action_indeces is not None:
             self.observed_action_indeces = precomputed_observed_action_indeces
         else:
             # Precompute observed actions for all episodes.
             self.observed_action_indeces = self.getObservedActionIndeces()
 
-        # Initialize Weight vector, theta.
+        # Save weight vector, theta, and the std-dev vector initial values. Then configure the inital values of the
+        # member variables used for inference.
         if theta_0 is None:
             test_phi = self.mdp.phi(self.mdp.states[0], self.mdp.action_list[0])
-            theta_0 = np.zeros(test_phi.size, dtype=dtype)
-        self.theta_size = theta_0.size
+            self.theta_0 = np.zeros(test_phi.size, dtype=dtype)
+        else:
+            self.theta_0 = theta_0
+        self.theta_size = self.theta_0.size
         self.ones_length_theta = np.ones(self.theta_size)
-        self.mdp.theta = deepcopy(theta_0)
-        theta_mean_vec = deepcopy(theta_0) # Vector to compute SGD with.
 
         if theta_std_dev_0 is None:
-            theta_std_dev_0 = np.ones(self.theta_size)
-        theta_std_dev_vec = theta_std_dev_0 # Vector to compute SGD with.
+            self.theta_std_dev_0 = np.ones(self.theta_size)
+        else:
+            self.theta_std_dev_0 = theta_std_dev_0
+
+        # This block configures the iteration parameters. Create a ring buffer of log_probabilities, and use the average
+        # of this buffer a convergence metric. The length of the buffer is specified by @param
+        # moving_average_buffer_size. Initially, the ring buffer is populated with -Inf values. The next function call
+        # configures the initial values of the iteration parameters, and finally the plotting parameters. These
+        # functions will be called again if we determine that some parameter values are unecessary. In that case we'll
+        # remove them and restart the inference.
+        self.resetGaussianThetaTerminationParams()
+        self.resetGaussianThetaInferenceParamInitialValues()
+        self.resetGaussianThetaPlottingParams()
 
         # Precompute feature vector at all states.
-        phis = self.computePhis()
+        self.phis = self.computePhis()
 
         #  Precompute the indeces in a policy vector of length (num-states * num-actions) given the observed actions and
         #  the episodes. Note that the histories are (num-episodes by num-time-steps) large, but the matrix of policy
@@ -606,138 +762,17 @@ class PolicyInference(object):
         self.num_unique_policy_vec_indices = len(self.unique_policy_vec_indices)
         self.policy_vec_length = self.mdp.num_actions * self.mdp.num_states
 
-        # Velocity vector can be thought of as the momentum of the gradient descent. It is used to carry the theta
-        # estimate through local minimums. https://wiseodd.github.io/techblog/2016/06/22/nn-optimization/. Set at top of
-        # for-loop.
-        velocity_mu = np.zeros([self.theta_size], dtype=dtype)
-        velocity_sigma = np.zeros([self.theta_size], dtype=dtype)
-
-        # Configure printing and plotting options.
-        means2plot = deepcopy(theta_0)
-        sigmas2plot = deepcopy(theta_std_dev_0)
-        mean_log_prob_to_plot = []
-        max_log_prob_to_plot = []
-        l1_norm_mean_theta_to_plot = []
-        l1_norm_max_theta_to_plot = []
-        del2print = []
-
-        # This block configures the iteration parameters. Create a ring buffer of log_probabilities, and use the average
-        # of this buffer a convergence metric. The length of the buffer is specified by @param
-        # moving_average_buffer_size. Initially, the ring buffer is populated with -Inf values.
-        moving_avg_ring_buff = deque([-np.inf] * moving_average_buffer_length)
-        log_prob_moving_avg = np.average(moving_avg_ring_buff)
-        recorded_log_prob_moving_avg = []
-
-        # Loop until convergence
-        iter_count = 0
-        log_prob_traj_given_mean_thetas  = -sys.float_info.max
-        log_prob_moving_avg_slope = 1.0
-        moving_avg_improvement = np.inf
-        max_log_prob_theta = 0
-
-        # Loop until convergence unless killed by Crtl-C
-        killer = GracefulKiller()
-        while not killer.kill_now and log_prob_moving_avg_slope > moving_avg_min_slope and \
-            (abs(moving_avg_improvement) > moving_avg_min_improvement):
-            if do_print or print_iterations:
-                iter_tic = time.time()
-            iter_count += 1
-
-            # Sample monte_carlo_size theta vectors from their distributions. This forms a
-            # monte_carlo_size-by-theta_size matrix.
-            theta_samples= np.random.multivariate_normal(theta_mean_vec, np.diag(np.power(theta_std_dev_vec,2)),
-                                                         self.monte_carlo_size)
-
-            log_prob_traj_given_thetas = self.logProbOfDataSet(theta_samples, phis) + nominal_log_prob_data
-            ## Mu Update ##
-            # Calculate the gradient of the log-likelihood of the sampled thetas with respect to the means of the
-            # theta distribution. Note that calculations are done "in-place" for efficiency.
-            theta_variance = np.power(theta_std_dev_vec, 2)
-            theta_sample_less_mean = deepcopy(theta_samples)
-            theta_sample_less_mean -= theta_mean_vec
-            grad_log_prob_theta_wrt_mu = theta_sample_less_mean
-            grad_log_prob_theta_wrt_mu /= theta_variance
-
-            # Calculate the gradient of the log-likelihood of the trajectory with respect to the means of the theta
-            # distribution.
-            grad_log_prob_hist_given_theta_dist_wrt_mu = np.einsum('hk,h->k', grad_log_prob_theta_wrt_mu,
-                                                                   log_prob_traj_given_thetas)
-            grad_log_prob_hist_given_theta_dist_wrt_mu /= monte_carlo_size
-
-            # Update the gradient with the velocity of theta_mu.
-            velocity_mu *= velocity_memory
-            velocity_mu += np.multiply(eps, grad_log_prob_hist_given_theta_dist_wrt_mu)
-            theta_mean_vec += velocity_mu
-
-            ## Sigma Update ##
-            # Calculate the gradient of the log-likelihood of the sampled thetas with respect to the standard
-            # deviations of the theta distribution.
-            grad_log_prob_theta_wrt_sigma = np.power(theta_sample_less_mean, 2)
-            grad_log_prob_theta_wrt_sigma -= theta_variance
-            grad_log_prob_theta_wrt_sigma /= np.multiply(theta_variance, theta_std_dev_vec) # Sigma^3
-
-            # Calculate the gradient of the log-likelihood of the trajectory with respect to the standard deviations
-            # of the theta distribution.
-            grad_log_prob_hist_given_theta_dist_wrt_sigma = np.einsum('hk,h->k', grad_log_prob_theta_wrt_sigma,
-                                                                      log_prob_traj_given_thetas)
-            grad_log_prob_hist_given_theta_dist_wrt_sigma /= monte_carlo_size
-
-            # Update the gradient with the velocity of theta_std_devs
-            velocity_sigma *= velocity_memory
-            velocity_sigma += np.multiply(eps, grad_log_prob_hist_given_theta_dist_wrt_sigma)
-            theta_std_dev_vec += velocity_sigma
-
-            # Check for any invalid standard deviations.
-            theta_std_dev_vec[theta_std_dev_vec < theta_std_dev_min] = theta_std_dev_min
-            theta_std_dev_vec[theta_std_dev_vec > theta_std_dev_max] = theta_std_dev_max
-
-            # Get log prob of mean theta vector.
-            log_prob_traj_given_mean_thetas = self.logProbOfDataSet(np.expand_dims(theta_mean_vec,axis=0), phis,
-                                                                    is_monte_carlo=False)
-
-            # Find index of theta from previous iteration that had the best log prob.
-            max_log_prob_theta_idx = np.argmax(log_prob_traj_given_thetas)
-            max_log_prob = log_prob_traj_given_thetas[max_log_prob_theta_idx]
-            max_log_prob_theta = theta_samples[max_log_prob_theta_idx]
-
-            # Append this log_prob to the front of ring buffer and pop of the oldest value.
-            moving_avg_ring_buff.appendleft(log_prob_traj_given_mean_thetas[0])
-            moving_avg_ring_buff.pop()
-            log_prob_moving_avg = np.average(moving_avg_ring_buff)
-            recorded_log_prob_moving_avg.append(log_prob_moving_avg)
-
-            if iter_count > moving_average_buffer_length + 1:
-                log_prob_moving_avg_slope = recorded_log_prob_moving_avg[-1] - recorded_log_prob_moving_avg[-2]
-                moving_avg_improvement = np.max(log_prob_moving_avg - recorded_log_prob_moving_avg[-20:])
-
-            if do_plot:
-                means2plot = np.vstack((means2plot, theta_mean_vec))
-                sigmas2plot = np.vstack((sigmas2plot, theta_std_dev_vec))
-                mean_log_prob_to_plot.append(log_prob_traj_given_mean_thetas[0])
-                max_log_prob_to_plot.append(max_log_prob)
-
-                # Compare the mean and max log-prob thetas to the true policy.
-                mean_and_max_policy_vecs = self.buildPolicyVectors(phis,
-                    np.vstack((np.expand_dims(max_log_prob_theta, axis=0), np.expand_dims(theta_mean_vec, axis=0))),
-                    is_monte_carlo=False)
-                l1_norm_max_theta_to_plot.append((np.abs(mean_and_max_policy_vecs[0] - reference_policy_vec)).sum())
-                l1_norm_mean_theta_to_plot.append((np.abs(mean_and_max_policy_vecs[1] - reference_policy_vec)).sum())
-
-            if do_print or print_iterations:
-                infer_toc = time.time() - iter_tic
-                pprint("Iter#: {}, mean_LogLike: {:0.2f}, max_logLike: {:0.2f}, moving_avg: {:20.2f}, iter-time: "
-                       "{:0.4f}sec."
-                       .format(iter_count, log_prob_traj_given_mean_thetas[0], max_log_prob, log_prob_moving_avg,
-                               infer_toc), indent=4)
+        # Finally, start the inference.
+        self.performGaussianThetaInference()
 
         ## Prepare to exit.
-        self.mdp.theta = np.expand_dims(theta_mean_vec, axis=0)
+        self.mdp.theta = np.expand_dims(self.theta_mean_vec, axis=0)
 
         if do_print:
             pprint('Found Theta:')
             pprint(self.mdp.theta)
             pprint('Covariance:')
-            pprint(theta_std_dev_vec)
+            pprint(self.theta_std_dev_vec)
 
         self.mdp.buildGibbsPolicy()
 
@@ -747,38 +782,39 @@ class PolicyInference(object):
 
         # For all values in the theta standard deviation vector that are equal to the minimum value, set them to zero.
         # Then build the policy uncertainty dictionary.
-        theta_std_dev_vec[theta_std_dev_vec <= theta_std_dev_min] = 0.0
-        self.buildPolicyUncertainty(theta_std_dev_vec, phis, do_print)
+        self.theta_std_dev_vec[self.theta_std_dev_vec <= self.theta_std_dev_min] = 0.0
+        self.buildPolicyUncertainty(self.theta_std_dev_vec, self.phis, do_print)
+        # Check this calculation below!!!!!! Ensure actions are being selected correctly!
         self.mdp.policy_uncertainty_as_vec = self.mdp.getPolicyAsVec(policy_to_convert=self.mdp.policy_uncertainty)
 
         if do_plot:
-            repeated_indeces = np.repeat(np.expand_dims(range(self.mdp.theta.size), 0), iter_count, 0).T
-            repeated_indeces = np.repeat(np.expand_dims(range(iter_count+1), 0), self.theta_size, 0).T
+            repeated_indeces = np.repeat(np.expand_dims(range(self.iter_count+1), 0), self.theta_size, 0).T
             plt.figure()
-            plt.plot(repeated_indeces, means2plot)
+            plt.plot(repeated_indeces, self.means2plot)
             plt.figure()
-            plt.plot(repeated_indeces, sigmas2plot)
+            plt.plot(repeated_indeces, self.sigmas2plot)
 
             fig, ax = plt.subplots()
-            plt.plot(range(iter_count), mean_log_prob_to_plot, 'b', label='Log prob of sample mean')
-            plt.plot(range(iter_count), max_log_prob_to_plot, 'r', label='Max Log prob of samples')
-            plt.plot(range(iter_count), recorded_log_prob_moving_avg, 'g', label='Log prob of mean moving average')
-            plt.ylim(ymin=min(min(mean_log_prob_to_plot), min(max_log_prob_to_plot)))
+            iter_range_generator = xrange(self.iter_count)
+            plt.plot(iter_range_generator, self.mean_log_prob_to_plot, 'b', label='Log prob of sample mean')
+            plt.plot(iter_range_generator, self.max_log_prob_to_plot, 'r', label='Max Log prob of samples')
+            plt.plot(iter_range_generator, self.recorded_log_prob_moving_avg, 'g', label='Log prob of mean moving average')
+            plt.ylim(ymin=min(min(self.mean_log_prob_to_plot), min(self.max_log_prob_to_plot)))
             plt.legend()
             plt.title('Log Prob of Demo | theta')
 
             fig, ax = plt.subplots()
-            plt.plot(range(iter_count), l1_norm_max_theta_to_plot, 'r', label='Max log-prob')
-            plt.plot(range(iter_count), l1_norm_mean_theta_to_plot, 'b', label='Mean log-prob')
+            plt.plot(iter_range_generator, self.l1_norm_max_theta_to_plot, 'r', label='Max log-prob')
+            plt.plot(iter_range_generator, self.l1_norm_mean_theta_to_plot, 'b', label='Mean log-prob')
             plt.title('L1-norm from ref')
             ax.legend()
             plt.draw()
 
-        if killer.kill_now is True:
+        if self.killer.kill_now is True:
             print 'Search killed'
-        self.mdp.theta = theta_mean_vec
-        self.mdp.theta_std_dev = theta_std_dev_vec
-        return theta_mean_vec
+        self.mdp.theta = self.theta_mean_vec
+        self.mdp.theta_std_dev = self.theta_std_dev_vec
+        return self.theta_mean_vec
 
     def buildPolicyUncertainty(self, theta_std_dev, phis, do_print=False):
         empty_policy_dist = {act:np.array([[0.]]) for act in self.mdp.action_list}
