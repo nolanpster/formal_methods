@@ -263,8 +263,12 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
 
 def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=100,
                       num_steps_per_traj=15, inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
-                      num_theta_samples=1000, robot_goal_states=None):
+                      num_theta_samples=1000, robot_goal_states=None, act_cost=0.0, use_active_inference=True):
 
+    print "Using {} inference.".format("active" if use_active_inference else "passive")
+
+    robot_action_list = arena_mdp.executable_action_dict[0]
+    env_action_list = arena_mdp.executable_action_dict[1]
     # Create a reference to the mdp used for inference.
     infer_mdp = arena_mdp.infer_env_mdp
     true_env_policy_vec = infer_mdp.getPolicyAsVec(policy_to_convert=arena_mdp.env_policy[env_idx],
@@ -272,7 +276,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     infer_mdp.theta = np.zeros(len(infer_mdp.phi))
     infer_mdp.theta_std_dev = np.ones(infer_mdp.theta.size)
 
-    winning_reward = {act: 0.0 for act in arena_mdp.action_list}
+    winning_reward = {act: act_cost for act in arena_mdp.action_list}
     winning_reward['0_Empty'] = 1.0
 
     # Data types are constant for every batch.
@@ -284,41 +288,53 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                                      arena_mdp.states if 'q0' in state])
 
     # Variables for logging data
-    inferred_policy = []
-    recorded_inferred_policy_L1_norms = []
-    inferred_policy_variance = []
+    initial_policy_guess = arena_mdp.infer_env_mdp.getPolicyAsVec()
+    L1_norm_of_initial_policy_guess = MDP.getPolicyL1Norm(true_env_policy_vec, initial_policy_guess)
+    inferred_policy = [initial_policy_guess]
+    recorded_inferred_policy_L1_norms = [L1_norm_of_initial_policy_guess]
+    inferred_policy_variance = [np.ones(infer_mdp.theta.size)]
     known_theta_indices = []
+    reward_fractions = []
 
     theta_std_dev_min = 0.5
-    theta_std_dev_max = 1.5
-
-    use_active_learning = True
-    print "Using {} learning.".format("active" if use_active_learning else "passive")
+    theta_std_dev_max = 1.2
 
     for batch in range(num_batches):
         batch_start_time = time.time()
         ### Roll Out ###
         run_histories = np.zeros([num_trajectories_per_batch, num_steps_per_traj], dtype=hist_dtype)
-        observed_action_indeces = np.empty([num_trajectories_per_batch, num_steps_per_traj], dtype=observation_dtype)
+        executed_robot_actions = np.zeros([num_trajectories_per_batch, num_steps_per_traj], dtype=hist_dtype)
+        observed_action_indices = np.empty([num_trajectories_per_batch, num_steps_per_traj], dtype=observation_dtype)
+        observed_action_probs = np.empty([num_trajectories_per_batch, num_steps_per_traj], dtype=infer_dtype)
         for episode in xrange(num_trajectories_per_batch):
             # Create time-history for this episode.
             _, run_histories[episode, 0] = arena_mdp.resetState()
             for t_step in xrange(1, num_steps_per_traj):
                 # Take step
-                _, run_histories[episode, t_step] = arena_mdp.step()
+                _, run_histories[episode, t_step], executed_robot_action = arena_mdp.step()
+                executed_robot_actions[episode, t_step] = robot_action_list.index(executed_robot_action)
                 # Record observed action.
                 prev_state_idx = run_histories[episode, t_step-1]
                 prev_state = arena_mdp.observable_states[prev_state_idx]
                 this_state_idx = run_histories[episode, t_step]
                 this_state = arena_mdp.observable_states[this_state_idx]
-                observed_action_indeces[episode, t_step] = infer_mdp.graph.getObservedAction(prev_state, this_state)
+                observed_action_indices[episode, t_step] = infer_mdp.graph.getObservedAction(prev_state, this_state)
+                robot_act = robot_action_list[executed_robot_actions[episode, t_step]]
+                env_act = env_action_list[observed_action_indices[episode, t_step]]
+                # This is a bit of a hack since `type(demo_mdp.mdp)` is a MultiAgentMDP and that has an overloaded
+                # self.P function to return the probability of the joint state transition given two actions.
+                observed_action_probs[episode, t_step] = arena_mdp.mdp.P(prev_state, robot_act, env_act, this_state)
         if robot_goal_states is not None:
-            DataHelper.printHistoryAnalysis(run_histories, arena_mdp.states, arena_mdp.L, None, robot_goal_states)
+            reward_frac = DataHelper.printHistoryAnalysis(run_histories, arena_mdp.states, arena_mdp.L, None,
+                                                          robot_goal_states)
+            reward_fractions.append(reward_frac)
+
+        nominal_log_prob_data = np.log(observed_action_probs[:, 1:]).sum()
 
         ### Infer ###
         max_additional_known_thetas_per_rollout = batch
         thetas_added_to_known = 0
-        if batch > 0 and use_active_learning:
+        if batch > 0:
             theta_std_dev_0 = np.zeros(infer_mdp.theta_std_dev.shape)
             # Randomly shuffle the std-dev's (paired with their true index) so that we add a random sampling of the
             # std-devs with minimum variance to the list of known thetas.
@@ -337,14 +353,19 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                     theta_std_dev_0[std_dev_idx] = 1.0
             print "Number of Std-devs initialized >= 1 is {}.".format(np.sum(theta_std_dev_0 > theta_std_dev_min))
         else:
-            theta_std_dev_0 = None
+            if batch > 0:
+                theta_std_dev_0 = None
+            else:
+                theta_std_dev_0 = infer_mdp.theta_std_dev
+
         theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
+                                          theta_std_dev_0=theta_std_dev_0, theta_0=infer_mdp.theta,
+                                          moving_avg_min_improvement=0.2, reference_policy_vec=true_env_policy_vec,
                                           use_precomputed_phi=True, monte_carlo_size=num_theta_samples,
-                                          precomputed_observed_action_indeces=observed_action_indeces, eps=0.0001,
-                                          velocity_memory=0.2, theta_std_dev_min=theta_std_dev_min,
-                                          theta_std_dev_max=theta_std_dev_max, moving_avg_min_slope=-0.5,
-                                          print_iterations=True, theta_0=infer_mdp.theta,
-                                          theta_std_dev_0=theta_std_dev_0, moving_avg_min_improvement=0.2)
+                                          print_iterations=True, eps=0.05, velocity_memory=0.2, theta_std_dev_min=0.5,
+                                          theta_std_dev_max=1.2, nominal_log_prob_data=nominal_log_prob_data,
+                                          moving_avg_min_slope=0.001, moving_average_buffer_length=60)
+
         # Print Inference error
         inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
         print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch, inferred_policy_L1_norm_error))
@@ -354,20 +375,21 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         std_devs_above_min = [idx for idx, std_dev in enumerate(infer_mdp.theta_std_dev) if std_dev > theta_std_dev_min]
         print 'Theta\'s with std-devs above min value {}.'.format(std_devs_above_min)
 
-        if use_active_learning:
+        if use_active_inference:
             # Go through and pop keys from policy_uncertainty into a dict built from policy_keys_to_print.
             bonus_reward_dict = makeBonusReward(infer_mdp.policy_uncertainty)
-            arena_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict)
-
-        arena_mdp.solve(do_print=False, method='valueIteration', print_iterations=True,
-                        policy_keys_to_print=policy_keys_to_print, horizon_length=20, num_iters=40)
+            arena_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict, act_cost=act_cost)
+        # Need to reset the policy to something _very_ sub-optimal for EM.
+        arena_mdp.makeUniformPolicy()
+        arena_mdp.solve(do_print=False, method='expectationMaximization', print_iterations=True,
+                        horizon_length=15, num_iters=100, do_incremental_e_step=True)
         batch_stop_time = time.time()
         print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
-    import pdb; pdb.set_trace()
 
+    return recorded_inferred_policy_L1_norms, reward_fractions
 
 def makeBonusReward(policy_uncertainty_dict):
-    exploration_weight = 0.1
+    exploration_weight = 0.5
     bonus_reward_dict = dict.fromkeys(policy_uncertainty_dict)
     for state in policy_uncertainty_dict:
         bonus_reward_dict[state] = {}

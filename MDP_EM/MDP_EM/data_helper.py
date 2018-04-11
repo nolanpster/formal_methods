@@ -247,6 +247,8 @@ def printHistoryAnalysis(run_histories, states, labels, empty, goal_state):
             print("State {}: Num starts = {}, Num Rewards = {}, likelihood = {}.".format(states[state_idx],
                   num_starts_from_idx[state_idx], num_rewards_from_starting_idx[state_idx], reward_likelihood))
 
+    return reward_likelihood
+
 def printStateHistories(run_histories, states):
     num_episodes = run_histories.shape[0]
     state_indices = range(len(states))

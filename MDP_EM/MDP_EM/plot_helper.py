@@ -342,6 +342,116 @@ def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set
     fig.tight_layout()
     return fig, ax
 
+def plotValueStatsVsBatch(val_array_1, title='L1-Norm', ylabel='Fraction of Max', xlabel='Batch', data_label_1='Active',
+                          color_1='k', val_array_2=None, data_label_2='Passive', color_2='r', transparency=0.3,
+                          plot_quantiles=True, plot_min_max=False):
+
+    if val_array_2 is not None and (val_array_1.shape != val_array_2.shape):
+        raise ValueError('Input data, value array 1 & value array 2, are not the same size!')
+    #fig = plt.figure(figsize=(13.0, 5), dpi=100)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+
+    num_batches, num_trials = val_array_1.shape
+    batch_count = range(num_batches)
+
+    mean_1 = plt.plot(np.mean(val_array_1, axis=1), label=data_label_1, color=color_1)
+    mean_2 = plt.plot(np.mean(val_array_2, axis=1), label=data_label_2, color=color_2)
+
+    if plot_quantiles:
+        val_1_quant25, val_1_quant75 = np.percentile(val_array_1, [25, 75], axis=1)
+        plt.fill_between(batch_count, y1=val_1_quant75, y2=val_1_quant25, color=color_1, alpha=transparency,
+                         linestyle='--')
+        val_2_quant25, val_2_quant75 = np.percentile(val_array_2, [25, 75], axis=1)
+        plt.fill_between(batch_count, y1=val_2_quant75, y2=val_2_quant25, color=color_1, alpha=transparency,
+                         linestyle='--')
+
+        # Hack for legend of min/max region
+        plt.plot([], [], linewidth=10, color=color_1, alpha=transparency, label=data_label_1 + " 25%-75%")
+        plt.plot([], [], linewidth=10, color=color_2, alpha=transparency, label=data_label_2 + " 25%-75%")
+
+    if plot_min_max:
+        if plot_quantiles:
+            this_transparency = transparency / 2
+        else:
+            this_transparency = transparency
+
+        plt.fill_between(batch_count, y1=np.max(val_array_1, axis=1), y2=np.min(val_array_1, axis=1), color=color_1,
+                         alpha=this_transparency,  linestyle=':')
+        plt.fill_between(batch_count, y1=np.max(val_array_2, axis=1), y2=np.min(val_array_2, axis=1), color=color_2,
+                         alpha=this_transparency, label=data_label_2 + " Min/Max", linestyle=':')
+
+        # Hack for legend of min/max region
+        plt.plot([], [], linewidth=10, color=color_1, alpha=this_transparency, label=data_label_1 + " Min/Max")
+        plt.plot([], [], linewidth=10, color=color_2, alpha=this_transparency, label=data_label_2 + " Min/Max")
+
+    plt.title(title + " - {} Trials".format(num_trials))
+    plt.ylabel(ylabel)
+    plt.xlabel(xlabel)
+    ax.set_xticks(batch_count)
+    plt.xlim(xmax=num_batches)
+    plt.legend()
+    fig.tight_layout()
+
+def plotValueVsBatch(val_array, title, ylabel, xlabel='Batch', also_plot_stats=False, stats_label='',
+                     save_figures=False):
+    """
+    @note X-limits are automatically set and assume a constant interval between the number of kernels in each set.
+    """
+    #fig = plt.figure(figsize=(13.0, 5), dpi=100)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+
+    num_batches, num_trials = val_array.shape
+    batch_count = range(num_batches)
+
+    plt.plot(val_array)
+
+    if title:
+        plt.title(title)
+    if ylabel:
+        plt.ylabel(ylabel)
+    if xlabel:
+        plt.xlabel(xlabel)
+    ax.set_xticks(batch_count)
+    plt.xlim(xmax=num_batches)
+    plt.legend()
+    fig.tight_layout()
+
+    if save_figures:
+        plt.savefig('values_{}_{}trials_{}batches.tif'.format(title, num_trials, num_batches, dpi=400,
+                    transparent=False))
+
+    if also_plot_stats:
+        #stats_fig = plt.figure(figsize=(13.0, 5), dpi=100)
+        stats_fig = plt.figure()
+        stats_ax = stats_fig.add_subplot(1, 1, 1)
+
+        means = val_array.mean(axis=1)
+        stds = val_array.std(axis=1)
+        mins = val_array.min(axis=1)
+        maxes = val_array.max(axis=1)
+        plt.errorbar(x=batch_count, y=means, yerr=stds, fmt='ok', lw=3, label=stats_label+' Mean & Std. Dev.')
+        plt.errorbar(x=batch_count, y=means, yerr= [means - mins, maxes - means], fmt='.k', ecolor='gray', lw=1)
+
+        if title:
+            plt.title(title)
+        if ylabel:
+            plt.ylabel(ylabel)
+        if xlabel:
+            plt.xlabel(xlabel)
+        stats_ax.set_xticks(batch_count)
+        plt.xlim(xmax=num_batches)
+        plt.legend()
+        fig.tight_layout()
+
+        if save_figures:
+            plt.savefig('stats_{}_{}trials_{}batches.tif'.format(title, num_trials, num_batches, dpi=400,
+                        transparent=False))
+
+    return_tuple = (fig, ax) if not also_plot_stats else (fig, ax, stats_fig, stats_ax)
+    return return_tuple
+
 def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_grids=False,
                    plot_inferred_mdp_grids=False, VI_mdp=None, EM_mdp=None, infer_mdp=None, robot_action_list=None,
                    env_action_list=None, VI_plot_keys=None, EM_plot_keys=None, infer_plot_keys=None,

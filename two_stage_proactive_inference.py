@@ -63,15 +63,20 @@ robot_goal_states = [(robot_goal_cell, cell) for cell in cell_indices]
 fixed_obstacle_cells = []
 
 labels = {state: empty for state in states}
+env_labels = {state: empty for state in states}
 fixed_obs_labels = {state: empty for state in states}
+env_fixed_obs_labels = {state: empty for state in states}
 for state in states:
     if state in robot_goal_states:
         labels[state] = green
     elif state[robot_idx] in fixed_obstacle_cells:
         labels[state] = red
         fixed_obs_labels[state] = red
+    elif state[env_idx] in fixed_obstacle_cells:
+        env_fixed_obs_labels[state] = red
     elif state[robot_idx] == state[env_idx]:
         labels[state] = red
+        env_labels[state] = red
 
 # Numpy Data type to use for transition probability matrices (affects speed / precision)
 prob_dtype = np.float32
@@ -93,16 +98,27 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180330_1241'
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180410_2138'
 
 
 # Geodesic Gaussian Kernel centers
 gg_kernel_centers = range(0, num_cells, 1)
+gg_kernel_centers = [0, 4, 12, 20, 24, 24]  # Last kernel is the 'mobile' kernel
+gg_kernel_centers = range(0, num_cells, 1) + [24]
+num_kernels_in_set = len(gg_kernel_centers)
+kernel_sigmas = np.array([1.0]*num_kernels_in_set, dtype=infer_dtype)
+ggk_mobile_indices = [num_kernels_in_set-1]
 
 # Gaussian Theta params
-num_theta_samples = 500
+use_active_inference = True
+num_theta_samples = 2000
+inference_temp = 0.8
 
-
+# Batch configurations
+num_batches = 3
+traj_count_per_batch = 10
+traj_length = 10
+num_experiment_trials = 10
 ########################################################################################################################
 # Create / Load Multi Agent MDP
 #
@@ -114,37 +130,102 @@ if make_new_mdp:
     else:
         # Leave MDP.init_set unset (=None) to solve the system from a single initial_state.
         init_set = None
-    VI_mdp, policy_keys_to_print = ExperimentConfigs.makeMultiAgentGridMDPxDRA(states, initial_state, action_dict,
-                                                                               alphabet_dict, labels, grid_map,
-                                                                               do_print=False, init_set=init_set,
-                                                                               prob_dtype=prob_dtype,
-                                                                               fixed_obstacle_labels=fixed_obs_labels,
-                                                                               use_mobile_kernels=True,
-                                                                               gg_kernel_centers=gg_kernel_centers)
-    variables_to_save = [VI_mdp, policy_keys_to_print]
+    demo_mdp, policy_keys_to_print = ExperimentConfigs.makeMultiAgentGridMDPxDRA(states, initial_state, action_dict,
+                                                                                 alphabet_dict, labels, grid_map,
+                                                                                 do_print=False, init_set=init_set,
+                                                                                 prob_dtype=prob_dtype,
+                                                                                 fixed_obstacle_labels=fixed_obs_labels,
+                                                                                 use_mobile_kernels=True,
+                                                                                 gg_kernel_centers=gg_kernel_centers,
+                                                                                 use_em=True, act_cost=-0.1,
+                                                                                 env_labels=env_labels)
+    variables_to_save = [demo_mdp, policy_keys_to_print]
     pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps")
 else:
-    (VI_mdp, policy_keys_to_print, pickled_mdp_file) = DataHelper.loadPickledMDP(pickled_mdp_file_to_load)
+    (demo_mdp, policy_keys_to_print, pickled_mdp_file) = DataHelper.loadPickledMDP(pickled_mdp_file_to_load)
+
+# Also update the kernels if they've changed.
+demo_mdp.infer_env_mdp.buildKernels(gg_kernel_centers=gg_kernel_centers, kernel_sigmas=kernel_sigmas,
+                                    ggk_mobile_indices=ggk_mobile_indices, state_idx_of_mobile_kernel=0)
+# Set the temperature to the desired value since it might be different than the one that the InferenceMDP was built
+# with.
+demo_mdp.infer_env_mdp.temp = inference_temp
 
 # Override recorded initial dist to be uniform. Note that policy_keys_to_print are the reachable initial states, and we
 # want to set the initial state-set to only include the states where the robot is at `robot_initial_cell`.
 
-VI_mdp.init_set = ((24, 20),)
-VI_mdp.setInitialProbDist(VI_mdp.init_set)
+#demo_mdp.init_set = ((24, 20),)
+#demo_mdp.setInitialProbDist(demo_mdp.init_set)
 
 # The original environment policy in the MDP is a random walk. So we load a file containing a more interesting
 # environent policy (generated in a single agent environment) then copy it into the joint state-space. Additionally, we
 # add an additional feature vector to the environment's Q-function that represents how much the environment is repulsed
-# by the robot. (Repulsive factors are buried in the method below). The method below updates the VI_mdp.env_policy
+# by the robot. (Repulsive factors are buried in the method below). The method below updates the demo_mdp.env_policy
 # dictionary.
-ExperimentConfigs.convertSingleAgentEnvPolicyToMultiAgent(VI_mdp, labels, state_env_idx=env_idx,
+ExperimentConfigs.convertSingleAgentEnvPolicyToMultiAgent(demo_mdp, labels, state_env_idx=env_idx,
                                                           new_kernel_weight=1.0, new_phi_sigma=1.0, plot_policies=False,
                                                           alphabet_dict=alphabet_dict,
                                                           fixed_obstacle_labels=fixed_obs_labels)
 
+
+# Copy initial robot policy and initial guess for env policy. We'll reset the demo-mdp's variables to these each time
+# to make sure that each trial has the same initial conditions.
+robot_policy_0 = deepcopy(demo_mdp.policy)
+initial_guess_of_env_policy = deepcopy(demo_mdp.infer_env_mdp.policy)
+
 ########################################################################################################################
 # Run Batch Inference
 ########################################################################################################################
-ExperimentConfigs.rolloutInferSolve(VI_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=300,
-        num_steps_per_traj=10, inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
-        num_theta_samples=num_theta_samples, robot_goal_states=robot_goal_states)
+policy_L1_norm_sets = []
+reward_fraction_sets = []
+
+for trial in range(num_experiment_trials):
+    print '\n'
+    print 'Starting Trial {} of {}.'.format(trial, num_experiment_trials)
+    print '\n'
+
+    # Everytime we start a new batch ensure that the Robot starts with the same initial policy, and that it starts with 
+    # the same initial guess of environment policy.
+    demo_mdp.policy = deepcopy(robot_policy_0)
+    demo_mdp.infer_env_mdp.policy = deepcopy(initial_guess_of_env_policy)
+
+    # Hand over data to experiment-runner.
+    policy_L1_norms, reward_fractions = ExperimentConfigs.rolloutInferSolve(demo_mdp, robot_idx, env_idx,
+            num_batches=num_batches, num_trajectories_per_batch=traj_count_per_batch, num_steps_per_traj=traj_length,
+            inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
+            num_theta_samples=num_theta_samples, robot_goal_states=robot_goal_states, act_cost=-0.1,
+            use_active_inference=use_active_inference)
+    policy_L1_norm_sets.append(policy_L1_norms)
+    reward_fraction_sets.append(reward_fractions)
+
+import pdb; pdb.set_trace()
+#Probably save the arrays? Figure out how to get passive and active on same plot.
+
+# Stack the recorded statistics list in [num_batches, num_trials] format for easy plotting.
+policy_L1_norms_mat = np.stack(policy_L1_norm_sets, axis=1)
+policy_L1_norms_mat /= 2
+policy_L1_norms_mat /= demo_mdp.num_states
+reward_fraction_mat = np.stack(reward_fraction_sets, axis=1)
+
+# Save data for plotting later
+if use_active_inference:
+    generated_data = {'active_inference_L1_norms': policy_L1_norms_mat,
+                      'active_inference_fraction_of_trajs_reacing_goal': reward_fraction_mat}
+else:
+    generated_data = {'passive_inference_L1_norms': policy_L1_norms_mat,
+                      'passive_inference_fraction_of_trajs_reacing_goal': reward_fraction_mat}
+
+
+inference_type_str = 'active' if use_active_inference else 'passive'
+file_name_prefix = 'two_stage_{}_stats_{}_trials{}_batches_{}_trajs_{}_stepsPerTraj'.format(inference_type_str,
+    num_experiment_trials, num_batches, traj_count_per_batch, traj_length)
+
+DataHelper.pickleInferenceStatistics(generated_data, file_name_prefix)
+
+PlotHelper.plotValueVsBatch(policy_L1_norms_mat, 'Fractional L1 Norm Inference Error', ylabel=None, xlabel='Batch',
+                            also_plot_stats=True, save_figures=False)
+
+PlotHelper.plotValueVsBatch(reward_fraction_mat, 'Fraction of Trajectories Earning Rewards', ylabel=None,
+                            xlabel='Batch', also_plot_stats=True, save_figures=False)
+
+plt.show()
