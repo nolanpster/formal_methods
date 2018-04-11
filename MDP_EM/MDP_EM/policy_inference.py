@@ -731,23 +731,7 @@ class PolicyInference(object):
                                infer_toc), indent=4)
 
         ## Prepare to exit.
-
-        # Sample a very large set of thetas and pick the best one to save as theta used to build the policy.
-        final_theta_samples= np.random.multivariate_normal(theta_mean_vec, np.diag(np.power(theta_std_dev_vec,2)),
-                                                           10*self.monte_carlo_size)
-        final_log_prob_traj_given_thetas = self.logProbOfDataSet(final_theta_samples, phis) + nominal_log_prob_data
-        max_log_prob_theta_idx = np.argmax(final_log_prob_traj_given_thetas)
-        max_log_prob = final_log_prob_traj_given_thetas[max_log_prob_theta_idx]
-        max_log_prob_theta = final_theta_samples[max_log_prob_theta_idx]
-        self.mdp.theta = np.expand_dims(max_log_prob_theta, axis=0)
-
-        # Record the probability of the best theta, given the distributions.
-        theta_pdfs = [norm(loc=mu, scale=sig) for mu, sig in zip(theta_mean_vec, theta_std_dev_vec)]
-        self.mdp.prob_best_theta = [theta_pdfs[theta_idx].pdf(
-                                        abs(max_log_prob_theta[theta_idx] - theta_mean_vec[theta_idx]))
-                                    for theta_idx in xrange(self.theta_size)]
-        self.mdp.theta_mean = np.expand_dims(theta_mean_vec, axis=0)
-
+        self.mdp.theta = np.expand_dims(theta_mean_vec, axis=0)
 
         if do_print:
             pprint('Found Theta:')
