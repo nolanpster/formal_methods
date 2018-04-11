@@ -119,7 +119,7 @@ def getDRAAvoidRedGetToGreen(alphabet_dict, save_dra_to_dot_file=False):
     return co_safe_dra
 
 def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, grid_map, gamma=0.9, act_prob=dict([]),
-                    do_print=False, init_set=None,prob_dtype=np.float64):
+                    do_print=False, init_set=None,prob_dtype=np.float64, act_cost=0.0):
     """
     @brief Configure the product MDP and DRA.
 
@@ -146,15 +146,21 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
     # Note that an MDPxDRA receives a binary reward upon completion of the specification so define the reward function
     # to re given when leaving the winning state on the winning action (from 'q1' to 'q3'). 'VI' implies this is to be
     # solved with Value Iteration.
-    winning_reward = {'North': 0.0,
-                      'South': 0.0,
-                      'East': 0.0,
-                      'West': 0.0,
+    winning_reward = {'North': act_cost,
+                      'South': act_cost,
+                      'East': act_cost,
+                      'West': act_cost,
                       'Empty': 1.0
         }
-    VI_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='Empty', sink_list=['q2', 'q3'],
+    skip_product_calcs = True
+    if skip_product_calcs:
+        sink_list = [state for state, label in labels.iteritems() if label is not alphabet_dict['empty']]
+    else:
+        sink_list = ['q2', 'q3']
+    VI_mdp = ProductMDPxDRA(grid_mdp, co_safe_dra, sink_action='Empty', sink_list=sink_list,
                             losing_sink_label=alphabet_dict['red'], winning_reward=winning_reward,
-                            prob_dtype=prob_dtype)
+                            prob_dtype=prob_dtype, skip_product_calcs=skip_product_calcs,
+                            winning_label=alphabet_dict['green'], act_cost=act_cost)
 
     # @TODO Prune unreachable states from MDP.
 
