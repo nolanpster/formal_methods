@@ -565,7 +565,7 @@ class PolicyInference(object):
             theta_variance = np.power(self.theta_std_dev_vec, 2)
             theta_sample_less_mean = deepcopy(theta_samples)
             theta_sample_less_mean -= self.theta_mean_vec
-            grad_log_prob_theta_wrt_mu = theta_sample_less_mean
+            grad_log_prob_theta_wrt_mu = deepcopy(theta_sample_less_mean)
             grad_log_prob_theta_wrt_mu /= theta_variance
 
             # Calculate the gradient of the log-likelihood of the trajectory with respect to the means of the theta
