@@ -100,7 +100,7 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 make_new_mdp = False
 solve_EM = False
 resolve_VI = False
-solve_after_inference = False
+solve_after_inference = True
 pickled_mdp_file_to_load  = 'two_stage_multi_agent_mdps_180409_1715'
 act_cost = -0.1
 
@@ -108,32 +108,33 @@ act_cost = -0.1
 # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
 # load the @c pickled_episodes_file. If @c gather_new_data is true, use @c num_episodes and @c steps_per_episode to
 # determine how large the demonstration set should be.
-gather_new_data = False
+gather_new_data = True
 print_history_analysis = False
-num_episodes = 500
-steps_per_episode = 10
-pickled_episodes_file_to_load = 'two_stage_multi_agent_mdps_180409_1715_HIST_500eps10steps_180409_1743'
+num_episodes = 3
+steps_per_episode = 20
+pickled_episodes_file_to_load = 'two_stage_multi_agent_mdps_180409_1715_HIST_20eps20steps_180413_0848'
 
 # Perform/load policy inference options. If @c perform_new_inference is false, load the @pickled_inference_mdps_file.
-perform_new_inference = False
-pickled_two_stage_mdps_file_to_load  = 'two_stage_multi_agent_mdps_180409_1744'
+perform_new_inference = True
+pickled_two_stage_mdps_file_to_load  = 'two_stage_multi_agent_mdps_180413_0938'
 inference_method = 'gradientAscentGaussianTheta'
 gg_kernel_centers = [0, 4, 12, 20, 24, 24]  # Last kernel is the 'mobile' kernel
+gg_kernel_centers = range(0, num_cells, 4) + [6, 18]  + [24]
 gg_kernel_centers = range(0, num_cells, 1) + [24]
 num_kernels_in_set = len(gg_kernel_centers)
-kernel_sigmas = np.array([1.0]*num_kernels_in_set, dtype=infer_dtype)
+kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
 ggk_mobile_indices = [num_kernels_in_set-1]
 
 # Gaussian Theta params
-inference_temp = 0.8
-num_theta_samples = 3000
+inference_temp = 0.6
+num_theta_samples = 2000
 
 # Plotting flags
 plot_all_grids = False
 plot_VI_mdp_grids = False
-plot_EM_mdp_grids = False
-plot_inferred_mdp_grids = False
-plot_uncertainty = False
+plot_EM_mdp_grids = True
+plot_inferred_mdp_grids = True
+plot_uncertainty = True
 plot_flags = [plot_all_grids, plot_VI_mdp_grids, plot_EM_mdp_grids, plot_inferred_mdp_grids, plot_uncertainty]
 ########################################################################################################################
 # Create / Load Multi Agent MDP
@@ -148,6 +149,8 @@ if make_new_mdp:
         use_mobile_kernels = True
     else:
         use_mobile_kernels = False
+    # Note, if 'use_em' is True, then the output variable VI_mdp is a misnomer, it has been solved with EM. Should
+    # rename it to 'demo_mdp' at some point.
     VI_mdp, policy_keys_to_print = ExperimentConfigs.makeMultiAgentGridMDPxDRA(states, initial_state, action_dict,
                                                                                alphabet_dict, labels, grid_map,
                                                                                do_print=False, init_set=init_set,
@@ -178,7 +181,6 @@ ExperimentConfigs.convertSingleAgentEnvPolicyToMultiAgent(VI_mdp, labels, state_
                                                           alphabet_dict=alphabet_dict,
                                                           fixed_obstacle_labels=fixed_obs_labels)
 
-act_cost = -0.1
 winning_reward = {act: act_cost for act in VI_mdp.action_list}
 winning_reward['0_Empty'] = 1.0
 VI_mdp.configureReward(winning_reward, act_cost=act_cost)
@@ -271,8 +273,8 @@ if perform_new_inference:
 
     theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                                       reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True,
-                                      monte_carlo_size=monte_carlo_size, print_iterations=True, eps=0.0005,
-                                      velocity_memory=0.2, theta_std_dev_min=0.5, theta_std_dev_max=1.2,
+                                      monte_carlo_size=monte_carlo_size, print_iterations=True, eps=0.01,
+                                      velocity_memory=0.0, theta_std_dev_min=0.4, theta_std_dev_max=np.inf,
                                       nominal_log_prob_data=nominal_log_prob_data, moving_avg_min_slope=0.001,
                                       moving_average_buffer_length=60)
     pickled_mdp_file = DataHelper.pickleMDP([demo_mdp, policy_keys_to_print], name_prefix="two_stage_multi_agent_mdps")
@@ -294,15 +296,14 @@ if solve_after_inference:
                    policy_keys_to_print=policy_keys_to_print, horizon_length=15, num_iters=100,
                    do_incremental_e_step=True)
     variables_to_save = [demo_mdp, policy_keys_to_print]
-    pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps_bonus_reward")
+    #pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps_bonus_reward")
 else:
     (demo_mdp, policy_keys_to_print, pickled_mdp_file) = \
-        DataHelper.loadPickledMDP('multi_agent_mdps_bonus_reward_180330_1347')
+        DataHelper.loadPickledMDP('multi_agent_mdps_bonus_reward_180412_2040')
 
 EM_mdp = demo_mdp
 policy_change = demo_mdp.getPolicyL1Norm(EM_policy, demo_mdp.getPolicyAsVec())
 print 'Policy Change from Bonus Reward: {}'.format(policy_change)
-#import pdb; pdb.set_trace()
 #VI_mdp = demo_mdp
 
 ########################################################################################################################

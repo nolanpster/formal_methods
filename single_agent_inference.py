@@ -47,11 +47,11 @@ labels = {state: empty for state in states}
 labels[(4,)] = green
 
 # Starting and final states
-initial_state = (15,)
+initial_state = (20,)
 goal_state = (4,) # Currently assumess only one goal.
-labels[(13,)] = red
-labels[(14,)] = red
-labels[(20,)] = red
+#labels[(13,)] = red
+#labels[(14,)] = red
+#labels[(20,)] = red
 
 # Numpy Data type to use for transition probability matrices (affects speed / precision)
 prob_dtype = np.float64
@@ -76,7 +76,7 @@ solve_with_uniform_distribution = True
 if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
     make_new_mdp = False
-    pickled_mdp_file_to_load  = 'robot_mdps_180404_1222'
+    pickled_mdp_file_to_load  = 'robot_mdps_180412_2025'
     write_mdp_policy_csv = False
 
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -84,15 +84,15 @@ if __name__=='__main__':
     # determine how large the demonstration set should be.
     gather_new_data = False
     num_episodes = 500
-    steps_per_episode = 20
-    pickled_episodes_file_to_load = 'robot_mdps_180404_1222_HIST_500eps20steps_180404_1222'
+    steps_per_episode = 10
+    pickled_episodes_file_to_load = 'robot_mdps_180412_2025_HIST_50eps10steps_180412_2025_Policy_180412_2025'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
     # demonstration policy.
-    perform_new_inference = True
+    perform_new_inference = False
     pickled_inference_mdps_file_to_load  = \
-        'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Policy_180221_1418'
+        'robot_mdps_180412_2025_HIST_500eps10steps_180412_2026_Policy_180412_2026'
     load_inference_statistics = (not perform_new_inference) & False
     pickled_inference_statistics_file_to_load  = \
         'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Inference_Stats_180221_1431'
@@ -241,9 +241,9 @@ if __name__=='__main__':
            theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,
                                              do_print=True, reference_policy_vec=reference_policy_vec,
                                              monte_carlo_size=monte_carlo_size, dtype=infer_dtype,
-                                             print_iterations=True, eps=0.0001, velocity_memory=0.2,
-                                             moving_avg_min_improvement=-np.inf, theta_std_dev_max=1.2,
-                                             theta_std_dev_min=0.5, moving_average_buffer_length=60,
+                                             print_iterations=True, eps=0.00005, velocity_memory=0.2,
+                                             moving_avg_min_improvement=-np.inf, theta_std_dev_max=np.inf,
+                                             theta_std_dev_min=0.4, moving_average_buffer_length=60,
                                              moving_avg_min_slope=0.001,
                                              precomputed_observed_action_indices=observed_action_indices,
                                              nominal_log_prob_data=nominal_log_prob_data,

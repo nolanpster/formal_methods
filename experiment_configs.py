@@ -297,7 +297,6 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     reward_fractions = []
 
     theta_std_dev_min = 0.5
-    theta_std_dev_max = 1.2
 
     for batch in range(num_batches):
         batch_start_time = time.time()
@@ -332,9 +331,9 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         nominal_log_prob_data = np.log(observed_action_probs[:, 1:]).sum()
 
         ### Infer ###
-        max_additional_known_thetas_per_rollout = batch
+        max_additional_known_thetas_per_rollout = 1
         thetas_added_to_known = 0
-        if batch > 0:
+        if batch > 0 and False:
             theta_std_dev_0 = np.zeros(infer_mdp.theta_std_dev.shape)
             # Randomly shuffle the std-dev's (paired with their true index) so that we add a random sampling of the
             # std-devs with minimum variance to the list of known thetas.
@@ -353,18 +352,19 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                     theta_std_dev_0[std_dev_idx] = 1.0
             print "Number of Std-devs initialized >= 1 is {}.".format(np.sum(theta_std_dev_0 > theta_std_dev_min))
         else:
-            if batch > 0:
+            if batch > 0 and False:
                 theta_std_dev_0 = None
             else:
                 theta_std_dev_0 = infer_mdp.theta_std_dev
 
         theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                                           theta_std_dev_0=theta_std_dev_0, theta_0=infer_mdp.theta,
-                                          moving_avg_min_improvement=0.2, reference_policy_vec=true_env_policy_vec,
-                                          use_precomputed_phi=True, monte_carlo_size=num_theta_samples,
-                                          print_iterations=True, eps=0.05, velocity_memory=0.2, theta_std_dev_min=0.5,
-                                          theta_std_dev_max=1.2, nominal_log_prob_data=nominal_log_prob_data,
-                                          moving_avg_min_slope=0.001, moving_average_buffer_length=60)
+                                          moving_avg_min_improvement=0.001, reference_policy_vec=true_env_policy_vec,
+                                          monte_carlo_size=num_theta_samples,
+                                          print_iterations=False, eps=0.01, velocity_memory=0.2, theta_std_dev_min=0.4,
+                                          theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
+                                          moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
+                                          precomputed_observed_action_indices=observed_action_indices)
 
         # Print Inference error
         inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
@@ -381,7 +381,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
             arena_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict, act_cost=act_cost)
         # Need to reset the policy to something _very_ sub-optimal for EM.
         arena_mdp.makeUniformPolicy()
-        arena_mdp.solve(do_print=False, method='expectationMaximization', print_iterations=True,
+        arena_mdp.solve(do_print=False, method='expectationMaximization', print_iterations=False,
                         horizon_length=15, num_iters=100, do_incremental_e_step=True)
         batch_stop_time = time.time()
         print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
@@ -389,7 +389,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     return recorded_inferred_policy_L1_norms, reward_fractions
 
 def makeBonusReward(policy_uncertainty_dict):
-    exploration_weight = 0.5
+    exploration_weight = 1.75
     bonus_reward_dict = dict.fromkeys(policy_uncertainty_dict)
     for state in policy_uncertainty_dict:
         bonus_reward_dict[state] = {}
@@ -415,7 +415,7 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
     @param alphabet_dict Required if plot_policys is True
     """
     if file_with_policy is None:
-        file_with_policy =  'robot_mdps_180328_2018_HIST_500eps20steps_180328_2018_Policy_180328_2032'
+        file_with_policy =  'robot_mdps_180412_2025_HIST_500eps10steps_180412_2026_Policy_180412_2026'
 
     print 'Next File loaded is for building environmental policy:'
     (single_agent_mdp, pickled_inference_file) = DataHelper.loadPickledPolicyInferenceMDP(file_with_policy)

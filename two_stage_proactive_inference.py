@@ -99,26 +99,28 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
 pickled_mdp_file_to_load  = 'multi_agent_mdps_180410_2138'
+act_cost = -0.1
 
 
 # Geodesic Gaussian Kernel centers
 gg_kernel_centers = range(0, num_cells, 1)
 gg_kernel_centers = [0, 4, 12, 20, 24, 24]  # Last kernel is the 'mobile' kernel
+gg_kernel_centers = range(0, num_cells, 4) + [6, 18] + [24]
 gg_kernel_centers = range(0, num_cells, 1) + [24]
 num_kernels_in_set = len(gg_kernel_centers)
-kernel_sigmas = np.array([1.0]*num_kernels_in_set, dtype=infer_dtype)
+kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
 ggk_mobile_indices = [num_kernels_in_set-1]
 
 # Gaussian Theta params
 use_active_inference = True
 num_theta_samples = 2000
-inference_temp = 0.8
+inference_temp = 0.6
 
 # Batch configurations
-num_batches = 3
-traj_count_per_batch = 10
-traj_length = 10
-num_experiment_trials = 10
+num_batches = 10
+traj_count_per_batch = 3
+traj_length = 20
+num_experiment_trials = 3
 ########################################################################################################################
 # Create / Load Multi Agent MDP
 #
@@ -137,7 +139,7 @@ if make_new_mdp:
                                                                                  fixed_obstacle_labels=fixed_obs_labels,
                                                                                  use_mobile_kernels=True,
                                                                                  gg_kernel_centers=gg_kernel_centers,
-                                                                                 use_em=True, act_cost=-0.1,
+                                                                                 use_em=True, act_cost=act_cost,
                                                                                  env_labels=env_labels)
     variables_to_save = [demo_mdp, policy_keys_to_print]
     pickled_mdp_file = DataHelper.pickleMDP(variables_to_save, name_prefix="multi_agent_mdps")
@@ -193,12 +195,11 @@ for trial in range(num_experiment_trials):
     policy_L1_norms, reward_fractions = ExperimentConfigs.rolloutInferSolve(demo_mdp, robot_idx, env_idx,
             num_batches=num_batches, num_trajectories_per_batch=traj_count_per_batch, num_steps_per_traj=traj_length,
             inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
-            num_theta_samples=num_theta_samples, robot_goal_states=robot_goal_states, act_cost=-0.1,
+            num_theta_samples=num_theta_samples, robot_goal_states=robot_goal_states, act_cost=act_cost,
             use_active_inference=use_active_inference)
     policy_L1_norm_sets.append(policy_L1_norms)
     reward_fraction_sets.append(reward_fractions)
 
-import pdb; pdb.set_trace()
 #Probably save the arrays? Figure out how to get passive and active on same plot.
 
 # Stack the recorded statistics list in [num_batches, num_trials] format for easy plotting.
