@@ -60,19 +60,19 @@ class PolicyInference(object):
             else:
                 self.algorithm = None
 
-    def getObservedActionIndeces(self):
+    def getObservedActionIndices(self):
         """
-        @brief Precompute the observed action indeces for the instance's demonstration set.
+        @brief Precompute the observed action indices for the instance's demonstration set.
 
         Given the observed state histories, determine which action was observed from between state pair. The data is
         saved as the action indices based on the ordering in @c self.mdp.action_list.
 
-        @return observed_action_indeces A Num_episodes-by-(num_steps) matrix of action indeces. Each column
+        @return observed_action_indices A Num_episodes-by-(num_steps) matrix of action indices. Each column
                 corresponds to the action taken from the state at time-step t from t=0 to T-1 so the first column is
                 invalid.
         """
         (num_episodes, num_steps) = self.histories.shape
-        observed_action_indeces = np.empty([num_episodes, num_steps],
+        observed_action_indices = np.empty([num_episodes, num_steps],
                                            dtype=DataHelp.getSmallestNumpyUnsignedIntType(self.mdp.num_actions))
         for episode in xrange(num_episodes):
             for t_step in xrange(1, num_steps):
@@ -80,9 +80,9 @@ class PolicyInference(object):
                 this_state = self.mdp.observable_states[this_state_idx]
                 next_state_idx = self.histories[episode, t_step]
                 next_state = self.mdp.observable_states[next_state_idx]
-                observed_action_indeces[episode, t_step] = self.mdp.graph.getObservedAction((this_state,),
+                observed_action_indices[episode, t_step] = self.mdp.graph.getObservedAction((this_state,),
                                                                                             (next_state,))
-        return observed_action_indeces
+        return observed_action_indices
 
     def computePhis(self):
         """
@@ -137,7 +137,7 @@ class PolicyInference(object):
         return hessian_objective_func
 
     def gradientAscent(self, histories, theta_0=None, do_print=False, use_precomputed_phi=False, dtype=np.float64,
-                       monte_carlo_size=None, reference_policy_vec=None, precomputed_observed_action_indeces=None,
+                       monte_carlo_size=None, reference_policy_vec=None, precomputed_observed_action_indices=None,
                        **kwargs):
         """
         @brief Performs Policy inference using Gradient Ascent from Section 7.2.1 of
@@ -161,8 +161,8 @@ class PolicyInference(object):
                time each iteration took to infer in seconds.
         @param reference_policy_vec] Used to compute policy difference for monte carlo, [num_states*num_actions] with
                actions in the same order as self.mdp.action_list.
-        @param precomputed_observed_action_indeces If supplied, the inference will assume the correct observed action
-               indeces for each time-step in each episode in the history. This is useful if the inference is being
+        @param precomputed_observed_action_indices If supplied, the inference will assume the correct observed action
+               indices for each time-step in each episode in the history. This is useful if the inference is being
                called externally with the same history.
         """
         # Process input arguments
@@ -182,11 +182,11 @@ class PolicyInference(object):
         else:
             num_inferences = 1
             doing_monte_carlo = False
-        if precomputed_observed_action_indeces is not None:
-            observed_action_indeces = precomputed_observed_action_indeces
+        if precomputed_observed_action_indices is not None:
+            observed_action_indices = precomputed_observed_action_indices
         else:
             # Precompute observed actions for all episodes.
-            observed_action_indeces = self.getObservedActionIndeces()
+            observed_action_indices = self.getObservedActionIndices()
 
         # Initialize Weight vector, theta.
         if theta_0 is None:
@@ -284,11 +284,11 @@ class PolicyInference(object):
                     #   for t_step in xrange(1, num_steps):
                     #       this_state = histories[episode, t_step-1]
                     #       grad_wrt_theta += \
-                    #           np.multiply(np.subtract(phis[this_state, observed_action_indeces[episode, t_step]],
+                    #           np.multiply(np.subtract(phis[this_state, observed_action_indices[episode, t_step]],
                     #                                   del_theta_total_Q[this_state]), temp)
                     grad_wrt_theta = np.einsum('dk->k',
                                                np.subtract(phis[histories[episode,:-1],
-                                                           observed_action_indeces[episode,1:]],
+                                                           observed_action_indices[episode,1:]],
                                                del_theta_total_Q[histories[episode,:-1]]))
                     grad_wrt_theta *= temp
 
@@ -322,7 +322,7 @@ class PolicyInference(object):
                 # Sum over all observed transitions (d), and over all histories (h).
                 # Maybe multiply by sqrt(N)?
                 N = np.float32(histories.size)
-                theta_gradient_per_step = np.subtract(phis[histories[:,:-1], observed_action_indeces[:,1:]],
+                theta_gradient_per_step = np.subtract(phis[histories[:,:-1], observed_action_indices[:,1:]],
                                                       del_theta_total_Q[histories[:,:-1]])
 
                 # Precompute hessians at all states Size = [num_states, size_phi, size_phi].
@@ -459,7 +459,7 @@ class PolicyInference(object):
         """
         @brief Given Q(s,a) = <phi, theta>, this build the Boltzman policy as a vector.
 
-        Vector indeces are [s_0_a_0, s_0_a_1, ... s_0_a_N, ... s_M_a_N-1, s_M_a_N] for M states and N actions.
+        Vector indices are [s_0_a_0, s_0_a_1, ... s_0_a_N, ... s_M_a_N-1, s_M_a_N] for M states and N actions.
 
         @param phis A Num-states--by--num-actions--by--num-kernels numpy array.
         @param theta A KxNum-kernels numpy array. Where K is the number of samples of the theta vector.
@@ -646,7 +646,7 @@ class PolicyInference(object):
 
     def gradientAscentGaussianTheta(self, histories, theta_0=None, do_print=False,
                                     dtype=np.float64, monte_carlo_size=10, reference_policy_vec=None,
-                                    precomputed_observed_action_indeces=None, theta_std_dev_0=None,
+                                    precomputed_observed_action_indices=None, theta_std_dev_0=None,
                                     print_iterations=False, eps=0.2, moving_average_buffer_length=20,
                                     velocity_memory=0.9, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
                                     moving_avg_min_slope=-0.5, moving_avg_min_improvement=0.1,
@@ -678,8 +678,8 @@ class PolicyInference(object):
         @param monte_carlo_size The number of times to sample from theta's distribution when performing monte-carlo
                integration of the log-likelihood of a demonstration set given theta's distribution.
         @param reference_policy_vec Not used by this inference implementation.
-        @param precomputed_observed_action_indeces If supplied, the inference will assume the correct observed action
-               indeces for each time-step in each episode in the history. This is useful if the inference is being
+        @param precomputed_observed_action_indices If supplied, the inference will assume the correct observed action
+               indices for each time-step in each episode in the history. This is useful if the inference is being
                called externally with the same history.
         @param theta_std_dev_0 Initial standard deviations to use, otherwise defaults to 1 for all phi entries.
         @param eps The step size for gradient ascent
@@ -725,11 +725,11 @@ class PolicyInference(object):
 
         # Configure data about histories, and state-action outcomes that were observed.
         (num_episodes, num_steps) = self.histories.shape
-        if precomputed_observed_action_indeces is not None:
-            self.observed_action_indeces = precomputed_observed_action_indeces
+        if precomputed_observed_action_indices is not None:
+            self.observed_action_indices = precomputed_observed_action_indices
         else:
             # Precompute observed actions for all episodes.
-            self.observed_action_indeces = self.getObservedActionIndeces()
+            self.observed_action_indices = self.getObservedActionIndices()
 
         # Save weight vector, theta, and the std-dev vector initial values. Then configure the inital values of the
         # member variables used for inference.
@@ -759,11 +759,11 @@ class PolicyInference(object):
         # Precompute feature vector at all states.
         self.phis = self.computePhis()
 
-        #  Precompute the indeces in a policy vector of length (num-states * num-actions) given the observed actions and
+        #  Precompute the indices in a policy vector of length (num-states * num-actions) given the observed actions and
         #  the episodes. Note that the histories are (num-episodes by num-time-steps) large, but the matrix of policy
-        #  vector indeces is (num-episodes by num-time-steps - 1).
+        #  vector indices is (num-episodes by num-time-steps - 1).
         self.episode_policy_vec_indices = (histories[:, :-1] * self.mdp.num_actions
-                                           + self.observed_action_indeces[:, 1:]).ravel()
+                                           + self.observed_action_indices[:, 1:]).ravel()
         self.unique_policy_vec_indices, self.policy_vec_counts = np.unique(self.episode_policy_vec_indices,
                                                                            return_counts=True)
         self.num_unique_policy_vec_indices = len(self.unique_policy_vec_indices)
@@ -789,17 +789,18 @@ class PolicyInference(object):
 
         # For all values in the theta standard deviation vector that are equal to the minimum value, set them to zero.
         # Then build the policy uncertainty dictionary.
-        self.theta_std_dev_vec[self.theta_std_dev_vec <= self.theta_std_dev_min] = 0.0
-        self.buildPolicyUncertainty(self.theta_std_dev_vec, self.phis, do_print)
+        masked_theta_std_dev_vec = deepcopy(self.theta_std_dev_vec)
+        masked_theta_std_dev_vec[self.theta_std_dev_vec <= self.theta_std_dev_min] = 0.0
+        self.buildPolicyUncertainty(masked_theta_std_dev_vec, self.phis, do_print)
         # Check this calculation below!!!!!! Ensure actions are being selected correctly!
         self.mdp.policy_uncertainty_as_vec = self.mdp.getPolicyAsVec(policy_to_convert=self.mdp.policy_uncertainty)
 
         if do_plot:
-            repeated_indeces = np.repeat(np.expand_dims(range(self.iter_count+1), 0), self.theta_size, 0).T
+            repeated_indices = np.repeat(np.expand_dims(range(self.iter_count+1), 0), self.theta_size, 0).T
             plt.figure()
-            plt.plot(repeated_indeces, self.means2plot)
+            plt.plot(repeated_indices, self.means2plot)
             plt.figure()
-            plt.plot(repeated_indeces, self.sigmas2plot)
+            plt.plot(repeated_indices, self.sigmas2plot)
 
             fig, ax = plt.subplots()
             iter_range_generator = xrange(self.iter_count)

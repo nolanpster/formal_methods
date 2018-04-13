@@ -398,8 +398,8 @@ if any(plot_flags):
         uncertainty_grid = PlotHelper.UncertaintyPlot(maze, cmap, grid_map)
         policy_uncertainty = infer_mdp.policy_uncertainty_as_vec.reshape([infer_mdp.num_states, infer_mdp.num_actions])
         for act_idx, act in enumerate(action_list):
-            param_vector_indeces = xrange(act_idx, len(infer_mdp.theta), len(action_list))
-            uncertainty_vals = infer_mdp.theta_std_dev[param_vector_indeces]
+            param_vector_indices = xrange(act_idx, len(infer_mdp.theta), len(action_list))
+            uncertainty_vals = infer_mdp.theta_std_dev[param_vector_indices]
             title='Param Uncertainty'
             fig, ax = uncertainty_grid.configurePlot(title, infer_mdp.kernel_centers, uncertainty_vals, act_str=str(act))
             # Plot aggregate uncertainty at states here
