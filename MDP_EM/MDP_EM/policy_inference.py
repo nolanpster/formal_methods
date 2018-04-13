@@ -829,8 +829,8 @@ class PolicyInference(object):
         policy_uncertainty = {state: deepcopy(empty_policy_dist) for state in self.mdp.states}
         for state_idx in xrange(self.mdp.num_states):
             for act_idx, action in enumerate(self.mdp.action_list):
-                policy_uncertainty[self.mdp.states[state_idx]][action] = np.sqrt(np.dot(np.power(theta_std_dev,2),
-                                                                                 np.power(phis[state_idx, act_idx],2)))
+                policy_uncertainty[self.mdp.states[state_idx]][action] = np.dot(np.power(theta_std_dev,2),
+                                                                                np.power(phis[state_idx, act_idx],2))
         if do_print:
             print('Policy Uncertainty')
             pprint(policy_uncertainty)
