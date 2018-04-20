@@ -83,8 +83,8 @@ if __name__=='__main__':
     # load the @c pickled_episodes_file. If @c gather_new_data is true, use @c num_episodes and @c steps_per_episode to
     # determine how large the demonstration set should be.
     gather_new_data = True
-    num_episodes = 5000
-    steps_per_episode = 15
+    num_episodes = 10
+    steps_per_episode = 10
     pickled_episodes_file_to_load = 'robot_mdps_180413_1120_HIST_500eps10steps_180413_1120'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
@@ -103,11 +103,12 @@ if __name__=='__main__':
     # Gradient Ascent kernel configurations
     use_fixed_kernel_set = True
     if use_fixed_kernel_set is True:
-        kernel_centers = [frozenset(range(0, num_states, 4)) | frozenset([13,14])]
-        kernel_centers = [frozenset(range(0, num_states, 1))]
+        kernel_centers = [frozenset(range(0, num_states, 4)) | frozenset([13,14]) | frozenset([6, 18])]
+        kernel_centers = [frozenset([0, 4, 12, 13, 14, 20, 24])]
+        #kernel_centers = [frozenset(range(0, num_states, 1))]
         #kernel_centers = [frozenset((0, 4, 12, 20, 24))]
         num_kernels_in_set = len(kernel_centers[0])
-        kernel_sigmas = np.array([1.0]*num_kernels_in_set, dtype=infer_dtype)
+        kernel_sigmas = np.array([1.5]*num_kernels_in_set, dtype=infer_dtype)
         batch_size_for_kernel_set = 1
     else:
         kernel_count_start = 16
@@ -118,7 +119,7 @@ if __name__=='__main__':
         batch_size_for_kernel_set = 1
 
     if inference_method is 'gradientAscentGaussianTheta':
-        num_theta_samples = 2000
+        num_theta_samples = 1000
         monte_carlo_size = num_theta_samples
     else:
         monte_carlo_size = batch_size_for_kernel_set
@@ -239,15 +240,15 @@ if __name__=='__main__':
 
         if inference_method in ['historyMLE', 'iterativeBayes', 'gradientAscentGaussianTheta'] or use_fixed_kernel_set:
            theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,
-                                             do_print=True, reference_policy_vec=reference_policy_vec,
+                                             do_print=False, reference_policy_vec=reference_policy_vec,
                                              monte_carlo_size=monte_carlo_size, dtype=infer_dtype,
-                                             print_iterations=True, eps=0.000005, velocity_memory=0.2,
+                                             print_iterations=False, eps=0.01, velocity_memory=0.2,
                                              moving_avg_min_improvement=-np.inf, theta_std_dev_max=np.inf,
                                              theta_std_dev_min=0.4, moving_average_buffer_length=60,
                                              moving_avg_min_slope=0.001,
                                              precomputed_observed_action_indices=observed_action_indices,
                                              nominal_log_prob_data=nominal_log_prob_data,
-                                             use_precomputed_phi=True)
+                                             use_precomputed_phi=True, max_uncertainty=0.8)
         else:
             if batch_size_for_kernel_set > 1:
                 print_inference_iterations = False
@@ -388,9 +389,13 @@ if __name__=='__main__':
             uncertainty_vals = infer_mdp.theta_std_dev[param_vector_indices]
             title='Param Uncertainty'
             fig, ax = uncertainty_grid.configurePlot(title, infer_mdp.kernel_centers, uncertainty_vals, act_str=str(act))
-            # Plot aggregate uncertainty at states here
+            # Plot aggregate state-action uncertainty at states here
             fig, ax = uncertainty_grid.configurePlot('Policy Uncertainty', infer_mdp.grid_map.ravel(),
                                                      policy_uncertainty[:, act_idx], act_str=str(act))
+        # Plot uncertainties at states (summed over actions)
+        title = 'Aggregate Uncertainty'
+        fig, ax = uncertainty_grid.configurePlot(title, infer_mdp.grid_map.ravel(), policy_uncertainty.sum(axis=1) ,
+                                                 act_str='Sum')
 
     if plot_inference_statistics:
         infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=False)

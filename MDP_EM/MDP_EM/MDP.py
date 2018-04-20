@@ -404,18 +404,25 @@ class MDP(object):
                 self.prob_mat_given_policy[state_idx,:] += this_policy[act]*self.prob[act][state_idx, :]
         return self.prob_mat_given_policy
 
-    def setInitialProbDist(self, initial_state=None):
+    def setInitialProbDist(self, initial_state=None, init_prob=None):
         # S based on section 1.2.2 of Toussaint and Storkey - the initial
         # distribution.
+        # if provided, @param init_prob should be the same length as initial_state list.
         if initial_state is None:
             # Default to uniform distribution.
             self.S = np.ones(self.num_states, self.prob_dtype)/self.num_states
         elif type(initial_state) is list:
-            init_prob = 1.0/len(initial_state)
-            self.S = np.zeros(self.num_states, self.prob_dtype)
-            for state in initial_state:
-                state_idx = self.states.index(state)
-                self.S[state_idx] = init_prob
+            if init_prob is None:
+                init_prob = 1.0/len(initial_state)
+                self.S = np.zeros(self.num_states, self.prob_dtype)
+                for state in initial_state:
+                    state_idx = self.states.index(state)
+                    self.S[state_idx] = init_prob
+            else:
+                self.S = np.zeros(self.num_states, self.prob_dtype)
+                for init_state_list_idx, state in enumerate(initial_state):
+                    state_idx = self.states.index(state)
+                    self.S[state_idx] = init_prob[init_state_list_idx]
         else:
             self.S = np.zeros(self.num_states, self.prob_dtype)
             init_idx = self.states.index(self.init)

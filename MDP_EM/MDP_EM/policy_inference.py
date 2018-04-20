@@ -674,7 +674,7 @@ class PolicyInference(object):
                                     print_iterations=False, eps=0.2, moving_average_buffer_length=20,
                                     velocity_memory=0.9, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
                                     moving_avg_min_slope=-0.5, moving_avg_min_improvement=0.1,
-                                    nominal_log_prob_data=0.0, do_plot=True, **kwargs):
+                                    nominal_log_prob_data=0.0, do_plot=True, min_uncertainty=None, **kwargs):
         """
         @brief Performs Policy inference using gradient ascent on the distribution theta_i ~ (mu_i, sigma_i).
 
@@ -741,6 +741,8 @@ class PolicyInference(object):
         self.velocity_memory = velocity_memory
         self.theta_std_dev_min = theta_std_dev_min
         self.theta_std_dev_max = theta_std_dev_max
+        min_uncertainty = min_uncertainty if min_uncertainty is not None else self.theta_std_dev_min
+
 
         # Extract parameters from the MDP that called 'self.infer(...)'.
         acts_list = self.mdp.action_list
@@ -815,7 +817,7 @@ class PolicyInference(object):
         # For all values in the theta standard deviation vector that are equal to the minimum value, set them to zero.
         # Then build the policy uncertainty dictionary.
         masked_theta_std_dev_vec = deepcopy(self.theta_std_dev_vec)
-        masked_theta_std_dev_vec[self.theta_std_dev_vec <= self.theta_std_dev_min] = 0.0
+        masked_theta_std_dev_vec[self.theta_std_dev_vec <= min_uncertainty] = 0.0
         self.buildPolicyUncertainty(masked_theta_std_dev_vec, self.phis, do_print)
         # Check this calculation below!!!!!! Ensure actions are being selected correctly!
         self.mdp.policy_uncertainty_as_vec = self.mdp.getPolicyAsVec(policy_to_convert=self.mdp.policy_uncertainty)

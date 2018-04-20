@@ -32,9 +32,9 @@ passive_data_dict, _,  = DataHelper.loadPickledInferenceStatistics(passive_infer
 PlotHelper.plotValueStatsVsBatch(val_array_1=active_data_dict['active_inference_L1_norms'],
                                  val_array_2=passive_data_dict['passive_inference_L1_norms'], plot_quantiles=True,
                                  plot_min_max=True)
-
-PlotHelper.plotValueStatsVsBatch(val_array_1=active_data_dict['active_inference_fraction_of_trajs_reacing_goal'],
-                                 val_array_2=passive_data_dict['passive_inference_fraction_of_trajs_reacing_goal'],
-                                 title='Agent 1 Ends at Goal', ylabel='Fraction of Trajectories', plot_quantiles=True,
-                                 plot_min_max=True)
+if multi_agent:
+    PlotHelper.plotValueStatsVsBatch(val_array_1=active_data_dict['active_inference_fraction_of_trajs_reacing_goal'],
+                                     val_array_2=passive_data_dict['passive_inference_fraction_of_trajs_reacing_goal'],
+                                     title='Agent 1 Ends at Goal', ylabel='Fraction of Trajectories', plot_quantiles=True,
+                                     plot_min_max=True)
 plt.show()

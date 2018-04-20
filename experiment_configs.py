@@ -152,7 +152,7 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
                       'West': act_cost,
                       'Empty': 1.0
         }
-    skip_product_calcs = True
+    skip_product_calcs = False
     if skip_product_calcs:
         sink_list = [state for state, label in labels.iteritems() if label is not alphabet_dict['empty']]
     else:
@@ -260,7 +260,6 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
 
     return demo_mdp, policy_keys_to_print
 
-
 def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=100,
                       num_steps_per_traj=15, inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
                       num_theta_samples=1000, robot_goal_states=None, act_cost=0.0, use_active_inference=True):
@@ -269,7 +268,9 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
 
     robot_action_list = arena_mdp.executable_action_dict[0]
     env_action_list = arena_mdp.executable_action_dict[1]
+
     # Create a reference to the mdp used for inference.
+    # Double check that mdp has correct action list to build the vector in the right order.
     infer_mdp = arena_mdp.infer_env_mdp
     true_env_policy_vec = infer_mdp.getPolicyAsVec(policy_to_convert=arena_mdp.env_policy[env_idx],
                                                    action_list=env_action_list)
@@ -360,12 +361,14 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                                           theta_std_dev_0=theta_std_dev_0, theta_0=infer_mdp.theta,
                                           reference_policy_vec=true_env_policy_vec,
                                           monte_carlo_size=num_theta_samples,
-                                          print_iterations=False, eps=0.01, velocity_memory=0.2, theta_std_dev_min=0.4,
-                                          theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
-                                          moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=True,
+                                          print_iterations=False, eps=0.01, velocity_memory=0.2,
+                                          theta_std_dev_min=theta_std_dev_min, theta_std_dev_max=np.inf,
+                                          nominal_log_prob_data=nominal_log_prob_data, moving_avg_min_slope=0.001,
+                                          moving_average_buffer_length=60, do_plot=True,
                                           precomputed_observed_action_indices=observed_action_indices)
 
         # Print Inference error
+        # Check getPolicyAsVec for this MDP!
         inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
         print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch, inferred_policy_L1_norm_error))
         print('L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
@@ -386,6 +389,100 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
 
     return recorded_inferred_policy_L1_norms, reward_fractions
+
+def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories_per_batch=100, num_steps_per_traj=15,
+                            inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
+                            num_theta_samples=1000, robot_goal_states=None, use_active_inference=True):
+
+    print "Using {} inference.".format("active" if use_active_inference else "passive")
+
+    # Create a dictionary of observable states for printing, this removes the 'dra' states, so we can then turn it into
+    # a vector for numerical comparison (infinite-norm).
+    policy_keys_to_print = deepcopy([(state[0], env_mdp.dra.get_transition(env_mdp.L[state], state[1])) for state in
+                                     env_mdp.states if 'q0' in state])
+    true_env_policy_vec = env_mdp.getPolicyAsVec(policy_keys_to_print)
+
+    # Initial inference params.
+    infer_mdp.theta = np.zeros(len(infer_mdp.phi))
+    infer_mdp.theta_std_dev = np.ones(infer_mdp.theta.size)
+
+    # Data types are constant for every batch.
+    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_observable_states)
+    observation_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_actions)
+
+
+    # Variables for logging data
+    initial_policy_guess = infer_mdp.getPolicyAsVec()
+    L1_norm_of_initial_policy_guess = MDP.getPolicyL1Norm(true_env_policy_vec, initial_policy_guess)
+    inferred_policy = [initial_policy_guess]
+    recorded_inferred_policy_L1_norms = [L1_norm_of_initial_policy_guess]
+    inferred_policy_variance = [np.ones(infer_mdp.theta.size)]
+    known_theta_indices = []
+    reward_fractions = []
+
+    theta_std_dev_min = 0.4
+
+    # Ensure initial state for batch 0 will be uniformly, randomly selected.
+    env_mdp.init_set = policy_keys_to_print
+    env_mdp.setInitialProbDist(env_mdp.init_set)
+
+    for batch in range(num_batches):
+        if use_active_inference and batch > 0:
+            # Select the state with the highest uncertainty to be the initial state for all trajectories. Another way to
+            # do this would be to have a prioritiezed weighting of states based off of their variance.
+            env_mdp.setInitialProbDist(env_mdp.init_set, init_prob=active_initial_dist)
+
+        batch_start_time = time.time()
+        ### Roll Out ###
+        run_histories = np.zeros([num_trajectories_per_batch, num_steps_per_traj], dtype=hist_dtype)
+        observed_action_indices = np.empty([num_trajectories_per_batch, num_steps_per_traj], dtype=observation_dtype)
+        observed_action_probs = np.empty([num_trajectories_per_batch, num_steps_per_traj], dtype=infer_dtype)
+        for episode in xrange(num_trajectories_per_batch):
+            # Create time-history for this episode.
+            _, run_histories[episode, 0] = env_mdp.resetState()
+            for t_step in xrange(1, num_steps_per_traj):
+                # Take step
+                _, run_histories[episode, t_step] = env_mdp.step()
+                # Record observed action.
+                prev_state_idx = run_histories[episode, t_step-1]
+                prev_state = env_mdp.observable_states[prev_state_idx]
+                this_state_idx = run_histories[episode, t_step]
+                this_state = env_mdp.observable_states[this_state_idx]
+                obs_act_idx = infer_mdp.graph.getObservedAction(prev_state, this_state)
+                observed_action_indices[episode, t_step] = obs_act_idx
+                observed_action_probs[episode, t_step] = infer_mdp.P(prev_state[0], infer_mdp.action_list[obs_act_idx],
+                                                                     this_state[0])
+
+        DataHelper.printStateHistories(run_histories, env_mdp.observable_states)
+        nominal_log_prob_data = np.log(observed_action_probs[:, 1:]).sum()
+
+        ### Infer ###
+        infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
+                              theta_std_dev_0=infer_mdp.theta_std_dev, theta_0=infer_mdp.theta,
+                              reference_policy_vec=true_env_policy_vec, monte_carlo_size=num_theta_samples,
+                              print_iterations=False, eps=0.01, velocity_memory=0.2, theta_std_dev_min=0.4,
+                              theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
+                              moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
+                              precomputed_observed_action_indices=observed_action_indices, min_uncertainty=0.8)
+
+        # Print Inference error
+        # Check getPolicyAsVec for this MDP!
+        inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
+        print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch, inferred_policy_L1_norm_error))
+        print('L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
+        recorded_inferred_policy_L1_norms.append(inferred_policy_L1_norm_error)
+        inferred_policy_variance.append(np.power(infer_mdp.theta_std_dev, 2))
+
+        if use_active_inference:
+            active_initial_dist = \
+                np.sum(infer_mdp.policy_uncertainty_as_vec.reshape(infer_mdp.num_states, infer_mdp.num_actions), axis=1)
+            active_initial_dist /= sum(active_initial_dist)
+            start_at_max_unc = np.zeros(active_initial_dist.shape)
+            start_at_max_unc[np.argmax(active_initial_dist)] = 1.0
+        batch_stop_time = time.time()
+        print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
+
+    return recorded_inferred_policy_L1_norms, inferred_policy_variance
 
 def makeBonusReward(policy_uncertainty_dict):
     exploration_weight = 0.5
