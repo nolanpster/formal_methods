@@ -98,7 +98,7 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180410_2138'
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180413_1133'
 act_cost = -0.1
 
 
@@ -106,21 +106,21 @@ act_cost = -0.1
 gg_kernel_centers = range(0, num_cells, 1)
 gg_kernel_centers = [0, 4, 12, 20, 24, 24]  # Last kernel is the 'mobile' kernel
 gg_kernel_centers = range(0, num_cells, 4) + [6, 18] + [24]
-gg_kernel_centers = range(0, num_cells, 1) + [24]
+#gg_kernel_centers = range(0, num_cells, 1) + [24]
 num_kernels_in_set = len(gg_kernel_centers)
 kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
 ggk_mobile_indices = [num_kernels_in_set-1]
 
 # Gaussian Theta params
 use_active_inference = True
-num_theta_samples = 2000
-inference_temp = 0.6
+num_theta_samples = 1000
+inference_temp = 0.9
 
 # Batch configurations
 num_batches = 10
-traj_count_per_batch = 3
+traj_count_per_batch = 5
 traj_length = 20
-num_experiment_trials = 3
+num_experiment_trials = 10
 ########################################################################################################################
 # Create / Load Multi Agent MDP
 #

@@ -34,45 +34,45 @@ def getActionProbabilityDictionary(dtype=np.float64):
     # 8) Transition prob when in SW corner cell.
     #
     # Column values are probabilities of ['Empty', 'north', 'south', 'east', 'west'] actions.
-    act_prob = {'North': np.array([[0.0, 0.8, 0.0, 0.1, 0.1],
-                                   [0.8, 0.0, 0.0, 0.1, 0.1],
-                                   [0.0, 0.8, 0.0, 0.1, 0.1],
-                                   [0.1, 0.8, 0.0, 0.0, 0.1],
-                                   [0.1, 0.8, 0.0, 0.1, 0.0],
-                                   [0.9, 0.0, 0.0, 0.0, 0.1],
-                                   [0.9, 0.0, 0.0, 0.1, 0.0],
-                                   [0.1, 0.8, 0.0, 0.0, 0.1],
-                                   [0.1, 0.8, 0.0, 0.1, 0.0]]
+    act_prob = {'North': np.array([[0.0, 1.0, 0.0, 0.0, 0.0],
+                                   [1.0, 0.0, 0.0, 0.0, 0.0],
+                                   [0.0, 1.0, 0.0, 0.0, 0.0],
+                                   [0.0, 1.0, 0.0, 0.0, 0.0],
+                                   [0.0, 1.0, 0.0, 0.0, 0.0],
+                                   [1.0, 0.0, 0.0, 0.0, 0.0],
+                                   [1.0, 0.0, 0.0, 0.0, 0.0],
+                                   [0.0, 1.0, 0.0, 0.0, 0.0],
+                                   [0.0, 1.0, 0.0, 0.0, 0.0]]
                                   , dtype=dtype),
-                'South': np.array([[0.0, 0.0, 0.8, 0.1, 0.1],
-                                   [0.0, 0.0, 0.8, 0.1, 0.1],
-                                   [0.8, 0.0, 0.0, 0.1, 0.1],
-                                   [0.1, 0.0, 0.8, 0.0, 0.1],
-                                   [0.1, 0.0, 0.8, 0.1, 0.0],
-                                   [0.1, 0.0, 0.8, 0.0, 0.1],
-                                   [0.1, 0.0, 0.8, 0.1, 0.0],
-                                   [0.9, 0.0, 0.0, 0.0, 0.1],
-                                   [0.9, 0.0, 0.0, 0.1, 0.0]]
+                'South': np.array([[0.0, 0.0, 1.0, 0.0, 0.0],
+                                   [0.0, 0.0, 1.0, 0.0, 0.0],
+                                   [1.0, 0.0, 0.0, 0.0, 0.0],
+                                   [0.0, 0.0, 1.0, 0.0, 0.0],
+                                   [0.0, 0.0, 1.0, 0.0, 0.0],
+                                   [0.0, 0.0, 1.0, 0.0, 0.0],
+                                   [0.0, 0.0, 1.0, 0.0, 0.0],
+                                   [1.0, 0.0, 0.0, 0.0, 0.0],
+                                   [1.0, 0.0, 0.0, 0.0, 0.0]]
                                   , dtype=dtype),
-                'East': np.array([[0.0, 0.1, 0.1, 0.8, 0.0],
-                                  [0.1, 0.0, 0.1, 0.8, 0.0],
-                                  [0.1, 0.1, 0.0, 0.8, 0.0],
-                                  [0.8, 0.1, 0.1, 0.0, 0.0],
-                                  [0.0, 0.1, 0.1, 0.8, 0.0],
-                                  [0.9, 0.0, 0.1, 0.0, 0.0],
-                                  [0.1, 0.0, 0.1, 0.8, 0.0],
-                                  [0.9, 0.1, 0.0, 0.0, 0.0],
-                                  [0.1, 0.1, 0.0, 0.8, 0.0]]
+                'East': np.array([[0.0, 0.0, 0.0, 1.0, 0.0],
+                                  [0.0, 0.0, 0.0, 1.0, 0.0],
+                                  [0.0, 0.0, 0.0, 1.0, 0.0],
+                                  [1.0, 0.0, 0.0, 0.0, 0.0],
+                                  [0.0, 0.0, 0.0, 1.0, 0.0],
+                                  [1.0, 0.0, 0.0, 0.0, 0.0],
+                                  [0.0, 0.0, 0.0, 1.0, 0.0],
+                                  [1.0, 0.0, 0.0, 0.0, 0.0],
+                                  [0.0, 0.0, 0.0, 1.0, 0.0]]
                                  , dtype=dtype),
-                'West': np.array([[0.0, 0.1, 0.1, 0.0, 0.8],
-                                  [0.1, 0.0, 0.1, 0.0, 0.8],
-                                  [0.1, 0.1, 0.0, 0.0, 0.8],
-                                  [0.0, 0.1, 0.1, 0.0, 0.8],
-                                  [0.8, 0.1, 0.1, 0.0, 0.0],
-                                  [0.1, 0.0, 0.1, 0.0, 0.8],
-                                  [0.9, 0.0, 0.1, 0.0, 0.0],
-                                  [0.1, 0.1, 0.0, 0.0, 0.8],
-                                  [0.9, 0.1, 0.0, 0.0, 0.0]]
+                'West': np.array([[0.0, 0.0, 0.0, 0.0, 1.0],
+                                  [0.0, 0.0, 0.0, 0.0, 1.0],
+                                  [0.0, 0.0, 0.0, 0.0, 1.0],
+                                  [0.0, 0.0, 0.0, 0.0, 1.0],
+                                  [1.0, 0.0, 0.0, 0.0, 0.0],
+                                  [0.0, 0.0, 0.0, 0.0, 1.0],
+                                  [1.0, 0.0, 0.0, 0.0, 0.0],
+                                  [0.0, 0.0, 0.0, 0.0, 1.0],
+                                  [1.0, 0.0, 0.0, 0.0, 0.0]]
                                  , dtype=dtype),
                 'Empty': np.array([[1.0, 0.0, 0.0, 0.0, 0.0],
                                    [1.0, 0.0, 0.0, 0.0, 0.0],
@@ -225,9 +225,9 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
     winning_reward['0_Empty'] = 1.0
     skip_product_calcs = True
     if skip_product_calcs:
-        sink_list = [state for state, label in labels.iteritems() if label is alphabet_dict['red']]
+        sink_list = [state for state, label in labels.iteritems() if label is not alphabet_dict['empty']]
         if env_labels is not None:
-            env_sink_list = [state for state, label in env_labels.iteritems() if label is alphabet_dict['red']]
+            env_sink_list = [state for state, label in env_labels.iteritems() if label is not alphabet_dict['empty']]
         else:
             env_sink_list = []
     else:
@@ -358,11 +358,11 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
 
         theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                                           theta_std_dev_0=theta_std_dev_0, theta_0=infer_mdp.theta,
-                                          moving_avg_min_improvement=0.001, reference_policy_vec=true_env_policy_vec,
+                                          reference_policy_vec=true_env_policy_vec,
                                           monte_carlo_size=num_theta_samples,
                                           print_iterations=False, eps=0.01, velocity_memory=0.2, theta_std_dev_min=0.4,
                                           theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
-                                          moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
+                                          moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=True,
                                           precomputed_observed_action_indices=observed_action_indices)
 
         # Print Inference error
@@ -388,7 +388,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     return recorded_inferred_policy_L1_norms, reward_fractions
 
 def makeBonusReward(policy_uncertainty_dict):
-    exploration_weight = 1.75
+    exploration_weight = 0.5
     bonus_reward_dict = dict.fromkeys(policy_uncertainty_dict)
     for state in policy_uncertainty_dict:
         bonus_reward_dict[state] = {}

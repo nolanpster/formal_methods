@@ -20,8 +20,9 @@ import pandas as pd
 import pdb
 
 # Select files with data to plot, aggregate_files are assumed to have all data in a dictionary.
-active_inference_file = 'two_stage_active_stats_20_trials20_batches_20_trajs_20_stepsPerTraj_Inference_Stats_180413_0208'
-passive_inference_file = 'two_stage_passive_stats_20_trials20_batches_20_trajs_20_stepsPerTraj_Inference_Stats_180413_0206'
+active_inference_file = 'two_stage_active_stats_10_trials10_batches_5_trajs_20_stepsPerTraj_Inference_Stats_180413_1621'
+passive_inference_file = \
+'two_stage_passive_stats_10_trials10_batches_5_trajs_20_stepsPerTraj_Inference_Stats_180413_1543'
 aggregate_file = None
 
 
