@@ -320,9 +320,8 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                 observed_action_indices[episode, t_step] = infer_mdp.graph.getObservedAction(prev_state, this_state)
                 robot_act = robot_action_list[executed_robot_actions[episode, t_step]]
                 env_act = env_action_list[observed_action_indices[episode, t_step]]
-                # This is a bit of a hack since `type(demo_mdp.mdp)` is a MultiAgentMDP and that has an overloaded
-                # self.P function to return the probability of the joint state transition given two actions.
-                observed_action_probs[episode, t_step] = arena_mdp.mdp.P(prev_state, robot_act, env_act, this_state)
+                observed_action_probs[episode, t_step] = arena_mdp.P(prev_state, robot_act, env_act, this_state)
+
         if robot_goal_states is not None:
             reward_frac = DataHelper.printHistoryAnalysis(run_histories, arena_mdp.states, arena_mdp.L, None,
                                                           robot_goal_states)

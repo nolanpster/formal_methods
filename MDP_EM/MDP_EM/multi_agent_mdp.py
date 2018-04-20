@@ -198,16 +198,3 @@ class MultiAgentMDP(MDP):
         uniform_policy_dist = {act: uninform_prob for act in self.executable_action_dict[self.controllable_agent_idx]}
         self.policy = {state: uniform_policy_dist.copy() for state in
                        self.states}
-
-    def P(self, state, robot_action, env_action, next_state):
-        """
-        Derived from the transition model. For a state, an action and the
-        next_state, return the probability of this transition.
-        """
-        robot_cell_0 = state[self.cell_state_slicer][0][self.controllable_agent_idx]
-        robot_cell_N = next_state[self.cell_state_slicer][0][self.controllable_agent_idx]
-        env_cell_0 = state[self.cell_state_slicer][0][self.uncontrollable_agent_indices[0]]
-        env_cell_N = next_state[self.cell_state_slicer][0][self.uncontrollable_agent_indices[0]]
-        prob = self.grid_prob[robot_action[2:]][robot_cell_0, robot_cell_N] \
-                * self.grid_prob[env_action[2:]][env_cell_0, env_cell_N]
-        return prob

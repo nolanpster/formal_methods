@@ -255,9 +255,7 @@ if perform_new_inference:
             observed_action_indices[episode, t_step] = infer_mdp.graph.getObservedAction(this_state, next_state)
             robot_act = robot_action_list[executed_robot_actions[episode, t_step]]
             env_act = env_action_list[observed_action_indices[episode, t_step]]
-            # This is a bit of a hack since `type(demo_mdp.mdp)` is a MultiAgentMDP and that has an overloaded self.P
-            # function to return the probability of the joint state transition given two actions.
-            observed_action_probs[episode, t_step] = demo_mdp.mdp.P(this_state, robot_act, env_act, next_state)
+            observed_action_probs[episode, t_step] = demo_mdp.P(this_state, robot_act, env_act, next_state)
 
     # The nominal log probability of the trajectory data sets, if the observed action at each t-step was actually
     # the selected action.

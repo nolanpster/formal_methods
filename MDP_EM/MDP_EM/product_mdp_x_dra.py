@@ -352,3 +352,22 @@ class ProductMDPxDRA(MDP):
         for state_idx, state in enumerate(self.states):
             for act_idx, act in enumerate(self.executable_action_dict[self.controllable_agent_idx]):
                 self.trans_prob_mat[state_idx,:, act_idx] = self.T(state, act)
+
+
+    def P(self, state, robot_action, env_action, next_state):
+        """
+        Derived from the transition model. For a state, an action and the
+        next_state, return the probability of this transition.
+        """
+        robot_cell_0 = state[self.cell_state_slicer][0][self.controllable_agent_idx]
+        robot_cell_N = next_state[self.cell_state_slicer][0][self.controllable_agent_idx]
+        if (robot_cell_0 == robot_cell_N) and state in self.sink_list:
+            robot_prob = 1.0
+        else:
+            robot_prob = self.mdp.grid_prob[robot_action[2:]][robot_cell_0, robot_cell_N]
+
+        env_cell_0 = state[self.cell_state_slicer][0][self.uncontrollable_agent_indices[0]]
+        env_cell_N = next_state[self.cell_state_slicer][0][self.uncontrollable_agent_indices[0]]
+
+        prob = robot_prob * self.mdp.grid_prob[env_action[2:]][env_cell_0, env_cell_N]
+        return prob
