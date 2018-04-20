@@ -17,6 +17,10 @@ from scipy.stats import norm
 
 import data_helper as DataHelp
 
+class DivergedPolicyError(Exception):
+    # Raised when predictable numerical errors occur in policy computations.
+    pass
+
 class GracefulKiller:
     """
     @brief Captures 'Ctrl-C' from keyboard and allows inference to forcibly terminate, but allows program that called
@@ -37,6 +41,13 @@ class PolicyInference(object):
 
     @pre Assumes the MDP instance has an instance variable .graph of type @ref GridGraph.
     """
+
+    # graidentAscentGaussianTheta inference return codes:
+    SUCCESS = 0
+    FIRST_TRY = 1
+    INVALID_STD_DEV = 2
+    ZERO_PROB_POLICY = 3
+    SIGINT = 4
 
     six_tabs = '\t'*6
 
@@ -502,8 +513,11 @@ class PolicyInference(object):
         @return The log probability of all trajectories for each theta-vector sample.
         """
         policy_mat = self.buildPolicyVectors(phis, theta_mat, is_monte_carlo)
-        log_policy_mat = np.log(policy_mat)
-
+        with np.errstate(divide='raise'):
+            try:
+                log_policy_mat = np.log(policy_mat)
+            except FloatingPointError:
+                raise DivergedPolicyError
         # Compute the log-likelihood of a trajectory given the sampled theta values.
         if is_monte_carlo:
             log_prob_traj_given_thetas = np.einsum('hl,l->h', log_policy_mat, self.policy_vec_counts)
@@ -545,7 +559,6 @@ class PolicyInference(object):
 
     def performGaussianThetaInference(self):
         # Loop until convergence unless killed by Crtl-C
-        self.killer = GracefulKiller()
         while not self.killer.kill_now and self.log_prob_moving_avg_slope > self.moving_avg_min_slope and \
             (abs(self.moving_avg_improvement) > self.moving_avg_min_improvement):
             if self.do_print or self.print_iterations:
@@ -558,7 +571,13 @@ class PolicyInference(object):
                                                           np.diag(np.power(self.theta_std_dev_vec,2)),
                                                           self.monte_carlo_size)
 
-            log_prob_traj_given_thetas = self.logProbOfDataSet(theta_samples, self.phis) + self.nominal_log_prob_data
+            try:
+                log_prob_traj_given_thetas = (self.logProbOfDataSet(theta_samples, self.phis)
+                                              + self.nominal_log_prob_data)
+            except DivergedPolicyError:
+                self.checkForInvalidParameterDistribution()
+                return PolicyInference.ZERO_PROB_POLICY
+
             ## Mu Update ##
             # Calculate the gradient of the log-likelihood of the sampled thetas with respect to the means of the
             # theta distribution. Note that calculations are done "in-place" for efficiency.
@@ -643,6 +662,11 @@ class PolicyInference(object):
                 pprint("Iter#: {}, mean_LogLike: {:0.2f}, max_logLike: {:0.2f}, moving_avg: {:20.2f}, iter-time: "
                        "{:0.4f}sec.".format(self.iter_count, self.log_prob_traj_given_mean_thetas[0], max_log_prob,
                                             self.log_prob_moving_avg, infer_toc), indent=4)
+        if self.killer.kill_now:
+            return PolicyInference.SIGINT
+        else:
+            return PolicyInference.SUCCESS
+
 
     def gradientAscentGaussianTheta(self, histories, theta_0=None, do_print=False,
                                     dtype=np.float64, monte_carlo_size=10, reference_policy_vec=None,
@@ -746,16 +770,6 @@ class PolicyInference(object):
         else:
             self.theta_std_dev_0 = theta_std_dev_0
 
-        # This block configures the iteration parameters. Create a ring buffer of log_probabilities, and use the average
-        # of this buffer a convergence metric. The length of the buffer is specified by @param
-        # moving_average_buffer_size. Initially, the ring buffer is populated with -Inf values. The next function call
-        # configures the initial values of the iteration parameters, and finally the plotting parameters. These
-        # functions will be called again if we determine that some parameter values are unecessary. In that case we'll
-        # remove them and restart the inference.
-        self.resetGaussianThetaTerminationParams()
-        self.resetGaussianThetaInferenceParamInitialValues()
-        self.resetGaussianThetaPlottingParams()
-
         # Precompute feature vector at all states.
         self.phis = self.computePhis()
 
@@ -770,7 +784,18 @@ class PolicyInference(object):
         self.policy_vec_length = self.mdp.num_actions * self.mdp.num_states
 
         # Finally, start the inference.
-        self.performGaussianThetaInference()
+        self.last_inference_return_code = PolicyInference.FIRST_TRY
+        self.killer = GracefulKiller()
+        while (self.last_inference_return_code is not PolicyInference.SUCCESS
+               and self.last_inference_return_code is not PolicyInference.SIGINT) :
+            # Run until `performGausssianThetaInference` completes an inference without detecting any invalid or
+            # nuisance parameters. Frist, reinitialze all values. `resetGaussianThetaInferenceParamInitialValues` is
+            # responsible for assigning std_dev values to be zero that we have decided should be _forced_ to be 0.0.
+            self.resetGaussianThetaTerminationParams()
+            self.resetGaussianThetaInferenceParamInitialValues()
+            self.resetGaussianThetaPlottingParams()
+
+            self.last_inference_return_code = self.performGaussianThetaInference()
 
         ## Prepare to exit.
         self.mdp.theta = np.expand_dims(self.theta_mean_vec, axis=0)
