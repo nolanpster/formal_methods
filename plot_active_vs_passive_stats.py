@@ -24,10 +24,10 @@ active_inference_file = 'two_stage_active_stats_10_trials10_batches_5_trajs_20_s
 passive_inference_file = \
 'two_stage_passive_stats_10_trials10_batches_5_trajs_20_stepsPerTraj_Inference_Stats_180413_1543'
 # Single agent interactive learning?
-multi_agent = False
-active_inference_file = 'two_stage_active_stats_50_trials20_batches_10_trajs_6_stepsPerTraj_Inference_Stats_180423_1549'
+multi_agent = True
+active_inference_file = 'two_stage_active_stats_10_trials10_batches_2_trajs_10_stepsPerTraj_Inference_Stats_180423_1828'
 passive_inference_file = \
-'two_stage_passive_stats_50_trials20_batches_10_trajs_6_stepsPerTraj_Inference_Stats_180423_1548'
+'two_stage_passive_stats_10_trials10_batches_2_trajs_10_stepsPerTraj_Inference_Stats_180423_1829'
 aggregate_file = None
 
 
@@ -38,8 +38,8 @@ PlotHelper.plotValueStatsVsBatch(val_array_1=active_data_dict['active_inference_
                                  val_array_2=passive_data_dict['passive_inference_L1_norms'], plot_quantiles=True,
                                  transparency=0.2)
 if multi_agent:
-    PlotHelper.plotValueStatsVsBatch(val_array_1=active_data_dict['active_inference_fraction_of_trajs_reacing_goal'],
-                                     val_array_2=passive_data_dict['passive_inference_fraction_of_trajs_reacing_goal'],
-                                     title='Agent 1 Ends at Goal', ylabel='Fraction of Trajectories',
+    PlotHelper.plotValueStatsVsBatch(val_array_1=active_data_dict['active_inference_count_of_trajs_reacing_goal'],
+                                     val_array_2=passive_data_dict['passive_inference_count_of_trajs_reacing_goal'],
+                                     title='Agent 1 Ends at Goal', ylabel='Count of Trajectories',
                                      plot_quantiles=True)
 plt.show()
