@@ -95,7 +95,7 @@ act_cost = 0.0
 #gg_kernel_centers = [0, 4, 12, 20, 24]
 #gg_kernel_centers = range(0, num_cells, 4) + [6, 18]
 gg_kernel_centers = frozenset(range(0, num_states, 4)) | frozenset([13,14]) | frozenset([6, 18])
-gg_kernel_centers = frozenset([0, 4, 12, 13, 14, 20, 24])
+#gg_kernel_centers = frozenset([0, 4, 12, 13, 14, 20, 24])
 num_kernels_in_set = len(gg_kernel_centers)
 kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
 
@@ -105,9 +105,9 @@ num_theta_samples = 1000
 inference_temp = 0.5
 
 # Batch configurations
-num_batches = 10
-traj_count_per_batch = 10
-traj_length = 5
+num_batches = 20
+traj_count_per_batch = 2
+traj_length = 6
 num_experiment_trials = 10
 ########################################################################################################################
 # Create / Load Multi Agent MDP
@@ -172,6 +172,8 @@ policy_L1_norms_mat = np.stack(policy_L1_norm_sets, axis=1)
 policy_L1_norms_mat /= 2
 policy_L1_norms_mat /= infer_mdp.num_states
 
+parameter_variance_mat = np.stack(parameter_variances, axis=1)
+
 # Save data for plotting later
 if use_active_inference:
     generated_data = {'active_inference_L1_norms': policy_L1_norms_mat,
@@ -189,6 +191,10 @@ DataHelper.pickleInferenceStatistics(generated_data, file_name_prefix)
 
 PlotHelper.plotValueVsBatch(policy_L1_norms_mat,
     '{} Fractional L1 Norm Inference Error'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
+    xlabel='Batch', also_plot_stats=True, save_figures=False)
+
+PlotHelper.plotValueVsBatch(parameter_variance_mat,
+    '{} Total Parameter Variance'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
     xlabel='Batch', also_plot_stats=True, save_figures=False)
 
 plt.show()
