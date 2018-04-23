@@ -236,6 +236,8 @@ def printHistoryAnalysis(run_histories, states, labels, empty, goal_state):
             if final_idx==goal_state:
                 num_rewards_from_starting_idx[starting_idx] += 1
 
+    reward_count = sum(num_rewards_from_starting_idx.values())
+
     # Print Analysis
     steps_per_episode = run_histories.shape[1]
     print("In this demonstration 'history' there are  {} episodes, each with {} moves."
@@ -247,7 +249,7 @@ def printHistoryAnalysis(run_histories, states, labels, empty, goal_state):
             print("State {}: Num starts = {}, Num Rewards = {}, likelihood = {}.".format(states[state_idx],
                   num_starts_from_idx[state_idx], num_rewards_from_starting_idx[state_idx], reward_likelihood))
 
-    return reward_likelihood
+    return reward_likelihood, reward_count
 
 def printStateHistories(run_histories, states):
     num_episodes = run_histories.shape[0]

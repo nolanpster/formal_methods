@@ -294,8 +294,8 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     inferred_policy = [initial_policy_guess]
     recorded_inferred_policy_L1_norms = [L1_norm_of_initial_policy_guess]
     inferred_policy_variance = [np.sum(np.ones(infer_mdp.theta.size))]
-    known_theta_indices = []
-    reward_fractions = []
+    reward_counts = []
+    bonus_reward_mags = []
 
     theta_std_dev_min = 0.4
 
@@ -330,38 +330,14 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                 observed_action_probs[hist_idx, t_step] = arena_mdp.P(prev_state, robot_act, env_act, this_state)
 
         if robot_goal_states is not None:
-            reward_frac = DataHelper.printHistoryAnalysis(run_histories[:hist_idx + 1], arena_mdp.states, arena_mdp.L, None,
-                                                          robot_goal_states)
-            reward_fractions.append(reward_frac)
+            reward_frac, reward_count = DataHelper.printHistoryAnalysis(run_histories[:hist_idx + 1], arena_mdp.states,
+                                                                        arena_mdp.L, None, robot_goal_states)
+            reward_counts.append(reward_count)
 
         DataHelper.printStateHistories(run_histories[:hist_idx + 1], arena_mdp.observable_states)
         nominal_log_prob_data = np.log(observed_action_probs[:hist_idx + 1, 1:]).sum()
 
         ### Infer ###
-        #max_additional_known_thetas_per_rollout = 1
-        #thetas_added_to_known = 0
-        #if batch > 0 and False:
-        #    theta_std_dev_0 = np.zeros(infer_mdp.theta_std_dev.shape)
-        #    # Randomly shuffle the std-dev's (paired with their true index) so that we add a random sampling of the
-        #    # std-devs with minimum variance to the list of known thetas.
-        #    std_dev_and_idx_pairs = zip(enumerate(infer_mdp.theta_std_dev))
-        #    random.shuffle(std_dev_and_idx_pairs)
-        #    for pair in std_dev_and_idx_pairs:
-        #        std_dev_idx = pair[0][0]
-        #        std_dev = pair[0][1]
-        #        if std_dev_idx in known_theta_indices:
-        #            theta_std_dev_0[std_dev_idx] = theta_std_dev_min
-        #        elif std_dev <= theta_std_dev_min and thetas_added_to_known < max_additional_known_thetas_per_rollout:
-        #            theta_std_dev_0[std_dev_idx] = theta_std_dev_min
-        #            thetas_added_to_known += 1
-        #            known_theta_indices.append(std_dev_idx)
-        #        else:
-        #            theta_std_dev_0[std_dev_idx] = 1.0
-        #    print "Number of Std-devs initialized >= 1 is {}.".format(np.sum(theta_std_dev_0 > theta_std_dev_min))
-        #else:
-        #    if batch > 0 and False:
-        #        theta_std_dev_0 = None
-        #    else:
         theta_std_dev_0 = infer_mdp.theta_std_dev
 
         # Since the gradient variance is proportional to the size of the demonstration, we'll set the gradient ascent
@@ -372,14 +348,14 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         else:
             eps = 0.1 / (hist_idx + 1)
         theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories[:hist_idx + 1],
-                                          do_print=False, theta_std_dev_0=theta_std_dev_0, theta_0=infer_mdp.theta,
-                                          reference_policy_vec=true_env_policy_vec, monte_carlo_size=num_theta_samples,
-                                          print_iterations=False, eps=eps, velocity_memory=0.2,
-                                          theta_std_dev_min=theta_std_dev_min, theta_std_dev_max=np.inf,
-                                          nominal_log_prob_data=nominal_log_prob_data, moving_avg_min_slope=0.001,
-                                          moving_average_buffer_length=60, do_plot=False,
+                                          do_print=False, theta_std_dev_0=infer_mdp.theta_std_dev,
+                                          theta_0=infer_mdp.theta, reference_policy_vec=true_env_policy_vec,
+                                          monte_carlo_size=num_theta_samples, print_iterations=False, eps=eps,
+                                          velocity_memory=0.2, theta_std_dev_min=theta_std_dev_min,
+                                          theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
+                                          moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
                                           precomputed_observed_action_indices=observed_action_indices[:hist_idx + 1],
-                                          min_uncertainty=0.4)
+                                          min_uncertainty=0.8)
 
         # Print Inference error
         # Check getPolicyAsVec for this MDP!
@@ -393,6 +369,13 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
             # Go through and pop keys from policy_uncertainty into a dict built from policy_keys_to_print.
             bonus_reward_dict = makeBonusReward(infer_mdp.policy_uncertainty)
             arena_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict, act_cost=act_cost)
+            bonus_reward_vec = arena_mdp.getPolicyAsVec(policy_keys_to_use=bonus_reward_dict.keys(),
+                                                        policy_to_convert=bonus_reward_dict,
+                                                        action_list=env_action_list)
+            bonus_reward_mag = np.sum(bonus_reward_vec)
+        else:
+            bonus_reward_mag = 0
+        bonus_reward_mags.append(bonus_reward_mag)
         # Need to reset the policy to something _very_ sub-optimal for EM.
         arena_mdp.makeUniformPolicy()
         arena_mdp.solve(do_print=False, method='expectationMaximization', print_iterations=False,
@@ -400,7 +383,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         batch_stop_time = time.time()
         print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
 
-    return recorded_inferred_policy_L1_norms, reward_fractions, inferred_policy_variance
+    return recorded_inferred_policy_L1_norms, reward_counts, inferred_policy_variance, bonus_reward_mags
 
 def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories_per_batch=100, num_steps_per_traj=15,
                             inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
@@ -510,7 +493,7 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
     return recorded_inferred_policy_L1_norms, inferred_policy_variance
 
 def makeBonusReward(policy_uncertainty_dict):
-    exploration_weight = 0.5
+    exploration_weight = 0.2
     bonus_reward_dict = dict.fromkeys(policy_uncertainty_dict)
     for state in policy_uncertainty_dict:
         bonus_reward_dict[state] = {}

@@ -79,11 +79,11 @@ for state in states:
         env_labels[state] = red
 
 # Numpy Data type to use for transition probability matrices (affects speed / precision)
-prob_dtype = np.float32
+prob_dtype = np.float64
 
 # Numpy Data type to use for policy inference calculations (affects speed / precision). Less than 32 bits can result in
 # 'NaN' values.
-infer_dtype = np.float32
+infer_dtype = np.float64
 
 # Action options.
 action_list = ['Empty', 'North', 'South', 'East', 'West']
@@ -98,8 +98,8 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'multi_agent_mdps_180413_1133'
-act_cost = -0.1
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180423_1611'
+act_cost =  0.0
 
 
 # Geodesic Gaussian Kernel centers
@@ -114,12 +114,12 @@ ggk_mobile_indices = [num_kernels_in_set-1]
 # Gaussian Theta params
 use_active_inference = True
 num_theta_samples = 1000
-inference_temp = 0.9
+inference_temp = 0.5
 
 # Batch configurations
 num_batches = 10
-traj_count_per_batch = 5
-traj_length = 20
+traj_count_per_batch = 2
+traj_length = 10
 num_experiment_trials = 10
 ########################################################################################################################
 # Create / Load Multi Agent MDP
@@ -179,8 +179,9 @@ initial_guess_of_env_policy = deepcopy(demo_mdp.infer_env_mdp.policy)
 # Run Batch Inference
 ########################################################################################################################
 policy_L1_norm_sets = []
-reward_fraction_sets = []
+reward_count_sets = []
 parameter_variances = []
+bonus_reward_mags = []
 
 for trial in range(num_experiment_trials):
     print '\n'
@@ -193,14 +194,17 @@ for trial in range(num_experiment_trials):
     demo_mdp.infer_env_mdp.policy = deepcopy(initial_guess_of_env_policy)
 
     # Hand over data to experiment-runner.
-    policy_L1_norms, reward_fractions, parameter_variance = ExperimentConfigs.rolloutInferSolve(demo_mdp, robot_idx,
-            env_idx, num_batches=num_batches, num_trajectories_per_batch=traj_count_per_batch,
-            num_steps_per_traj=traj_length, inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
-            num_theta_samples=num_theta_samples, robot_goal_states=robot_goal_states, act_cost=act_cost,
-            use_active_inference=use_active_inference)
+    policy_L1_norms, reward_counts, parameter_variance, bonus_reward_mag = \
+        ExperimentConfigs.rolloutInferSolve(demo_mdp, robot_idx, env_idx, num_batches=num_batches,
+                                            num_trajectories_per_batch=traj_count_per_batch,
+                                            num_steps_per_traj=traj_length,
+                                            inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
+                                            num_theta_samples=num_theta_samples, robot_goal_states=robot_goal_states,
+                                            act_cost=act_cost, use_active_inference=use_active_inference)
     policy_L1_norm_sets.append(policy_L1_norms)
-    reward_fraction_sets.append(reward_fractions)
+    reward_count_sets.append(reward_counts)
     parameter_variances.append(parameter_variance)
+    bonus_reward_mags.append(bonus_reward_mag)
 
 #Probably save the arrays? Figure out how to get passive and active on same plot.
 
@@ -208,18 +212,21 @@ for trial in range(num_experiment_trials):
 policy_L1_norms_mat = np.stack(policy_L1_norm_sets, axis=1)
 policy_L1_norms_mat /= 2
 policy_L1_norms_mat /= demo_mdp.num_states
-reward_fraction_mat = np.stack(reward_fraction_sets, axis=1)
+reward_count_mat = np.stack(reward_count_sets, axis=1)
 parameter_variance_mat = np.stack(parameter_variances, axis=1)
+bonus_reward_mat = np.stack(bonus_reward_mags, axis=1)
 
 # Save data for plotting later
 if use_active_inference:
     generated_data = {'active_inference_L1_norms': policy_L1_norms_mat,
-                      'active_inference_fraction_of_trajs_reacing_goal': reward_fraction_mat,
-                      'active_inference_parameter_variance': parameter_variances}
+                      'active_inference_count_of_trajs_reacing_goal': reward_count_mat,
+                      'active_inference_parameter_variance': parameter_variance_mat,
+                      'active_inference_bonus_reward': bonus_reward_mat}
 else:
     generated_data = {'passive_inference_L1_norms': policy_L1_norms_mat,
-                      'passive_inference_fraction_of_trajs_reacing_goal': reward_fraction_mat,
-                      'passive_inference_parameter_variance': parameter_variances}
+                      'passive_inference_count_of_trajs_reacing_goal': reward_count_mat,
+                      'passive_inference_parameter_variance': parameter_variance_mat,
+                      'passive_inference_bonus_reward': bonus_reward_mat}
 
 
 inference_type_str = 'active' if use_active_inference else 'passive'
@@ -232,12 +239,16 @@ PlotHelper.plotValueVsBatch(policy_L1_norms_mat,
     '{} Fractional L1 Norm Inference Error'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
     xlabel='Batch', also_plot_stats=True, save_figures=False)
 
-PlotHelper.plotValueVsBatch(reward_fraction_mat,
-    '{} Fraction of Trajectories Earning Rewards'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
+PlotHelper.plotValueVsBatch(reward_count_mat,
+    '{} Total Trajectories Earning Rewards'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
     xlabel='Batch', also_plot_stats=True, save_figures=False)
 
 PlotHelper.plotValueVsBatch(parameter_variance_mat,
     '{} Total Parameter Variance'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
     xlabel='Batch', also_plot_stats=True, save_figures=False)
+
+if use_active_inference:
+    PlotHelper.plotValueVsBatch(bonus_reward_mat, 'Available Bonus Reward', ylabel=None, xlabel='Batch',
+                                also_plot_stats=True, save_figures=False)
 
 plt.show()
