@@ -301,7 +301,9 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
 
     # Preallocate an array to hold trajectory rollouts, a.k.a demonstrations/histories.
     run_histories = np.zeros([num_trajectories_per_batch * num_batches, num_steps_per_traj], dtype=hist_dtype)
-    observed_action_indices = np.empty([num_trajectories_per_batch * num_batches, num_steps_per_traj], dtype=observation_dtype)
+    executed_robot_actions = np.zeros([num_trajectories_per_batch * num_batches, num_steps_per_traj], dtype=hist_dtype)
+    observed_action_indices = np.empty([num_trajectories_per_batch * num_batches, num_steps_per_traj],
+                                       dtype=observation_dtype)
     observed_action_probs = np.empty([num_trajectories_per_batch * num_batches, num_steps_per_traj], dtype=infer_dtype)
 
     for batch in range(num_batches):
@@ -309,10 +311,6 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         batch_idx = batch * num_trajectories_per_batch
 
         ## Roll Out ###
-        run_histories = np.zeros([num_trajectories_per_batch, num_steps_per_traj], dtype=hist_dtype)
-        executed_robot_actions = np.zeros([num_trajectories_per_batch, num_steps_per_traj], dtype=hist_dtype)
-        observed_action_indices = np.empty([num_trajectories_per_batch, num_steps_per_traj], dtype=observation_dtype)
-        observed_action_probs = np.empty([num_trajectories_per_batch, num_steps_per_traj], dtype=infer_dtype)
         for episode in xrange(num_trajectories_per_batch):
             # Create time-history for this episode.
             hist_idx = (batch_idx) + episode
@@ -332,11 +330,11 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                 observed_action_probs[hist_idx, t_step] = arena_mdp.P(prev_state, robot_act, env_act, this_state)
 
         if robot_goal_states is not None:
-            reward_frac = DataHelper.printHistoryAnalysis(run_histories, arena_mdp.states, arena_mdp.L, None,
+            reward_frac = DataHelper.printHistoryAnalysis(run_histories[:hist_idx + 1], arena_mdp.states, arena_mdp.L, None,
                                                           robot_goal_states)
             reward_fractions.append(reward_frac)
 
-        DataHelper.printStateHistories(run_histories[:hist_idx + 1], env_mdp.observable_states)
+        DataHelper.printStateHistories(run_histories[:hist_idx + 1], arena_mdp.observable_states)
         nominal_log_prob_data = np.log(observed_action_probs[:hist_idx + 1, 1:]).sum()
 
         ### Infer ###
@@ -390,8 +388,6 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         print('L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
         recorded_inferred_policy_L1_norms.append(inferred_policy_L1_norm_error)
         inferred_policy_variance.append(np.sum(np.power(infer_mdp.theta_std_dev, 2)))
-        std_devs_above_min = [idx for idx, std_dev in enumerate(infer_mdp.theta_std_dev) if std_dev > theta_std_dev_min]
-        print 'Theta\'s with std-devs above min value {}.'.format(std_devs_above_min)
 
         if use_active_inference:
             # Go through and pop keys from policy_uncertainty into a dict built from policy_keys_to_print.

@@ -184,7 +184,7 @@ parameter_variances = []
 
 for trial in range(num_experiment_trials):
     print '\n'
-    print 'Starting Trial {} of {}.'.format(trial, num_experiment_trials)
+    print 'Starting Trial {} of {}.'.format(trial + 1, num_experiment_trials)
     print '\n'
 
     # Everytime we start a new batch ensure that the Robot starts with the same initial policy, and that it starts with 
@@ -228,11 +228,13 @@ file_name_prefix = 'two_stage_{}_stats_{}_trials{}_batches_{}_trajs_{}_stepsPerT
 
 DataHelper.pickleInferenceStatistics(generated_data, file_name_prefix)
 
-PlotHelper.plotValueVsBatch(policy_L1_norms_mat, 'Fractional L1 Norm Inference Error', ylabel=None, xlabel='Batch',
-                            also_plot_stats=True, save_figures=False)
+PlotHelper.plotValueVsBatch(policy_L1_norms_mat,
+    '{} Fractional L1 Norm Inference Error'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
+    xlabel='Batch', also_plot_stats=True, save_figures=False)
 
-PlotHelper.plotValueVsBatch(reward_fraction_mat, 'Fraction of Trajectories Earning Rewards', ylabel=None,
-                            xlabel='Batch', also_plot_stats=True, save_figures=False)
+PlotHelper.plotValueVsBatch(reward_fraction_mat,
+    '{} Fraction of Trajectories Earning Rewards'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
+    xlabel='Batch', also_plot_stats=True, save_figures=False)
 
 PlotHelper.plotValueVsBatch(parameter_variance_mat,
     '{} Total Parameter Variance'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
