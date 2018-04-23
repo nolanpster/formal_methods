@@ -106,8 +106,8 @@ inference_temp = 0.5
 
 # Batch configurations
 num_batches = 20
-traj_count_per_batch = 2
-traj_length = 4
+traj_count_per_batch = 10
+traj_length = 6
 num_experiment_trials = 50
 ########################################################################################################################
 # Create / Load Multi Agent MDP

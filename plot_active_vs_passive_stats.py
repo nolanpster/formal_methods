@@ -25,9 +25,9 @@ passive_inference_file = \
 'two_stage_passive_stats_10_trials10_batches_5_trajs_20_stepsPerTraj_Inference_Stats_180413_1543'
 # Single agent interactive learning?
 multi_agent = False
-active_inference_file = 'two_stage_active_stats_50_trials20_batches_2_trajs_4_stepsPerTraj_Inference_Stats_180423_1530'
+active_inference_file = 'two_stage_active_stats_50_trials20_batches_10_trajs_6_stepsPerTraj_Inference_Stats_180423_1549'
 passive_inference_file = \
-'two_stage_passive_stats_50_trials20_batches_2_trajs_4_stepsPerTraj_Inference_Stats_180423_1530'
+'two_stage_passive_stats_50_trials20_batches_10_trajs_6_stepsPerTraj_Inference_Stats_180423_1548'
 aggregate_file = None
 
 
