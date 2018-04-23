@@ -363,10 +363,10 @@ def plotValueStatsVsBatch(val_array_1, title='L1-Norm', ylabel='Fraction of Max'
         plt.fill_between(batch_count, y1=val_1_quant75, y2=val_1_quant25, color=color_1, alpha=transparency,
                          linestyle='--')
         val_2_quant25, val_2_quant75 = np.percentile(val_array_2, [25, 75], axis=1)
-        plt.fill_between(batch_count, y1=val_2_quant75, y2=val_2_quant25, color=color_1, alpha=transparency,
+        plt.fill_between(batch_count, y1=val_2_quant75, y2=val_2_quant25, color=color_2, alpha=transparency,
                          linestyle='--')
 
-        # Hack for legend of min/max region
+        # Hack for legend of region
         plt.plot([], [], linewidth=10, color=color_1, alpha=transparency, label=data_label_1 + " 25%-75%")
         plt.plot([], [], linewidth=10, color=color_2, alpha=transparency, label=data_label_2 + " 25%-75%")
 
@@ -377,9 +377,9 @@ def plotValueStatsVsBatch(val_array_1, title='L1-Norm', ylabel='Fraction of Max'
             this_transparency = transparency
 
         plt.fill_between(batch_count, y1=np.max(val_array_1, axis=1), y2=np.min(val_array_1, axis=1), color=color_1,
-                         alpha=this_transparency,  linestyle=':')
+                         alpha=this_transparency, linestyle=':')
         plt.fill_between(batch_count, y1=np.max(val_array_2, axis=1), y2=np.min(val_array_2, axis=1), color=color_2,
-                         alpha=this_transparency, label=data_label_2 + " Min/Max", linestyle=':')
+                         alpha=this_transparency, linestyle=':')
 
         # Hack for legend of min/max region
         plt.plot([], [], linewidth=10, color=color_1, alpha=this_transparency, label=data_label_1 + " Min/Max")
