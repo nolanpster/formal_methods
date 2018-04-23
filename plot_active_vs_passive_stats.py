@@ -23,6 +23,11 @@ import pdb
 active_inference_file = 'two_stage_active_stats_10_trials10_batches_5_trajs_20_stepsPerTraj_Inference_Stats_180413_1621'
 passive_inference_file = \
 'two_stage_passive_stats_10_trials10_batches_5_trajs_20_stepsPerTraj_Inference_Stats_180413_1543'
+# Single agent interactive learning?
+multi_agent = False
+active_inference_file = 'two_stage_active_stats_50_trials20_batches_2_trajs_4_stepsPerTraj_Inference_Stats_180423_1453'
+passive_inference_file = \
+'two_stage_passive_stats_50_trials20_batches_2_trajs_4_stepsPerTraj_Inference_Stats_180423_1453'
 aggregate_file = None
 
 

@@ -86,7 +86,7 @@ act_prob = ExperimentConfigs.getActionProbabilityDictionary(prob_dtype)
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'robot_mdps_180421_1219'
+pickled_mdp_file_to_load  = 'robot_mdps_180423_1248'
 act_cost = 0.0
 
 
@@ -107,8 +107,8 @@ inference_temp = 0.5
 # Batch configurations
 num_batches = 20
 traj_count_per_batch = 2
-traj_length = 6
-num_experiment_trials = 10
+traj_length = 4
+num_experiment_trials = 50
 ########################################################################################################################
 # Create / Load Multi Agent MDP
 #
