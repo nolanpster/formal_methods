@@ -297,75 +297,91 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     known_theta_indices = []
     reward_fractions = []
 
-    theta_std_dev_min = 0.5
+    theta_std_dev_min = 0.4
+
+    # Preallocate an array to hold trajectory rollouts, a.k.a demonstrations/histories.
+    run_histories = np.zeros([num_trajectories_per_batch * num_batches, num_steps_per_traj], dtype=hist_dtype)
+    observed_action_indices = np.empty([num_trajectories_per_batch * num_batches, num_steps_per_traj], dtype=observation_dtype)
+    observed_action_probs = np.empty([num_trajectories_per_batch * num_batches, num_steps_per_traj], dtype=infer_dtype)
 
     for batch in range(num_batches):
         batch_start_time = time.time()
-        ### Roll Out ###
+        batch_idx = batch * num_trajectories_per_batch
+
+        ## Roll Out ###
         run_histories = np.zeros([num_trajectories_per_batch, num_steps_per_traj], dtype=hist_dtype)
         executed_robot_actions = np.zeros([num_trajectories_per_batch, num_steps_per_traj], dtype=hist_dtype)
         observed_action_indices = np.empty([num_trajectories_per_batch, num_steps_per_traj], dtype=observation_dtype)
         observed_action_probs = np.empty([num_trajectories_per_batch, num_steps_per_traj], dtype=infer_dtype)
         for episode in xrange(num_trajectories_per_batch):
             # Create time-history for this episode.
-            _, run_histories[episode, 0] = arena_mdp.resetState()
+            hist_idx = (batch_idx) + episode
+            _, run_histories[hist_idx, 0] = arena_mdp.resetState()
             for t_step in xrange(1, num_steps_per_traj):
                 # Take step
-                _, run_histories[episode, t_step], executed_robot_action = arena_mdp.step()
-                executed_robot_actions[episode, t_step] = robot_action_list.index(executed_robot_action)
+                _, run_histories[hist_idx, t_step], executed_robot_action = arena_mdp.step()
+                executed_robot_actions[hist_idx, t_step] = robot_action_list.index(executed_robot_action)
                 # Record observed action.
-                prev_state_idx = run_histories[episode, t_step-1]
+                prev_state_idx = run_histories[hist_idx, t_step-1]
                 prev_state = arena_mdp.observable_states[prev_state_idx]
-                this_state_idx = run_histories[episode, t_step]
+                this_state_idx = run_histories[hist_idx, t_step]
                 this_state = arena_mdp.observable_states[this_state_idx]
-                observed_action_indices[episode, t_step] = infer_mdp.graph.getObservedAction(prev_state, this_state)
-                robot_act = robot_action_list[executed_robot_actions[episode, t_step]]
-                env_act = env_action_list[observed_action_indices[episode, t_step]]
-                observed_action_probs[episode, t_step] = arena_mdp.P(prev_state, robot_act, env_act, this_state)
+                observed_action_indices[hist_idx, t_step] = infer_mdp.graph.getObservedAction(prev_state, this_state)
+                robot_act = robot_action_list[executed_robot_actions[hist_idx, t_step]]
+                env_act = env_action_list[observed_action_indices[hist_idx, t_step]]
+                observed_action_probs[hist_idx, t_step] = arena_mdp.P(prev_state, robot_act, env_act, this_state)
 
         if robot_goal_states is not None:
             reward_frac = DataHelper.printHistoryAnalysis(run_histories, arena_mdp.states, arena_mdp.L, None,
                                                           robot_goal_states)
             reward_fractions.append(reward_frac)
 
-        nominal_log_prob_data = np.log(observed_action_probs[:, 1:]).sum()
+        DataHelper.printStateHistories(run_histories[:hist_idx + 1], env_mdp.observable_states)
+        nominal_log_prob_data = np.log(observed_action_probs[:hist_idx + 1, 1:]).sum()
 
         ### Infer ###
-        max_additional_known_thetas_per_rollout = 1
-        thetas_added_to_known = 0
-        if batch > 0 and False:
-            theta_std_dev_0 = np.zeros(infer_mdp.theta_std_dev.shape)
-            # Randomly shuffle the std-dev's (paired with their true index) so that we add a random sampling of the
-            # std-devs with minimum variance to the list of known thetas.
-            std_dev_and_idx_pairs = zip(enumerate(infer_mdp.theta_std_dev))
-            random.shuffle(std_dev_and_idx_pairs)
-            for pair in std_dev_and_idx_pairs:
-                std_dev_idx = pair[0][0]
-                std_dev = pair[0][1]
-                if std_dev_idx in known_theta_indices:
-                    theta_std_dev_0[std_dev_idx] = theta_std_dev_min
-                elif std_dev <= theta_std_dev_min and thetas_added_to_known < max_additional_known_thetas_per_rollout:
-                    theta_std_dev_0[std_dev_idx] = theta_std_dev_min
-                    thetas_added_to_known += 1
-                    known_theta_indices.append(std_dev_idx)
-                else:
-                    theta_std_dev_0[std_dev_idx] = 1.0
-            print "Number of Std-devs initialized >= 1 is {}.".format(np.sum(theta_std_dev_0 > theta_std_dev_min))
-        else:
-            if batch > 0 and False:
-                theta_std_dev_0 = None
-            else:
-                theta_std_dev_0 = infer_mdp.theta_std_dev
+        #max_additional_known_thetas_per_rollout = 1
+        #thetas_added_to_known = 0
+        #if batch > 0 and False:
+        #    theta_std_dev_0 = np.zeros(infer_mdp.theta_std_dev.shape)
+        #    # Randomly shuffle the std-dev's (paired with their true index) so that we add a random sampling of the
+        #    # std-devs with minimum variance to the list of known thetas.
+        #    std_dev_and_idx_pairs = zip(enumerate(infer_mdp.theta_std_dev))
+        #    random.shuffle(std_dev_and_idx_pairs)
+        #    for pair in std_dev_and_idx_pairs:
+        #        std_dev_idx = pair[0][0]
+        #        std_dev = pair[0][1]
+        #        if std_dev_idx in known_theta_indices:
+        #            theta_std_dev_0[std_dev_idx] = theta_std_dev_min
+        #        elif std_dev <= theta_std_dev_min and thetas_added_to_known < max_additional_known_thetas_per_rollout:
+        #            theta_std_dev_0[std_dev_idx] = theta_std_dev_min
+        #            thetas_added_to_known += 1
+        #            known_theta_indices.append(std_dev_idx)
+        #        else:
+        #            theta_std_dev_0[std_dev_idx] = 1.0
+        #    print "Number of Std-devs initialized >= 1 is {}.".format(np.sum(theta_std_dev_0 > theta_std_dev_min))
+        #else:
+        #    if batch > 0 and False:
+        #        theta_std_dev_0 = None
+        #    else:
+        theta_std_dev_0 = infer_mdp.theta_std_dev
 
-        theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
-                                          theta_std_dev_0=theta_std_dev_0, theta_0=infer_mdp.theta,
-                                          reference_policy_vec=true_env_policy_vec,
-                                          monte_carlo_size=num_theta_samples,
-                                          print_iterations=False, eps=0.01, velocity_memory=0.2,
+        # Since the gradient variance is proportional to the size of the demonstration, we'll set the gradient ascent
+        # step size to be inversly proportional to the negative of the log-probablilty of the observed data given the
+        # MAP estimate of the observed action outcomes.
+        if nominal_log_prob_data != 0.0:
+            eps = 0.1 / (-nominal_log_prob_data)
+        else:
+            eps = 0.1 / (hist_idx + 1)
+        theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories[:hist_idx + 1],
+                                          do_print=False, theta_std_dev_0=theta_std_dev_0, theta_0=infer_mdp.theta,
+                                          reference_policy_vec=true_env_policy_vec, monte_carlo_size=num_theta_samples,
+                                          print_iterations=False, eps=eps, velocity_memory=0.2,
                                           theta_std_dev_min=theta_std_dev_min, theta_std_dev_max=np.inf,
                                           nominal_log_prob_data=nominal_log_prob_data, moving_avg_min_slope=0.001,
-                                          moving_average_buffer_length=60, do_plot=True,
-                                          precomputed_observed_action_indices=observed_action_indices)
+                                          moving_average_buffer_length=60, do_plot=False,
+                                          precomputed_observed_action_indices=observed_action_indices[:hist_idx + 1],
+                                          min_uncertainty=0.4)
 
         # Print Inference error
         # Check getPolicyAsVec for this MDP!
