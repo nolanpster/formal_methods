@@ -180,6 +180,7 @@ initial_guess_of_env_policy = deepcopy(demo_mdp.infer_env_mdp.policy)
 ########################################################################################################################
 policy_L1_norm_sets = []
 reward_fraction_sets = []
+parameter_variances = []
 
 for trial in range(num_experiment_trials):
     print '\n'
@@ -192,13 +193,14 @@ for trial in range(num_experiment_trials):
     demo_mdp.infer_env_mdp.policy = deepcopy(initial_guess_of_env_policy)
 
     # Hand over data to experiment-runner.
-    policy_L1_norms, reward_fractions = ExperimentConfigs.rolloutInferSolve(demo_mdp, robot_idx, env_idx,
-            num_batches=num_batches, num_trajectories_per_batch=traj_count_per_batch, num_steps_per_traj=traj_length,
-            inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
+    policy_L1_norms, reward_fractions, parameter_variance = ExperimentConfigs.rolloutInferSolve(demo_mdp, robot_idx,
+            env_idx, num_batches=num_batches, num_trajectories_per_batch=traj_count_per_batch,
+            num_steps_per_traj=traj_length, inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
             num_theta_samples=num_theta_samples, robot_goal_states=robot_goal_states, act_cost=act_cost,
             use_active_inference=use_active_inference)
     policy_L1_norm_sets.append(policy_L1_norms)
     reward_fraction_sets.append(reward_fractions)
+    parameter_variances.append(parameter_variance)
 
 #Probably save the arrays? Figure out how to get passive and active on same plot.
 
@@ -207,14 +209,17 @@ policy_L1_norms_mat = np.stack(policy_L1_norm_sets, axis=1)
 policy_L1_norms_mat /= 2
 policy_L1_norms_mat /= demo_mdp.num_states
 reward_fraction_mat = np.stack(reward_fraction_sets, axis=1)
+parameter_variance_mat = np.stack(parameter_variances, axis=1)
 
 # Save data for plotting later
 if use_active_inference:
     generated_data = {'active_inference_L1_norms': policy_L1_norms_mat,
-                      'active_inference_fraction_of_trajs_reacing_goal': reward_fraction_mat}
+                      'active_inference_fraction_of_trajs_reacing_goal': reward_fraction_mat,
+                      'active_inference_parameter_variance': parameter_variances}
 else:
     generated_data = {'passive_inference_L1_norms': policy_L1_norms_mat,
-                      'passive_inference_fraction_of_trajs_reacing_goal': reward_fraction_mat}
+                      'passive_inference_fraction_of_trajs_reacing_goal': reward_fraction_mat,
+                      'passive_inference_parameter_variance': parameter_variances}
 
 
 inference_type_str = 'active' if use_active_inference else 'passive'
@@ -228,5 +233,9 @@ PlotHelper.plotValueVsBatch(policy_L1_norms_mat, 'Fractional L1 Norm Inference E
 
 PlotHelper.plotValueVsBatch(reward_fraction_mat, 'Fraction of Trajectories Earning Rewards', ylabel=None,
                             xlabel='Batch', also_plot_stats=True, save_figures=False)
+
+PlotHelper.plotValueVsBatch(parameter_variance_mat,
+    '{} Total Parameter Variance'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
+    xlabel='Batch', also_plot_stats=True, save_figures=False)
 
 plt.show()

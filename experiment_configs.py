@@ -293,7 +293,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     L1_norm_of_initial_policy_guess = MDP.getPolicyL1Norm(true_env_policy_vec, initial_policy_guess)
     inferred_policy = [initial_policy_guess]
     recorded_inferred_policy_L1_norms = [L1_norm_of_initial_policy_guess]
-    inferred_policy_variance = [np.ones(infer_mdp.theta.size)]
+    inferred_policy_variance = [np.sum(np.ones(infer_mdp.theta.size))]
     known_theta_indices = []
     reward_fractions = []
 
@@ -373,7 +373,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch, inferred_policy_L1_norm_error))
         print('L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
         recorded_inferred_policy_L1_norms.append(inferred_policy_L1_norm_error)
-        inferred_policy_variance.append(infer_mdp.theta_std_dev)
+        inferred_policy_variance.append(np.sum(np.power(infer_mdp.theta_std_dev, 2)))
         std_devs_above_min = [idx for idx, std_dev in enumerate(infer_mdp.theta_std_dev) if std_dev > theta_std_dev_min]
         print 'Theta\'s with std-devs above min value {}.'.format(std_devs_above_min)
 
@@ -388,7 +388,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         batch_stop_time = time.time()
         print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
 
-    return recorded_inferred_policy_L1_norms, reward_fractions
+    return recorded_inferred_policy_L1_norms, reward_fractions, inferred_policy_variance
 
 def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories_per_batch=100, num_steps_per_traj=15,
                             inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
