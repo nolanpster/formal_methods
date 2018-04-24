@@ -390,7 +390,7 @@ def plotValueStatsVsBatch(val_array_1, title='L1-Norm', ylabel='Fraction of Max'
     plt.xlabel(xlabel)
     ax.set_xticks(batch_count)
     plt.xlim(xmax=num_batches)
-    plt.legend()
+    plt.legend(loc='best')
     fig.tight_layout()
 
 def plotValueVsBatch(val_array, title, ylabel, xlabel='Batch', also_plot_stats=False, stats_label='',
