@@ -45,7 +45,7 @@ class MDP_solvers(object):
         # Follows procedure in section 7.4 of Jay Taylor's notes: 'Markov
         # Decision Processes: Lecture Notes for STP 425'.
         iter_count = 0 # Iteration counter
-        epsilon = 0.1 # Stopping threshold
+        epsilon = 0.01 # Stopping threshold
         # Initialize decision of each state to none.
         empty_policy_dist = {act:0 for act in self.mdp.executable_action_dict[self.mdp.controllable_agent_idx]}
         policy = {state: empty_policy_dist.copy() for state in self.mdp.states}

@@ -262,7 +262,8 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
 
 def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_trajectories_per_batch=100,
                       num_steps_per_traj=15, inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
-                      num_theta_samples=1000, robot_goal_states=None, act_cost=0.0, use_active_inference=True):
+                      num_theta_samples=1000, robot_goal_states=None, act_cost=0.0, use_active_inference=True,
+                      true_optimal_VI_policy=None):
 
     print "Using {} inference.".format("active" if use_active_inference else "passive")
 
@@ -296,6 +297,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     inferred_policy_variance = [np.sum(np.ones(infer_mdp.theta.size))]
     reward_counts = []
     bonus_reward_mags = []
+    robot_policy_err_to_opt = [MDP.getPolicyL1Norm(true_optimal_VI_policy, arena_mdp.getPolicyAsVec())]
 
     theta_std_dev_min = 0.4
 
@@ -380,10 +382,12 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         arena_mdp.makeUniformPolicy()
         arena_mdp.solve(do_print=False, method='expectationMaximization', print_iterations=False,
                         horizon_length=15, num_iters=100, do_incremental_e_step=True)
+        robot_policy_err_to_opt.append(MDP.getPolicyL1Norm(true_optimal_VI_policy, arena_mdp.getPolicyAsVec()))
         batch_stop_time = time.time()
         print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
 
-    return recorded_inferred_policy_L1_norms, reward_counts, inferred_policy_variance, bonus_reward_mags
+    return (recorded_inferred_policy_L1_norms, reward_counts, inferred_policy_variance, bonus_reward_mags,
+            robot_policy_err_to_opt)
 
 def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories_per_batch=100, num_steps_per_traj=15,
                             inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,

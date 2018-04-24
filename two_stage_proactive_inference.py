@@ -101,6 +101,7 @@ make_new_mdp = False
 pickled_mdp_file_to_load  = 'multi_agent_mdps_180423_1611'
 act_cost =  0.0
 
+true_optimal_policies_to_load = 'true_optimal_policies_em_15H_100N_Inference_Stats_180423_2008'
 
 # Geodesic Gaussian Kernel centers
 gg_kernel_centers = range(0, num_cells, 1)
@@ -175,6 +176,11 @@ ExperimentConfigs.convertSingleAgentEnvPolicyToMultiAgent(demo_mdp, labels, stat
 robot_policy_0 = deepcopy(demo_mdp.policy)
 initial_guess_of_env_policy = deepcopy(demo_mdp.infer_env_mdp.policy)
 
+# Load optimal robot policy (given true env policy -- make sure this file matches with the one loaded by
+# 'convertSingleAgentEnvPolicyToMultiAgent').
+true_optimal_VI_policy, true_optimal_EM_policy, _, = \
+    DataHelper.loadPickledInferenceStatistics(true_optimal_policies_to_load)
+
 ########################################################################################################################
 # Run Batch Inference
 ########################################################################################################################
@@ -182,6 +188,7 @@ policy_L1_norm_sets = []
 reward_count_sets = []
 parameter_variances = []
 bonus_reward_mags = []
+robot_policy_L1_norm_sets = []
 
 for trial in range(num_experiment_trials):
     print '\n'
@@ -194,17 +201,19 @@ for trial in range(num_experiment_trials):
     demo_mdp.infer_env_mdp.policy = deepcopy(initial_guess_of_env_policy)
 
     # Hand over data to experiment-runner.
-    policy_L1_norms, reward_counts, parameter_variance, bonus_reward_mag = \
+    policy_L1_norms, reward_counts, parameter_variance, bonus_reward_mag, robot_policy_L1_norms = \
         ExperimentConfigs.rolloutInferSolve(demo_mdp, robot_idx, env_idx, num_batches=num_batches,
                                             num_trajectories_per_batch=traj_count_per_batch,
                                             num_steps_per_traj=traj_length,
                                             inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
                                             num_theta_samples=num_theta_samples, robot_goal_states=robot_goal_states,
-                                            act_cost=act_cost, use_active_inference=use_active_inference)
+                                            act_cost=act_cost, use_active_inference=use_active_inference,
+                                            true_optimal_VI_policy=true_optimal_VI_policy)
     policy_L1_norm_sets.append(policy_L1_norms)
     reward_count_sets.append(reward_counts)
     parameter_variances.append(parameter_variance)
     bonus_reward_mags.append(bonus_reward_mag)
+    robot_policy_L1_norm_sets.append(robot_policy_L1_norms)
 
 #Probably save the arrays? Figure out how to get passive and active on same plot.
 
@@ -215,18 +224,21 @@ policy_L1_norms_mat /= demo_mdp.num_states
 reward_count_mat = np.stack(reward_count_sets, axis=1)
 parameter_variance_mat = np.stack(parameter_variances, axis=1)
 bonus_reward_mat = np.stack(bonus_reward_mags, axis=1)
+robot_policy_L1_norm_mat = np.stack(robot_policy_L1_norm_sets, axis=1)
 
 # Save data for plotting later
 if use_active_inference:
     generated_data = {'active_inference_L1_norms': policy_L1_norms_mat,
                       'active_inference_count_of_trajs_reacing_goal': reward_count_mat,
                       'active_inference_parameter_variance': parameter_variance_mat,
-                      'active_inference_bonus_reward': bonus_reward_mat}
+                      'active_inference_bonus_reward': bonus_reward_mat,
+                      'active_inference_robot_policy_err': robot_policy_L1_norm_mat}
 else:
     generated_data = {'passive_inference_L1_norms': policy_L1_norms_mat,
                       'passive_inference_count_of_trajs_reacing_goal': reward_count_mat,
                       'passive_inference_parameter_variance': parameter_variance_mat,
-                      'passive_inference_bonus_reward': bonus_reward_mat}
+                      'passive_inference_bonus_reward': bonus_reward_mat,
+                      'passive_inference_robot_policy_err': robot_policy_L1_norm_mat}
 
 
 inference_type_str = 'active' if use_active_inference else 'passive'
@@ -245,6 +257,10 @@ PlotHelper.plotValueVsBatch(reward_count_mat,
 
 PlotHelper.plotValueVsBatch(parameter_variance_mat,
     '{} Total Parameter Variance'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
+    xlabel='Batch', also_plot_stats=True, save_figures=False)
+
+PlotHelper.plotValueVsBatch(robot_policy_L1_norm_mat,
+    '{} Robot Policy L_infty - Norm'.format('Active' if use_active_inference else 'Passive'), ylabel=None,
     xlabel='Batch', also_plot_stats=True, save_figures=False)
 
 if use_active_inference:

@@ -101,8 +101,9 @@ make_new_mdp = False
 solve_EM = False
 resolve_VI = False
 solve_after_inference = True
-pickled_mdp_file_to_load  = 'two_stage_multi_agent_mdps_180409_1715'
-act_cost = -0.1
+solve_for_true_optimal_robot_policy = True
+pickled_mdp_file_to_load  = 'multi_agent_mdps_180423_1611'
+act_cost =  0.0
 
 
 # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -198,6 +199,19 @@ if solve_EM:
     EM_error = EM_mdp.getPolicyL1Norm(VI_policy, EM_policy)
     print 'EM L1 error: {}'.format(EM_error)
     print em_stats
+
+if solve_for_true_optimal_robot_policy:
+    optimal_mdp = deepcopy(VI_mdp)
+    optimal_mdp.infer_env_mdp.policy = optimal_mdp.env_policy[env_idx]
+    optimal_mdp.solve(method='valueIteration', do_print=False, print_iterations=True)
+    optimal_VI_policy = optimal_mdp.getPolicyAsVec(policy_keys_to_use=policy_keys_to_print)
+    optimal_mdp.makeUniformPolicy()
+    optimal_mdp.solve(method='expectationMaximization', do_print=False, print_iterations=True, horizon_length=15,
+                      num_iters=100, do_incremental_e_step=True)
+    optimal_EM_policy = optimal_mdp.getPolicyAsVec(policy_keys_to_use=policy_keys_to_print)
+    policy_change = optimal_mdp.getPolicyL1Norm(optimal_VI_policy, optimal_EM_policy)
+    DataHelper.pickleInferenceStatistics([optimal_VI_policy, optimal_EM_policy], 'true_optimal_policies_em_15H_100N')
+
 ########################################################################################################################
 # Demonstrate Trajectories
 ########################################################################################################################
