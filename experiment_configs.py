@@ -357,7 +357,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                                           theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
                                           moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
                                           precomputed_observed_action_indices=observed_action_indices[:hist_idx + 1],
-                                          min_uncertainty=0.8)
+                                          min_uncertainty=1.0)
 
         # Print Inference error
         # Check getPolicyAsVec for this MDP!
