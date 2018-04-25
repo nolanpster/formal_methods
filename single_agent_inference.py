@@ -76,23 +76,23 @@ solve_with_uniform_distribution = True
 if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
     make_new_mdp = False
-    pickled_mdp_file_to_load  = 'robot_mdps_180420_1823'
+    pickled_mdp_file_to_load  = 'robot_mdps_180424_2200'
     write_mdp_policy_csv = False
 
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
     # load the @c pickled_episodes_file. If @c gather_new_data is true, use @c num_episodes and @c steps_per_episode to
     # determine how large the demonstration set should be.
-    gather_new_data = True
-    num_episodes = 10
+    gather_new_data = False
+    num_episodes = 5000
     steps_per_episode = 10
-    pickled_episodes_file_to_load = 'robot_mdps_180413_1120_HIST_500eps10steps_180413_1120'
+    pickled_episodes_file_to_load = 'robot_mdps_180424_2200_HIST_5000eps10steps_180424_2216'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
     # demonstration policy.
     perform_new_inference = True
     pickled_inference_mdps_file_to_load  = \
-        'robot_mdps_180413_1120_HIST_500eps10steps_180413_1120_Policy_180413_1120'
+        'robot_mdps_180424_2200_HIST_5000eps10steps_180424_2216_Policy_180424_2216'
     load_inference_statistics = (not perform_new_inference) & False
     pickled_inference_statistics_file_to_load  = \
         'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Inference_Stats_180221_1431'
@@ -105,10 +105,10 @@ if __name__=='__main__':
     if use_fixed_kernel_set is True:
         kernel_centers = [frozenset(range(0, num_states, 4)) | frozenset([13,14]) | frozenset([6, 18])]
         kernel_centers = [frozenset([0, 4, 12, 13, 14, 20, 24])]
-        #kernel_centers = [frozenset(range(0, num_states, 1))]
+        kernel_centers = [frozenset(range(0, num_states, 1))]
         #kernel_centers = [frozenset((0, 4, 12, 20, 24))]
         num_kernels_in_set = len(kernel_centers[0])
-        kernel_sigmas = np.array([1.5]*num_kernels_in_set, dtype=infer_dtype)
+        kernel_sigmas = np.array([1.10]*num_kernels_in_set, dtype=infer_dtype)
         batch_size_for_kernel_set = 1
     else:
         kernel_count_start = 16
@@ -119,7 +119,7 @@ if __name__=='__main__':
         batch_size_for_kernel_set = 1
 
     if inference_method is 'gradientAscentGaussianTheta':
-        num_theta_samples = 1000
+        num_theta_samples = 5000
         monte_carlo_size = num_theta_samples
     else:
         monte_carlo_size = batch_size_for_kernel_set
@@ -178,7 +178,7 @@ if __name__=='__main__':
         DataHelp.writePolicyToCSV(VI_mdp.policy, policy_keys_to_print, file_name=pickled_mdp_file+'_EM_Policy')
 
     # Choose which policy to use for demonstration.
-    mdp = EM_mdp
+    mdp = VI_mdp
     reference_policy_vec = mdp.getPolicyAsVec(policy_keys_to_print)
 
     if gather_new_data:
@@ -210,7 +210,7 @@ if __name__=='__main__':
         # between two grid-cells.
         infer_mdp = InferenceMDP(init=initial_state, action_list=action_list, states=states,
                                  act_prob=deepcopy(act_prob), grid_map=grid_map, L=labels,
-                                 gg_kernel_centers=kernel_centers[0], kernel_sigmas=kernel_sigmas, temp=1.0)
+                                 gg_kernel_centers=kernel_centers[0], kernel_sigmas=kernel_sigmas, temp=0.1)
         print 'Built InferenceMDP with kernel set:'
         print(kernel_centers[0])
         if not perform_new_inference and (plot_new_phi or plot_new_kernel):
@@ -242,7 +242,7 @@ if __name__=='__main__':
            theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,
                                              do_print=False, reference_policy_vec=reference_policy_vec,
                                              monte_carlo_size=monte_carlo_size, dtype=infer_dtype,
-                                             print_iterations=False, eps=0.01, velocity_memory=0.2,
+                                             print_iterations=True, eps=0.00001, velocity_memory=0.0,
                                              moving_avg_min_improvement=-np.inf, theta_std_dev_max=np.inf,
                                              theta_std_dev_min=0.4, moving_average_buffer_length=60,
                                              moving_avg_min_slope=0.001,
