@@ -49,7 +49,7 @@ class PlotGrid(object):
             cell_state_slicer = slice(None)
         grid_dim = grid_map.shape
         # Build the color list in order of numerical values in maze.
-        color_list = ['white', 'green']
+        color_list = ['white', 'yellow']
         if alphabet_dict['red'] in labels.values():
             # Next highest value in maze corresponds to red.
             color_list.append('red')
@@ -79,13 +79,13 @@ class PlotGrid(object):
                     grid_row, grid_col = np.where(grid_map==state[cell_state_slicer][0])
                 else:
                     grid_row, grid_col = np.where(grid_map==state[cell_state_slicer])
-                maze[grid_row, grid_col] = color_list.index('green')
+                maze[grid_row, grid_col] = color_list.index('yellow')
             elif goal_states is not None and state in goal_states:
                 if num_agents > 1:
                     grid_row, grid_col = np.where(grid_map==state[cell_state_slicer][agent_idx])
                 else:
                     grid_row, grid_col = np.where(grid_map==state[cell_state_slicer])
-                maze[grid_row, grid_col] = color_list.index('green')
+                maze[grid_row, grid_col] = color_list.index('yellow')
 
         cmap = mcolors.ListedColormap(color_list)
         return maze, cmap
@@ -101,7 +101,7 @@ class PlotGrid(object):
         self.fontsize = fontsize
 
     def configurePlot(self, title):
-        fig = plt.figure(figsize=(16.5, 13), dpi=50)
+        fig = plt.figure(figsize=(13, 13), dpi=100)
         ax = fig.add_subplot(1, 1, 1)
         self.quadmesh = ax.pcolormesh(self.x, self.y, self.maze_cells, edgecolor='k', linewidth=0.5, cmap=self.cmap)
         ax.set_title(title, fontsize=self.fontsize)
@@ -194,7 +194,7 @@ class UncertaintyPlot(PlotGrid):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, bar_height.ravel(), color='#00ceaa')
+            ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, bar_height.ravel(), color='#e2ca76')
             # Invert y-axis because we're plotting this like an image with origin in upper left corner.
             ax1.invert_yaxis()
         plt.axis('off')
@@ -220,6 +220,9 @@ class PlotPolicy(PlotGrid):
     def configurePlot(self, title, policy, action_list, use_print_keys=False, policy_keys_to_print=None, decimals=2,
                        kernel_locations=None, stay_action='Empty', do_print=False):
         fig, ax = super(self.__class__, self).configurePlot(title)
+        #cb = plt.colorbar()
+        #cb.remove()
+        #plt.draw()
         if not any(frozenset(action_list) & self.predefined_action_set):
             self.setQuivActions(action_list)
         policy = deepcopy(policy)
@@ -242,7 +245,7 @@ class PlotPolicy(PlotGrid):
         if any(stay_probs):
             df_stay = pd.DataFrame({'Prob': stay_probs, 'x': this_x_cent, 'y': this_y_cent})
             df_stay.plot(kind='scatter', x='x', y='y', s=df_stay['Prob']*self.stay_scale, c=1-df_stay['Prob'], ax=ax,
-                         cmap='gray', legend=None)
+                         cmap='gray', legend=None, colorbar=False)
         # Motion actions - plot with arrows.
         for act in action_list:
             if act==stay_action:
@@ -291,10 +294,10 @@ class PlotPolicy(PlotGrid):
 
 class PlotDemonstration(PlotGrid):
 
-    def __init__(self, maze_cells, cmap, center_offset):
-        super(self.__class__, self).__init__(maze_cells, cmap)
-        self.x_cent = self.x[:-1,:-1].ravel()+center_offset
-        self.y_cent = self.y[:-1,:-1].ravel()+center_offset
+    def __init__(self, maze_cells, cmap, y_center_offset, x_center_offset, **kwargs):
+        super(self.__class__, self).__init__(maze_cells, cmap, **kwargs)
+        self.x_cent = self.x[:-1,:-1].ravel()+x_center_offset
+        self.y_cent = self.y[:-1,:-1].ravel()+y_center_offset
 
     def configurePlot(self, title, histories, do_print=False):
 
@@ -318,7 +321,7 @@ def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set
 
     @note X-limits are automatically set and assume a constant interval between the number of kernels in each set.
     """
-    fig = plt.figure(figsize=(13.0, 5), dpi=100)
+    fig = plt.figure(figsize=(13.0, 5), dpi=400)
     ax = fig.add_subplot(1, 1, 1)
     kernel_count_min = number_of_kernels_in_set.min()
     kernel_count_max = number_of_kernels_in_set.max()
@@ -344,12 +347,11 @@ def plotPolicyErrorVsNumberOfKernels(kernel_set_L1_err, number_of_kernels_in_set
 
 def plotValueStatsVsBatch(val_array_1, title='L1-Norm', ylabel='Fraction of Max', xlabel='Batch', data_label_1='Active',
                           color_1='k', val_array_2=None, data_label_2='Passive', color_2='r', transparency=0.3,
-                          plot_quantiles=True, plot_min_max=False):
+                          plot_quantiles=True, plot_min_max=False, threshold_line=None, threshold_label=''):
 
     if val_array_2 is not None and (val_array_1.shape != val_array_2.shape):
         raise ValueError('Input data, value array 1 & value array 2, are not the same size!')
-    #fig = plt.figure(figsize=(13.0, 5), dpi=100)
-    fig = plt.figure()
+    fig = plt.figure(figsize=(6, 5), dpi=200)
     ax = fig.add_subplot(1, 1, 1)
 
     num_batches, num_trials = val_array_1.shape
@@ -385,8 +387,10 @@ def plotValueStatsVsBatch(val_array_1, title='L1-Norm', ylabel='Fraction of Max'
         plt.plot([], [], linewidth=10, color=color_1, alpha=this_transparency, label=data_label_1 + " Min/Max")
         plt.plot([], [], linewidth=10, color=color_2, alpha=this_transparency, label=data_label_2 + " Min/Max")
 
-    plt.title(title + " - {} Trials".format(num_trials))
-    plt.ylabel(ylabel)
+    if threshold_line is not None:
+        ax.axhline(y=threshold_line, color='navy', linestyle='--', linewidth=3, label=threshold_label)
+    #plt.title(title + " - {} Trials".format(num_trials))
+    plt.ylabel(ylabel, fontsize=16)
     plt.xlabel(xlabel)
     ax.set_xticks(batch_count)
     plt.xlim(xmax=num_batches)
@@ -478,7 +482,7 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
     if plot_VI_mdp_grids:
         mdp_list.append(VI_mdp)
         plot_policies.append(VI_mdp.policy)
-        titles.append('Value Iteration')
+        titles.append('')
         if include_kernels:
             kernel_locations.append(None)
         only_use_print_keys.append(True)
@@ -488,7 +492,7 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
     if plot_EM_mdp_grids:
         mdp_list.append(EM_mdp)
         plot_policies.append(EM_mdp.policy)
-        titles.append('Expectation Maximization')
+        titles.append('')
         if include_kernels:
             kernel_locations.append(None)
         only_use_print_keys.append(True)
@@ -498,7 +502,7 @@ def makePlotGroups(plot_all_grids=False, plot_VI_mdp_grids=False, plot_EM_mdp_gr
     if plot_inferred_mdp_grids:
         mdp_list.append(infer_mdp)
         plot_policies.append(infer_mdp.policy)
-        titles.append('Learned')
+        titles.append('')
         only_use_print_keys.append(False)
         if include_kernels:
             kernel_locations.append(infer_mdp.kernel_centers)

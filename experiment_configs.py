@@ -336,7 +336,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                                                                         arena_mdp.L, None, robot_goal_states)
             reward_counts.append(reward_count)
 
-        DataHelper.printStateHistories(run_histories[:hist_idx + 1], arena_mdp.observable_states)
+        #DataHelper.printStateHistories(run_histories[:hist_idx + 1], arena_mdp.observable_states)
         nominal_log_prob_data = np.log(observed_action_probs[:hist_idx + 1, 1:]).sum()
 
         ### Infer ###
@@ -416,7 +416,6 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
     inferred_policy = [initial_policy_guess]
     recorded_inferred_policy_L1_norms = [L1_norm_of_initial_policy_guess]
     inferred_policy_variance = [np.sum(np.ones(infer_mdp.theta.size))]
-    known_theta_indices = []
     reward_fractions = []
 
     theta_std_dev_min = 0.4
@@ -453,6 +452,8 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
                 this_state = env_mdp.observable_states[this_state_idx]
                 obs_act_idx = infer_mdp.graph.getObservedAction(prev_state, this_state)
                 observed_action_indices[hist_idx, t_step] = obs_act_idx
+                if 0 == infer_mdp.P(prev_state[0], infer_mdp.action_list[obs_act_idx], this_state[0]):
+                    import pdb; pdb.set_trace()
                 observed_action_probs[hist_idx, t_step] = infer_mdp.P(prev_state[0], infer_mdp.action_list[obs_act_idx],
                                                                      this_state[0])
 

@@ -6,6 +6,7 @@ from policy_inference import PolicyInference
 import MDP_EM.MDP_EM.data_helper as DataHelp
 
 from scipy import stats
+import scipy.linalg
 from copy import deepcopy
 import numpy as np
 from pprint import pprint
@@ -516,6 +517,23 @@ class MDP(object):
                                                              next_state)
                 prob_of_traj_given_policy[episode] *= self.policy[this_state][observed_action]
         return np.sum(np.multiply(episode_freq, np.log(np.divide(episode_freq, prob_of_traj_given_policy))))
+
+    def computeErgodicCoefficient(self):
+        # Create a list of all trans prob matricies for each action. This allows us to use the `*args` convention to
+        # pass a list of ordered arguments into scipy's block_diag method.
+        import pdb; pdb.set_trace()
+        trans_prob_mat_list = [self.prob_mat[act] for act in self.executable_action_dict[agent] for agent in
+                               range(self.num_agents)]
+        entire_trans_prob_mat = scipy.linalg.block_diag(*trans_prob_mat_list)
+
+        # Only support single agent policy computation right now.
+        # Since the trans prob matrix is a block diagonal e.g.:
+        #   np.diag(trans_prob_empty, trans_prob_east, ..., trans_prob_west),
+        # We need to reorder the policy vector to be in the order [pi(a_0,s_0), pi(a_0,s_1)...].
+        policy_vec = self.getPolicyAsVec().reshape(self.num_states, self.num_actions).T.ravel()
+        ones_vec = np.ones(policy_vec.shape)
+        fundamental_mat = np.linalg.inv(entire_trans_prob_mat + np.outer(np.ones_vec, policy_vec))
+
 
     def getPolicyAsVec(self, policy_keys_to_use=None, policy_to_convert=None, action_list=None):
         """

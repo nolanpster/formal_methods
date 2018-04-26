@@ -83,16 +83,16 @@ if __name__=='__main__':
     # load the @c pickled_episodes_file. If @c gather_new_data is true, use @c num_episodes and @c steps_per_episode to
     # determine how large the demonstration set should be.
     gather_new_data = False
-    num_episodes = 5000
+    num_episodes = 10
     steps_per_episode = 10
-    pickled_episodes_file_to_load = 'robot_mdps_180424_2200_HIST_5000eps10steps_180424_2216'
+    pickled_episodes_file_to_load = 'robot_mdps_180424_2200_HIST_10eps10steps_180425_1715'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
     # demonstration policy.
-    perform_new_inference = True
+    perform_new_inference = False
     pickled_inference_mdps_file_to_load  = \
-        'robot_mdps_180424_2200_HIST_5000eps10steps_180424_2216_Policy_180424_2216'
+        'robot_mdps_180424_2200_HIST_10eps10steps_180425_1723_Policy_180425_1723'
     load_inference_statistics = (not perform_new_inference) & False
     pickled_inference_statistics_file_to_load  = \
         'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Inference_Stats_180221_1431'
@@ -105,10 +105,10 @@ if __name__=='__main__':
     if use_fixed_kernel_set is True:
         kernel_centers = [frozenset(range(0, num_states, 4)) | frozenset([13,14]) | frozenset([6, 18])]
         kernel_centers = [frozenset([0, 4, 12, 13, 14, 20, 24])]
-        kernel_centers = [frozenset(range(0, num_states, 1))]
+        #kernel_centers = [frozenset(range(0, num_states, 1))]
         #kernel_centers = [frozenset((0, 4, 12, 20, 24))]
         num_kernels_in_set = len(kernel_centers[0])
-        kernel_sigmas = np.array([1.10]*num_kernels_in_set, dtype=infer_dtype)
+        kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
         batch_size_for_kernel_set = 1
     else:
         kernel_count_start = 16
@@ -127,10 +127,10 @@ if __name__=='__main__':
 
     # Plotting lags
     plot_all_grids = False
-    plot_initial_mdp_grids = True
+    plot_initial_mdp_grids = False
     plot_inferred_mdp_grids = True
     plot_demonstration = True
-    plot_uncertainty = False
+    plot_uncertainty = True
     plot_new_phi = False
     plot_new_kernel = False
     plot_loaded_phi = False
@@ -180,6 +180,7 @@ if __name__=='__main__':
     # Choose which policy to use for demonstration.
     mdp = VI_mdp
     reference_policy_vec = mdp.getPolicyAsVec(policy_keys_to_print)
+    #mdp.computeErgodicCoefficient()
 
     if gather_new_data:
         # Use policy to simulate and record results.
@@ -242,9 +243,9 @@ if __name__=='__main__':
            theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,
                                              do_print=False, reference_policy_vec=reference_policy_vec,
                                              monte_carlo_size=monte_carlo_size, dtype=infer_dtype,
-                                             print_iterations=True, eps=0.00001, velocity_memory=0.0,
+                                             print_iterations=True, eps=0.001, velocity_memory=0.2,
                                              moving_avg_min_improvement=-np.inf, theta_std_dev_max=np.inf,
-                                             theta_std_dev_min=0.4, moving_average_buffer_length=60,
+                                             theta_std_dev_min=0.2, moving_average_buffer_length=60,
                                              moving_avg_min_slope=0.001,
                                              precomputed_observed_action_indices=observed_action_indices,
                                              nominal_log_prob_data=nominal_log_prob_data,
@@ -320,18 +321,18 @@ if __name__=='__main__':
         plot_policies.append(VI_mdp.policy)
         plot_policies.append(EM_mdp.policy)
         plot_policies.append(infer_mdp.policy)
-        titles = ['Value Iteration', 'Expecation Maximization', 'Learned']
+        titles = ['', '', '']
         only_use_print_keys = [True, True, False]
         kernel_locations = [None, None, infer_mdp.kernel_centers]
     elif plot_initial_mdp_grids:
         plot_policies.append(VI_mdp.policy)
         plot_policies.append(EM_mdp.policy)
-        titles = ['Value Iteration', 'Expecation Maximization']
+        titles = ['', '']
         kernel_locations = [None, None]
         only_use_print_keys = [True, True]
     if plot_inferred_mdp_grids and not plot_all_grids:
         plot_policies.append(infer_mdp.policy)
-        titles.append('Learned')
+        titles.append('')
         only_use_print_keys.append(False)
         kernel_locations.append(infer_mdp.kernel_centers)
 
@@ -355,8 +356,8 @@ if __name__=='__main__':
                 'arrow/dot size ratio!\n'
 
     if plot_demonstration:
-        demo_grid = PlotHelp.PlotDemonstration(maze, cmap, center_offset=0.5)
-        demo_grid.configurePlot('State Visit Count in Demonstration', run_histories)
+        demo_grid = PlotHelp.PlotDemonstration(maze, cmap, y_center_offset=0.6, x_center_offset=0.3, fontsize=32)
+        demo_grid.configurePlot('', run_histories)
 
     if plot_loaded_kernel or plot_new_kernel:
         if not perform_new_inference and plot_new_kernel:
@@ -393,9 +394,9 @@ if __name__=='__main__':
             fig, ax = uncertainty_grid.configurePlot('Policy Uncertainty', infer_mdp.grid_map.ravel(),
                                                      policy_uncertainty[:, act_idx], act_str=str(act))
         # Plot uncertainties at states (summed over actions)
-        title = 'Aggregate Uncertainty'
+        title = ''
         fig, ax = uncertainty_grid.configurePlot(title, infer_mdp.grid_map.ravel(), policy_uncertainty.sum(axis=1) ,
-                                                 act_str='Sum')
+                                                 act_str='')
 
     if plot_inference_statistics:
         infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=False)

@@ -118,10 +118,10 @@ num_theta_samples = 1000
 inference_temp = 0.5
 
 # Batch configurations
-num_batches = 30
-traj_count_per_batch = 1
+num_batches = 100
+traj_count_per_batch = 10
 traj_length = 10
-num_experiment_trials = 50
+num_experiment_trials = 10
 ########################################################################################################################
 # Create / Load Multi Agent MDP
 #

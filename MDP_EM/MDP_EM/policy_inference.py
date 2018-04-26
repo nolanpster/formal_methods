@@ -575,6 +575,7 @@ class PolicyInference(object):
                 log_prob_traj_given_thetas = (self.logProbOfDataSet(theta_samples, self.phis)
                                               + self.nominal_log_prob_data)
             except DivergedPolicyError:
+                import pdb; pdb.set_trace()
                 self.checkForInvalidParameterDistribution()
                 return PolicyInference.ZERO_PROB_POLICY
 
@@ -823,26 +824,39 @@ class PolicyInference(object):
         self.mdp.policy_uncertainty_as_vec = self.mdp.getPolicyAsVec(policy_to_convert=self.mdp.policy_uncertainty)
 
         if do_plot:
+            # Configure plots to use Tex formatting.
+            plt.rc('text', usetex=True)
+            plt.rc('font', family='serif')
+
             repeated_indices = np.repeat(np.expand_dims(range(self.iter_count+1), 0), self.theta_size, 0).T
-            plt.figure()
+            fig = plt.figure(dpi=200)
             plt.plot(repeated_indices, self.means2plot)
+            plt.ylabel(r'$\mu_w$', fontsize=16)
+            plt.xlabel(r'Iteration ($n$)', fontsize=16)
             plt.figure()
             plt.plot(repeated_indices, self.sigmas2plot)
+            plt.ylabel(r'$\nu_w$', fontsize=16)
+            plt.xlabel(r'Iteration ($n$)', fontsize=16)
 
-            fig, ax = plt.subplots()
+            fig = plt.figure(dpi=200)
             iter_range_generator = xrange(self.iter_count)
-            plt.plot(iter_range_generator, self.mean_log_prob_to_plot, 'b', label='Log prob of sample mean')
-            plt.plot(iter_range_generator, self.max_log_prob_to_plot, 'r', label='Max Log prob of samples')
-            plt.plot(iter_range_generator, self.recorded_log_prob_moving_avg, 'g', label='Log prob of mean moving average')
+            plt.plot(iter_range_generator, self.mean_log_prob_to_plot, 'b', label=r'$\tilde{\mathcal{L}}(D|\mathbf{\mu}_n)$')
+            plt.plot(iter_range_generator, self.max_log_prob_to_plot, 'r',
+                     label=r'$\max_{i \in m}\tilde{\mathcal{L}}_n(D|\mathbf{\theta}^{(i)})$')
+            plt.plot(iter_range_generator, self.recorded_log_prob_moving_avg, 'g',
+                     label=r'$\mathsf{HIST}(\tilde{\mathcal{L}}_n)$')
             plt.ylim(ymin=min(min(self.mean_log_prob_to_plot), min(self.max_log_prob_to_plot)))
-            plt.legend()
-            plt.title('Log Prob of Demo | theta')
+            plt.legend(loc='best')
+            plt.xlabel(r'Iteration ($n$)', fontsize=16)
 
-            fig, ax = plt.subplots()
-            plt.plot(iter_range_generator, self.l1_norm_max_theta_to_plot, 'r', label='Max log-prob')
-            plt.plot(iter_range_generator, self.l1_norm_mean_theta_to_plot, 'b', label='Mean log-prob')
-            plt.title('L1-norm from ref')
-            ax.legend()
+            fig = plt.figure(dpi=200)
+            plt.plot(iter_range_generator, np.array(self.l1_norm_max_theta_to_plot)/2/self.mdp.num_states, 'r',
+                     label=r'$\max_{i \in m}\tilde{\mathcal{L}}_n(D|\mathbf{\theta}^{(i)})$')
+            plt.plot(iter_range_generator, np.array(self.l1_norm_mean_theta_to_plot)/2/self.mdp.num_states, 'b',
+                     label=r'$\tilde{\mathcal{L}}(D|\mathbf{\mu}_n)$')
+            plt.ylabel(r'Fractional $||\pi_2, \tilde{\pi}_2(\tilde{\mathbf{\theta}})||_{\infty}$ w.r.t max error', fontsize=16)
+            plt.xlabel(r'Iteration ($n$)', fontsize=16)
+            plt.legend(loc='best')
             plt.draw()
 
         if self.killer.kill_now is True:
