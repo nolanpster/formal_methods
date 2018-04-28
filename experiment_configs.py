@@ -336,7 +336,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                                                                         arena_mdp.L, None, robot_goal_states)
             reward_counts.append(reward_count)
 
-        #DataHelper.printStateHistories(run_histories[:hist_idx + 1], arena_mdp.observable_states)
+        DataHelper.printStateHistories(run_histories[batch_idx:hist_idx + 1], arena_mdp.observable_states)
         nominal_log_prob_data = np.log(observed_action_probs[:hist_idx + 1, 1:]).sum()
 
         ### Infer ###
