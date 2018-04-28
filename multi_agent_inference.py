@@ -432,4 +432,4 @@ if any(plot_flags):
                                                      policy_uncertainty[:, act_idx], act_str=str(act))
 
 
-    plt.show()
+plt.show()
