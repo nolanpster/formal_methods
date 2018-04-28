@@ -53,7 +53,7 @@ alphabet_dict = {'empty': empty, 'green': green, 'red': red}
 # _False_ to have EM and the MDP always start from the `initial_state` below.
 solve_with_uniform_distribution = False
 robot_initial_cell = 24
-env_initial_cell = 20
+env_initial_cell = 12
 initial_state = (robot_initial_cell, env_initial_cell)
 
 # Currently assumes the robot only has one goal cell. Also, fixed obstacles only affect the robot.
@@ -118,9 +118,9 @@ num_theta_samples = 1000
 inference_temp = 0.5
 
 # Batch configurations
-num_batches = 100
-traj_count_per_batch = 10
-traj_length = 10
+num_batches = 10
+traj_count_per_batch = 30
+traj_length = 9
 num_experiment_trials = 10
 ########################################################################################################################
 # Create / Load Multi Agent MDP
@@ -157,8 +157,8 @@ demo_mdp.infer_env_mdp.temp = inference_temp
 # Override recorded initial dist to be uniform. Note that policy_keys_to_print are the reachable initial states, and we
 # want to set the initial state-set to only include the states where the robot is at `robot_initial_cell`.
 
-#demo_mdp.init_set = ((24, 20),)
-#demo_mdp.setInitialProbDist(demo_mdp.init_set)
+demo_mdp.init_set = [(initial_state,)]
+demo_mdp.setInitialProbDist(demo_mdp.init_set)
 
 # The original environment policy in the MDP is a random walk. So we load a file containing a more interesting
 # environent policy (generated in a single agent environment) then copy it into the joint state-space. Additionally, we

@@ -535,18 +535,20 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
     env_action_list = copied_single_agent_mdp.action_list
     trans_func = copied_single_agent_mdp.T
     repulsive_feature_vector = FeatureVector(env_action_list, trans_func, copied_single_agent_mdp.graph,
-                                             ggk_centers=[0], std_devs=[1.0], ggk_mobile_indices=[0],
+                                             ggk_centers=[0], std_devs=[3.0], ggk_mobile_indices=[0],
                                              state_list=joint_grid_states, state_idx_to_infer=1,
                                              mobile_kernel_state_idx=0)
-    repulsive_theta = -np.array([0.,9.,9.,9.,9.])
+    #                           0, N, S, E, W
+    repulsive_theta = np.array([0.,10,10.,10.,10.])
 
 
+    theta_lengt = copied_single_agent_mdp.theta
     # Linearly combine old Q-function with repulsive Q-function.
     temperature = 1.0
     new_env_policy = dict.fromkeys(joint_grid_states)
     for state in joint_grid_states:
         new_env_policy[state] = {}
-        Q_at_state = {act: (np.dot(copied_single_agent_mdp.theta,
+        Q_at_state = {act: (np.dot(np.ones_like(copied_single_agent_mdp.theta),
                                    copied_single_agent_mdp.phi_at_state[(state[state_env_idx],)][act])
                             + np.dot(repulsive_theta, repulsive_feature_vector(state, act))) / temperature
                       for act in env_action_list}
