@@ -19,6 +19,13 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 import pdb
 
+########################################################################################################################
+# Numpy Print Options
+np.set_printoptions(linewidth=300)
+np.set_printoptions(threshold=np.inf)
+np.set_printoptions(precision=4)
+
+########################################################################################################################
 # Select files with data to plot, aggregate_files are assumed to have all data in a dictionary.
 active_inference_file = 'two_stage_active_stats_10_trials10_batches_5_trajs_20_stepsPerTraj_Inference_Stats_180413_1621'
 passive_inference_file = \
