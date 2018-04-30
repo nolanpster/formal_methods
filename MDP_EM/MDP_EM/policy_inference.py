@@ -675,7 +675,9 @@ class PolicyInference(object):
                                     print_iterations=False, eps=0.2, moving_average_buffer_length=20,
                                     velocity_memory=0.9, theta_std_dev_min=0.5, theta_std_dev_max=1.5,
                                     moving_avg_min_slope=-0.5, moving_avg_min_improvement=0.1,
-                                    nominal_log_prob_data=0.0, do_plot=True, min_uncertainty=None, **kwargs):
+                                    nominal_log_prob_data=0.0, do_plot=True, min_uncertainty=None,
+                                    additional_precomputed_observed_action_indices=None, additional_samples=None,
+                                    **kwargs):
         """
         @brief Performs Policy inference using gradient ascent on the distribution theta_i ~ (mu_i, sigma_i).
 
@@ -757,6 +759,14 @@ class PolicyInference(object):
         else:
             # Precompute observed actions for all episodes.
             self.observed_action_indices = self.getObservedActionIndices()
+        
+        if additional_samples is not None:
+            self.use_additional_samples = True
+            self.additional_samples = additional_samples
+            self.additional_observed_action_indices = additional_precomputed_observed_action_indices
+        else:
+            self.use_additional_samples = False
+
 
         # Save weight vector, theta, and the std-dev vector initial values. Then configure the inital values of the
         # member variables used for inference.
@@ -781,6 +791,11 @@ class PolicyInference(object):
         #  vector indices is (num-episodes by num-time-steps - 1).
         self.episode_policy_vec_indices = (histories[:, :-1] * self.mdp.num_actions
                                            + self.observed_action_indices[:, 1:]).ravel()
+        if self.use_additional_samples:
+            sample_policy_vec_indices = (self.additional_samples[:,:-1] * self.mdp.num_actions
+                                         + self.additional_observed_action_indices[:,1:]).ravel()
+            self.episode_policy_vec_indices = np.hstack((self.episode_policy_vec_indices, sample_policy_vec_indices))
+
         self.unique_policy_vec_indices, self.policy_vec_counts = np.unique(self.episode_policy_vec_indices,
                                                                            return_counts=True)
         self.num_unique_policy_vec_indices = len(self.unique_policy_vec_indices)
