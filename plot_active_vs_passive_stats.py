@@ -46,18 +46,31 @@ passive_data_dict, _,  = DataHelper.loadPickledInferenceStatistics(passive_infer
 
 PlotHelper.plotValueStatsVsBatch(val_array_1=active_data_dict['active_inference_L1_norms'],
     val_array_2=passive_data_dict['passive_inference_L1_norms'], plot_quantiles=True, transparency=0.2,
-    ylabel=r'Fractional $||\pi_2, \tilde{\pi}_2(\tilde{\mathbf{\theta}})||_{\infty}$ w.r.t max error',
-    title='Single Agent Inference')
+    ylabel=r'Fractional $||\pi_2, \tilde{\pi}_2(\tilde{\mathbf{\theta}})||_1$ w.r.t max error',
+    title='')
+
+PlotHelper.plotValueStatsVsBatch(val_array_1=active_data_dict['active_inference_parameter_variance'],
+    val_array_2=passive_data_dict['passive_inference_parameter_variance'], plot_quantiles=True, transparency=0.2,
+    ylabel=r'$|\nu|$', title='')
+
 if multi_agent:
-    PlotHelper.plotValueStatsVsBatch(val_array_1=active_data_dict['active_inference_count_of_trajs_reacing_goal'],
-                                     val_array_2=passive_data_dict['passive_inference_count_of_trajs_reacing_goal'],
-                                     title='Agent 1 Ends at Goal', ylabel='Count of Trajectories',
+    # The expected format of the rewards per trial is the cumulative value after each batch. However, a better
+    # visualization is the total number of rewards _per_ batch. So we do difference the cumulative number of rewards to
+    # extract the number of rewards per batch.
+    active_rewards_per_batch = active_data_dict['active_inference_count_of_trajs_reacing_goal']
+    active_rewards_per_batch[1:] = np.diff(active_rewards_per_batch,axis=0)
+    passive_rewards_per_batch = passive_data_dict['passive_inference_count_of_trajs_reacing_goal']
+    passive_rewards_per_batch[1:] = np.diff(passive_rewards_per_batch,axis=0)
+
+
+    PlotHelper.plotValueStatsVsBatch(val_array_1=active_rewards_per_batch,
+                                     val_array_2=passive_rewards_per_batch,
+                                     title='Agent 1 Rewards per batch', ylabel='Count of Trajectories',
                                      plot_quantiles=True)
 
     true_optimal_VI_policy, true_optimal_EM_policy, _, = \
         DataHelper.loadPickledInferenceStatistics(true_optimal_policies_to_load)
     EM_policy_error = np.sum(np.absolute(np.subtract(true_optimal_VI_policy, true_optimal_EM_policy)))/2/625
-    pdb.set_trace()
 
     PlotHelper.plotValueStatsVsBatch(val_array_1=active_data_dict['active_inference_robot_policy_err']/2/(625),
                                      val_array_2=passive_data_dict['passive_inference_robot_policy_err']/2/(625),

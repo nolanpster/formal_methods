@@ -349,8 +349,8 @@ def plotValueStatsVsBatch(val_array_1, title='L1-Norm', ylabel='Fraction of Max'
                           color_1='k', val_array_2=None, data_label_2='Passive', color_2='r', transparency=0.3,
                           plot_quantiles=True, plot_min_max=False, threshold_line=None, threshold_label=''):
 
-    if val_array_2 is not None and (val_array_1.shape != val_array_2.shape):
-        raise ValueError('Input data, value array 1 & value array 2, are not the same size!')
+    #if val_array_2 is not None and (val_array_1.shape != val_array_2.shape):
+    #    raise ValueError('Input data, value array 1 & value array 2, are not the same size!')
     fig = plt.figure(figsize=(6, 5), dpi=200)
     ax = fig.add_subplot(1, 1, 1)
 

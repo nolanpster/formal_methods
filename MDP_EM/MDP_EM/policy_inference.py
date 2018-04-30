@@ -854,7 +854,7 @@ class PolicyInference(object):
                      label=r'$\max_{i \in m}\tilde{\mathcal{L}}_n(D|\mathbf{\theta}^{(i)})$')
             plt.plot(iter_range_generator, np.array(self.l1_norm_mean_theta_to_plot)/2/self.mdp.num_states, 'b',
                      label=r'$\tilde{\mathcal{L}}(D|\mathbf{\mu}_n)$')
-            plt.ylabel(r'Fractional $||\pi_2, \tilde{\pi}_2(\tilde{\mathbf{\theta}})||_{\infty}$ w.r.t max error', fontsize=16)
+            plt.ylabel(r'Fractional $||\pi_2, \tilde{\pi}_2(\tilde{\mathbf{\theta}})||_1$ w.r.t max error', fontsize=16)
             plt.xlabel(r'Iteration ($n$)', fontsize=16)
             plt.legend(loc='best')
             plt.draw()
