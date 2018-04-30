@@ -617,3 +617,211 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
                                                  policy_keys_to_print=multi_agent_policy_key_groups[pose], decimals=2,
                                                  stay_action=act_list[0])
         plt.draw()
+
+
+def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj_length=10,
+                                               second_traj_count=20, second_traj_length=2,
+                                               inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
+                                               num_theta_samples=1000, robot_goal_states=None,
+                                               use_active_inference=True):
+
+    print "Using {} inference.".format("active" if use_active_inference else "passive")
+
+    # Create a dictionary of observable states for printing, this removes the 'dra' states, so we can then turn it into
+    # a vector for numerical comparison (infinite-norm).
+    policy_keys_to_print = deepcopy([(state[0], env_mdp.dra.get_transition(env_mdp.L[state], state[1])) for state in
+                                     env_mdp.states if 'q0' in state])
+    true_env_policy_vec = env_mdp.getPolicyAsVec(policy_keys_to_print)
+
+    # Initial inference params.
+    infer_mdp.theta = np.zeros(len(infer_mdp.phi))
+    infer_mdp.theta_std_dev = np.ones(infer_mdp.theta.size)
+
+    # Data types are constant for every batch.
+    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_observable_states)
+    observation_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_actions)
+
+
+    # Variables for logging data
+    initial_policy_guess = infer_mdp.getPolicyAsVec()
+    L1_norm_of_initial_policy_guess = MDP.getPolicyL1Norm(true_env_policy_vec, initial_policy_guess)
+    recorded_inferred_policy_L1_norms = [L1_norm_of_initial_policy_guess]
+    inferred_policy_variance = [np.sum(np.ones(infer_mdp.theta.size))]
+
+    theta_std_dev_min = 0.1
+
+    # Ensure initial state for batch 0 will be uniformly, randomly selected.
+    env_mdp.init_set = policy_keys_to_print
+    env_mdp.setInitialProbDist(env_mdp.init_set)
+
+    # Preallocate an array to hold trajectory rollouts, a.k.a demonstrations/histories.
+    run_histories = np.zeros([initial_traj_count, initial_traj_length], dtype=hist_dtype)
+    observed_action_indices = np.empty([initial_traj_count, initial_traj_length], dtype=observation_dtype)
+    observed_action_probs = np.empty([initial_traj_count, initial_traj_length], dtype=infer_dtype)
+    # Additional samples
+    additional_samples = np.zeros([second_traj_count, second_traj_length], dtype=hist_dtype)
+    additional_observed_action_indices = np.empty([second_traj_count, second_traj_length], dtype=observation_dtype)
+    additional_observed_action_probs = np.empty([second_traj_count, second_traj_length], dtype=infer_dtype)
+
+    ### Roll Out ###
+    for episode in xrange(initial_traj_count):
+        # Create time-history for this episode.
+        hist_idx = episode
+        _, run_histories[hist_idx, 0] = env_mdp.resetState()
+        for t_step in xrange(1, initial_traj_length):
+            # Take step
+            _, run_histories[hist_idx, t_step] = env_mdp.step()
+            # Record observed action.
+            prev_state_idx = run_histories[hist_idx, t_step-1]
+            prev_state = env_mdp.observable_states[prev_state_idx]
+            this_state_idx = run_histories[hist_idx, t_step]
+            this_state = env_mdp.observable_states[this_state_idx]
+            obs_act_idx = infer_mdp.graph.getObservedAction(prev_state, this_state)
+            observed_action_indices[hist_idx, t_step] = obs_act_idx
+            if 0 == infer_mdp.P(prev_state[0], infer_mdp.action_list[obs_act_idx], this_state[0]):
+                import pdb; pdb.set_trace()
+            observed_action_probs[hist_idx, t_step] = infer_mdp.P(prev_state[0], infer_mdp.action_list[obs_act_idx],
+                                                                 this_state[0])
+
+    DataHelper.printStateHistories(run_histories, env_mdp.observable_states)
+    nominal_log_prob_data = np.log(observed_action_probs[:, 1:]).sum()
+
+    ### Infer ###
+    # Since the gradient variance is proportional to the size of the demonstration, we'll set the gradient ascent
+    # step size to be inversly proportional to the negative of the log-probablilty of the observed data given the
+    # MAP estimate of the observed action outcomes.
+    if nominal_log_prob_data != 0.0:
+        eps = 0.01 / (-nominal_log_prob_data)
+    else:
+        eps = 0.01 / (hist_idx + 1)
+    infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
+                          theta_std_dev_0=infer_mdp.theta_std_dev, theta_0=infer_mdp.theta,
+                          reference_policy_vec=true_env_policy_vec, monte_carlo_size=num_theta_samples,
+                          print_iterations=False, eps=eps, velocity_memory=0.0, theta_std_dev_min=theta_std_dev_min,
+                          theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
+                          moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
+                          precomputed_observed_action_indices=observed_action_indices[:hist_idx + 1],
+                          min_uncertainty=theta_std_dev_min)
+
+    # Print Inference error
+    # Check getPolicyAsVec for this MDP!
+    inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
+    print('First Try: L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
+    recorded_inferred_policy_L1_norms.append(inferred_policy_L1_norm_error)
+    inferred_policy_variance.append(np.sum(np.power(infer_mdp.theta_std_dev, 2)))
+
+########################################################################################################################
+    ## PASSIVE RESAMPLING
+    # Using the same initial distribution (uniform) sample more data.
+    passive_policy_L1_norms = deepcopy(recorded_inferred_policy_L1_norms)
+    passive_policy_variance = deepcopy(inferred_policy_variance)
+    passive_infer_mdp = deepcopy(infer_mdp)
+    passive_additional_samples = deepcopy(additional_samples)
+    passive_additional_observed_action_indices = deepcopy(additional_observed_action_indices)
+    passive_additional_observed_action_probs = deepcopy(additional_observed_action_probs)
+
+    # Resamples
+    for episode in xrange(second_traj_count):
+        # Create time-history for this episode.
+        hist_idx = episode
+        _, passive_additional_samples[hist_idx, 0] = env_mdp.resetState()
+        for t_step in xrange(1, second_traj_length):
+            # Take step
+            _, passive_additional_samples[hist_idx, t_step] = env_mdp.step()
+            # Record observed action.
+            prev_state_idx = passive_additional_samples[hist_idx, t_step-1]
+            prev_state = env_mdp.observable_states[prev_state_idx]
+            this_state_idx = passive_additional_samples[hist_idx, t_step]
+            this_state = env_mdp.observable_states[this_state_idx]
+            obs_act_idx = passive_infer_mdp.graph.getObservedAction(prev_state, this_state)
+            passive_additional_observed_action_indices[hist_idx, t_step] = obs_act_idx
+            if 0 == passive_infer_mdp.P(prev_state[0], passive_infer_mdp.action_list[obs_act_idx], this_state[0]):
+                import pdb; pdb.set_trace()
+            passive_additional_observed_action_probs[hist_idx, t_step] = passive_infer_mdp.P(prev_state[0], passive_infer_mdp.action_list[obs_act_idx],
+                                                                 this_state[0])
+
+    DataHelper.printStateHistories(passive_additional_samples, env_mdp.observable_states)
+    passive_nominal_log_prob_data = (np.log(passive_additional_observed_action_probs[:, 1:]).sum() +
+                                     nominal_log_prob_data)
+
+    if nominal_log_prob_data != 0.0:
+        eps = 0.01 / (-nominal_log_prob_data)
+    else:
+        eps = 0.01 / (hist_idx + 1)
+    passive_infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
+                          theta_std_dev_0=passive_infer_mdp.theta_std_dev, theta_0=passive_infer_mdp.theta,
+                          reference_policy_vec=true_env_policy_vec, monte_carlo_size=num_theta_samples,
+                          print_iterations=False, eps=eps, velocity_memory=0.0, theta_std_dev_min=theta_std_dev_min,
+                          theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
+                          moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
+                          precomputed_observed_action_indices=observed_action_indices,
+                          additional_precomputed_observed_action_indices=passive_additional_observed_action_indices,
+                          additional_samples=passive_additional_samples,
+                          min_uncertainty=theta_std_dev_min)
+    inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, passive_infer_mdp.getPolicyAsVec())
+    print('PASSIVE with resamples: L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
+    passive_policy_L1_norms.append(inferred_policy_L1_norm_error)
+    passive_policy_variance.append(np.sum(np.power(passive_infer_mdp.theta_std_dev, 2)))
+
+########################################################################################################################
+    ## ACTIVE RESAMPLING
+    # Using the same initial distribution (uniform) sample more data.
+    active_policy_L1_norms = deepcopy(recorded_inferred_policy_L1_norms)
+    active_policy_variance = deepcopy(inferred_policy_variance)
+    active_infer_mdp = deepcopy(infer_mdp)
+    active_additional_samples = deepcopy(additional_samples)
+    active_additional_observed_action_indices = deepcopy(additional_observed_action_indices)
+    active_additional_observed_action_probs = deepcopy(additional_observed_action_probs)
+
+    # Reconfigure initial ditribution
+    active_initial_dist = \
+        np.sum(active_infer_mdp.policy_uncertainty_as_vec.reshape(active_infer_mdp.num_states, active_infer_mdp.num_actions), axis=1)
+    active_initial_dist /= sum(active_initial_dist)
+    if not any(np.isnan(active_initial_dist)):
+        env_mdp.setInitialProbDist(env_mdp.init_set, init_prob=active_initial_dist)
+
+    # Resamples
+    for episode in xrange(second_traj_count):
+        # Create time-history for this episode.
+        hist_idx = episode
+        _, active_additional_samples[hist_idx, 0] = env_mdp.resetState()
+        for t_step in xrange(1, second_traj_length):
+            # Take step
+            _, active_additional_samples[hist_idx, t_step] = env_mdp.step()
+            # Record observed action.
+            prev_state_idx = active_additional_samples[hist_idx, t_step-1]
+            prev_state = env_mdp.observable_states[prev_state_idx]
+            this_state_idx = active_additional_samples[hist_idx, t_step]
+            this_state = env_mdp.observable_states[this_state_idx]
+            obs_act_idx = active_infer_mdp.graph.getObservedAction(prev_state, this_state)
+            active_additional_observed_action_indices[hist_idx, t_step] = obs_act_idx
+            if 0 == active_infer_mdp.P(prev_state[0], active_infer_mdp.action_list[obs_act_idx], this_state[0]):
+                import pdb; pdb.set_trace()
+            active_additional_observed_action_probs[hist_idx, t_step] = active_infer_mdp.P(prev_state[0], active_infer_mdp.action_list[obs_act_idx],
+                                                                 this_state[0])
+
+    DataHelper.printStateHistories(active_additional_samples, env_mdp.observable_states)
+    active_nominal_log_prob_data = (np.log(active_additional_observed_action_probs[:, 1:]).sum() +
+                                     nominal_log_prob_data)
+
+    if nominal_log_prob_data != 0.0:
+        eps = 0.01 / (-nominal_log_prob_data)
+    else:
+        eps = 0.01 / (hist_idx + 1)
+    active_infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
+                          theta_std_dev_0=active_infer_mdp.theta_std_dev, theta_0=active_infer_mdp.theta,
+                          reference_policy_vec=true_env_policy_vec, monte_carlo_size=num_theta_samples,
+                          print_iterations=False, eps=eps, velocity_memory=0.0, theta_std_dev_min=theta_std_dev_min,
+                          theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
+                          moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
+                          precomputed_observed_action_indices=observed_action_indices,
+                          additional_precomputed_observed_action_indices=active_additional_observed_action_indices,
+                          additional_samples=active_additional_samples,
+                          min_uncertainty=theta_std_dev_min)
+    inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, active_infer_mdp.getPolicyAsVec())
+    print('ACTIVE with resamples: L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
+    active_policy_L1_norms.append(inferred_policy_L1_norm_error)
+    active_policy_variance.append(np.sum(np.power(active_infer_mdp.theta_std_dev, 2)))
+
+    return active_policy_L1_norms, active_policy_variance, passive_policy_L1_norms, passive_policy_variance
+

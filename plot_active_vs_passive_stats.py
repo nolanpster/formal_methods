@@ -36,13 +36,25 @@ active_inference_file = \
 'single_agent_active_stats_50_trials40_batches_1_trajs_2_stepsPerTraj_Inference_Stats_180429_1958'
 passive_inference_file = \
 'single_agent_passive_stats_50_trials40_batches_1_trajs_2_stepsPerTraj_Inference_Stats_180429_1957'
-aggregate_file = None
+aggregate_file = \
+'single_agent_resample_stats_40_trials_5_trajs_5_steps_resamples_num_20_len_2_steps_Inference_Stats_180430_1344'
 true_optimal_policies_to_load = 'true_optimal_policies_em_15H_100N_Inference_Stats_180423_2008'
 
+if aggregate_file is not None and not multi_agent:
+    data_dict, _, = DataHelper.loadPickledInferenceStatistics(aggregate_file)
 
+    active_data_dict = deepcopy(data_dict)
+    for key in active_data_dict.keys():
+        if key.startswith('passive'):
+            active_data_dict.pop(key)
+    passive_data_dict = deepcopy(data_dict)
+    for key in passive_data_dict.keys():
+        if key.startswith('active'):
+            passive_data_dict.pop(key)
+else:
+    active_data_dict, _, = DataHelper.loadPickledInferenceStatistics(active_inference_file)
+    passive_data_dict, _,  = DataHelper.loadPickledInferenceStatistics(passive_inference_file)
 
-active_data_dict, _, = DataHelper.loadPickledInferenceStatistics(active_inference_file)
-passive_data_dict, _,  = DataHelper.loadPickledInferenceStatistics(passive_inference_file)
 
 PlotHelper.plotValueStatsVsBatch(val_array_1=active_data_dict['active_inference_L1_norms'],
     val_array_2=passive_data_dict['passive_inference_L1_norms'], plot_quantiles=True, transparency=0.2,
