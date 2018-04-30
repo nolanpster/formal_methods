@@ -94,7 +94,7 @@ act_cost = 0.0
 #gg_kernel_centers = range(0, num_cells, 1)
 #gg_kernel_centers = [0, 4, 12, 20, 24]
 #gg_kernel_centers = range(0, num_cells, 4) + [6, 18]
-gg_kernel_centers = frozenset(range(0, num_states, 4)) | frozenset([13,14]) | frozenset([6, 18])
+gg_kernel_centers = frozenset(range(1, num_states, 2)) | frozenset([13,14, 20])
 #gg_kernel_centers = frozenset([0, 4, 12, 13, 14, 20, 24])
 num_kernels_in_set = len(gg_kernel_centers)
 kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
@@ -107,8 +107,8 @@ inference_temp = 0.5
 # Batch configurations
 num_batches = 20
 traj_count_per_batch = 10
-traj_length = 6
-num_experiment_trials = 50
+traj_length = 2
+num_experiment_trials = 10
 ########################################################################################################################
 # Create / Load Multi Agent MDP
 #
@@ -177,14 +177,14 @@ parameter_variance_mat = np.stack(parameter_variances, axis=1)
 # Save data for plotting later
 if use_active_inference:
     generated_data = {'active_inference_L1_norms': policy_L1_norms_mat,
-                      'active_inference_parameter_variance': parameter_variances}
+                      'active_inference_parameter_variance': parameter_variance_mat}
 else:
     generated_data = {'passive_inference_L1_norms': policy_L1_norms_mat,
-                      'passive_inference_parameter_variance': parameter_variances}
+                      'passive_inference_parameter_variance': parameter_variance_mat}
 
 
 inference_type_str = 'active' if use_active_inference else 'passive'
-file_name_prefix = 'two_stage_{}_stats_{}_trials{}_batches_{}_trajs_{}_stepsPerTraj'.format(inference_type_str,
+file_name_prefix = 'single_agent_{}_stats_{}_trials{}_batches_{}_trajs_{}_stepsPerTraj'.format(inference_type_str,
     num_experiment_trials, num_batches, traj_count_per_batch, traj_length)
 
 DataHelper.pickleInferenceStatistics(generated_data, file_name_prefix)

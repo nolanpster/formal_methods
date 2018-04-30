@@ -418,7 +418,7 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
     inferred_policy_variance = [np.sum(np.ones(infer_mdp.theta.size))]
     reward_fractions = []
 
-    theta_std_dev_min = 0.4
+    theta_std_dev_min = 0.1
 
     # Ensure initial state for batch 0 will be uniformly, randomly selected.
     env_mdp.init_set = policy_keys_to_print
@@ -430,10 +430,12 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
     observed_action_probs = np.empty([num_trajectories_per_batch * num_batches, num_steps_per_traj], dtype=infer_dtype)
 
     for batch in range(num_batches):
-        if use_active_inference and batch > 0:
+        if use_active_inference and batch > 0 and not any(np.isnan(active_initial_dist)) and (batch % 2):
             # Select the state with the highest uncertainty to be the initial state for all trajectories. Another way to
             # do this would be to have a prioritiezed weighting of states based off of their variance.
             env_mdp.setInitialProbDist(env_mdp.init_set, init_prob=active_initial_dist)
+        else:
+            env_mdp.setInitialProbDist(env_mdp.init_set)
 
         batch_start_time = time.time()
         batch_idx = batch * num_trajectories_per_batch
@@ -457,7 +459,7 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
                 observed_action_probs[hist_idx, t_step] = infer_mdp.P(prev_state[0], infer_mdp.action_list[obs_act_idx],
                                                                      this_state[0])
 
-        DataHelper.printStateHistories(run_histories[:hist_idx + 1], env_mdp.observable_states)
+        DataHelper.printStateHistories(run_histories[batch_idx:hist_idx + 1], env_mdp.observable_states)
         nominal_log_prob_data = np.log(observed_action_probs[:hist_idx + 1, 1:]).sum()
         print "Nomainal log prob data: {}".format(nominal_log_prob_data)
 
@@ -466,17 +468,17 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
         # step size to be inversly proportional to the negative of the log-probablilty of the observed data given the
         # MAP estimate of the observed action outcomes.
         if nominal_log_prob_data != 0.0:
-            eps = 0.1 / (-nominal_log_prob_data)
+            eps = 0.01 / (-nominal_log_prob_data)
         else:
-            eps = 0.1 / (hist_idx + 1)
+            eps = 0.01 / (hist_idx + 1)
         infer_mdp.inferPolicy(method=inference_method, histories=run_histories[:hist_idx + 1], do_print=False,
                               theta_std_dev_0=infer_mdp.theta_std_dev, theta_0=infer_mdp.theta,
                               reference_policy_vec=true_env_policy_vec, monte_carlo_size=num_theta_samples,
-                              print_iterations=False, eps=eps, velocity_memory=0.2, theta_std_dev_min=0.4,
+                              print_iterations=False, eps=eps, velocity_memory=0.0, theta_std_dev_min=theta_std_dev_min,
                               theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
                               moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
                               precomputed_observed_action_indices=observed_action_indices[:hist_idx + 1],
-                              min_uncertainty=0.4)
+                              min_uncertainty=theta_std_dev_min)
 
         # Print Inference error
         # Check getPolicyAsVec for this MDP!
