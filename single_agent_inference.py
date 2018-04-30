@@ -28,7 +28,7 @@ np.set_printoptions(precision=4)
 ########################################################################################################################
 # Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
-grid_dim = [5, 5] # [num-rows, num-cols]
+grid_dim = [8, 8] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
 
 # Create a list of tuples where the tuples have length @c num_agents and represent the joint states of the agents.
@@ -44,14 +44,15 @@ red = LTL_plus('red')
 empty = LTL_plus('E') # <-- 'E' is defined to be 'empty' in LTL_plus class.
 alphabet_dict = {'empty': empty, 'green': green, 'red': red}
 labels = {state: empty for state in states}
-labels[(4,)] = green
+labels[(18,)] = green
 
 # Starting and final states
-initial_state = (20,)
-goal_state = (4,) # Currently assumess only one goal.
-labels[(13,)] = red
-labels[(14,)] = red
-labels[(20,)] = red
+initial_state = (53,)
+goal_state = (18,) # Currently assumess only one goal.
+labels[(21,)] = red
+labels[(29,)] = red
+labels[(41,)] = red
+labels[(42,)] = red
 
 # Numpy Data type to use for transition probability matrices (affects speed / precision)
 prob_dtype = np.float64
@@ -76,21 +77,21 @@ solve_with_uniform_distribution = True
 if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
     make_new_mdp = False
-    pickled_mdp_file_to_load  = 'robot_mdps_180424_2200'
+    pickled_mdp_file_to_load  = 'robot_mdps_180430_1810'
     write_mdp_policy_csv = False
 
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
     # load the @c pickled_episodes_file. If @c gather_new_data is true, use @c num_episodes and @c steps_per_episode to
     # determine how large the demonstration set should be.
-    gather_new_data = False
-    num_episodes = 10
+    gather_new_data = True
+    num_episodes = 200
     steps_per_episode = 10
-    pickled_episodes_file_to_load = 'robot_mdps_180424_2200_HIST_10eps10steps_180425_1715'
+    pickled_episodes_file_to_load = 'robot_mdps_180430_1802_HIST_20eps10steps_180430_1802'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
     # demonstration policy.
-    perform_new_inference = False
+    perform_new_inference = True
     pickled_inference_mdps_file_to_load  = \
         'robot_mdps_180424_2200_HIST_10eps10steps_180425_1723_Policy_180425_1723'
     load_inference_statistics = (not perform_new_inference) & False
@@ -103,8 +104,8 @@ if __name__=='__main__':
     # Gradient Ascent kernel configurations
     use_fixed_kernel_set = True
     if use_fixed_kernel_set is True:
-        kernel_centers = [frozenset(range(0, num_states, 4)) | frozenset([13,14]) | frozenset([6, 18])]
-        kernel_centers = [frozenset([0, 4, 12, 13, 14, 20, 24])]
+        kernel_centers = [frozenset(range(0, num_states, 5)) | frozenset([21,29,41,42])]
+        #kernel_centers = [frozenset([0, 4, 12, 13, 14, 20, 24])]
         #kernel_centers = [frozenset(range(0, num_states, 1))]
         #kernel_centers = [frozenset((0, 4, 12, 20, 24))]
         num_kernels_in_set = len(kernel_centers[0])

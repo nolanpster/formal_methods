@@ -28,7 +28,7 @@ np.set_printoptions(precision=4)
 ########################################################################################################################
 # Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
-grid_dim = [5, 5] # [num-rows, num-cols]
+grid_dim = [8, 8] # [num-rows, num-cols]
 num_cells = np.prod(grid_dim)
 cell_indices = range(0, num_cells)
 grid_map = np.array(cell_indices, dtype=np.int8).reshape(grid_dim)
@@ -55,7 +55,7 @@ solve_with_uniform_distribution = False
 env_initial_cell = 20
 initial_state = (env_initial_cell,)
 
-fixed_obstacle_cells = [13, 14, 20]
+fixed_obstacle_cells = [21, 29, 41, 42]
 
 labels = {state: empty for state in states}
 env_labels = {state: empty for state in states}
@@ -86,7 +86,7 @@ act_prob = ExperimentConfigs.getActionProbabilityDictionary(prob_dtype)
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'robot_mdps_180423_1248'
+pickled_mdp_file_to_load  = 'robot_mdps_180430_1810'
 act_cost = 0.0
 
 
@@ -94,7 +94,8 @@ act_cost = 0.0
 #gg_kernel_centers = range(0, num_cells, 1)
 #gg_kernel_centers = [0, 4, 12, 20, 24]
 #gg_kernel_centers = range(0, num_cells, 4) + [6, 18]
-gg_kernel_centers = frozenset(range(1, num_states, 2)) | frozenset([13,14, 20])
+#gg_kernel_centers = frozenset(range(1, num_states, 2)) | frozenset([13,14, 20])
+gg_kernel_centers = frozenset(range(0, num_states, 5)) | frozenset([21,29,41,42])
 #gg_kernel_centers = frozenset([0, 4, 12, 13, 14, 20, 24])
 num_kernels_in_set = len(gg_kernel_centers)
 kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
@@ -106,9 +107,9 @@ inference_temp = 0.5
 
 # Batch configurations
 num_batches = 20
-traj_count_per_batch = 10
+traj_count_per_batch = 5
 traj_length = 2
-num_experiment_trials = 10
+num_experiment_trials = 25
 ########################################################################################################################
 # Create / Load Multi Agent MDP
 #
