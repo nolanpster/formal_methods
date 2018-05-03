@@ -508,6 +508,37 @@ def makeBonusReward(policy_uncertainty_dict):
             bonus_reward_dict[state][act] = exploration_weight * policy_uncertainty_dict[state][act]
     return bonus_reward_dict
 
+def augmentSoftmaxPolicy(original_theta, original_phi_at_state, additional_theta, additional_phi, trans_function,
+                         policy_keys_to_use, action_list, temperature=0.5, state_idx_to_use=0):
+    """
+    @brief Augment an original policy with additional parameters and features.
+
+    @param original_theta A vector of weights
+    @param original_phi_at_state A reference to @ref InferenceMDP.phi_at_state and this is expected to accept state
+    inputs for a single-agent s
+    @param additional_theta A vector of weights
+    @param additional_phi_at_state An instance of @ref FeatureVector
+    @param policy_keys_to_use A set or list of states to use as policy keys. States are expected to be a tuple, single
+           agent states should be listed as [(state_1,), (state_2,), ...] and multi-agent states as [(agent_1_state_1,
+           agent_2_state_1), (agent_1_state_2, agent_2_state_2) ...].
+    @param temperature The policy temperatuer to use for synthesis
+    @param state_idx_to_use This is used to index into the states in policy_keys_to_use.
+
+    @note
+    It probably makes sense to pass in the original @ref FeatureVector for original_phi_at_state instead of the
+    precomputed dictionary, see InferenceMDP.precomputePhiAtState().
+
+    @return A synthesized softmax policy built as exp(Q'/temp)/sum_over_actions(exp(Q'/temp)) where
+    Q'(s,a) = inner(original_thata, original_phi(state,action)) + inner(additional_theta, additional_phi)
+    """
+    new_policy_dict = dict.fromkeys(policy_keys_to_use)
+    for state in policy_keys_to_use:
+        new_policy_dict[state] = {}
+        Q_at_state = {act: (np.dot(original_theta, original_phi_at_state[(state[state_idx_to_use],)][act])
+                            + np.dot(additional_theta, additional_phi(state, act))) / temperature
+                      for act in action_list}
+        new_policy_dict[state] = InferenceMDP.evalGibbsPolicy(Q_at_state, temperature)
+    return new_policy_dict
 
 def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels, state_env_idx=1, file_with_policy=None,
                                             new_kernel_weight=1.0, new_phi_sigma=1.0, plot_policies=True,
@@ -546,15 +577,11 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
 
     theta_lengt = copied_single_agent_mdp.theta
     # Linearly combine old Q-function with repulsive Q-function.
-    temperature = 1.0
-    new_env_policy = dict.fromkeys(joint_grid_states)
-    for state in joint_grid_states:
-        new_env_policy[state] = {}
-        Q_at_state = {act: (np.dot(np.ones_like(copied_single_agent_mdp.theta),
-                                   copied_single_agent_mdp.phi_at_state[(state[state_env_idx],)][act])
-                            + np.dot(repulsive_theta, repulsive_feature_vector(state, act))) / temperature
-                      for act in env_action_list}
-        new_env_policy[state] = InferenceMDP.evalGibbsPolicy(Q_at_state, temperature)
+    new_env_policy = augmentSoftmaxPolicy(copied_single_agent_mdp.theta, copied_single_agent_mdp.phi_at_state,
+                                          repulsive_theta, repulstive_feature_vector,
+                                          trans_function=copied_single_agent_mdp.T,
+                                          policy_keys_to_use=joint_grid_states, action_list=env_action_list,
+                                          temperature=0.1)
     new_env_policy = MDP.updatePolicyActionKeys(new_env_policy, env_action_list,
                                                 multi_agent_mdp.executable_action_dict[state_env_idx])
     multi_agent_mdp.env_policy[1] = new_env_policy
