@@ -105,12 +105,12 @@ if __name__=='__main__':
     # Gradient Ascent kernel configurations
     use_fixed_kernel_set = True
     if use_fixed_kernel_set is True:
-        kernel_centers = [frozenset(range(0, num_states, 1)) | frozenset([21,29,41,42])]
+        kernel_centers = [frozenset(range(0, num_states, 5)) | frozenset([21,29,41,42])]
         #kernel_centers = [frozenset([0, 4, 12, 13, 14, 20, 24])]
         #kernel_centers = [frozenset(range(0, num_states, 1))]
         #kernel_centers = [frozenset((0, 4, 12, 20, 24))]
         num_kernels_in_set = len(kernel_centers[0])
-        kernel_sigmas = np.array([0.1]*num_kernels_in_set, dtype=infer_dtype)
+        kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
         batch_size_for_kernel_set = 1
     else:
         kernel_count_start = 16
