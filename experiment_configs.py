@@ -349,6 +349,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
 
         ### Infer ###
         theta_std_dev_0 = infer_mdp.theta_std_dev
+        min_uncertainty =0.7
 
         # Since the gradient variance is proportional to the size of the demonstration, we'll set the gradient ascent
         # step size to be inversly proportional to the negative of the log-probablilty of the observed data given the
@@ -365,7 +366,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
                                           theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
                                           moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
                                           precomputed_observed_action_indices=observed_action_indices[:hist_idx + 1],
-                                          min_uncertainty=1.0)
+                                          min_uncertainty=min_uncertainty)
 
         # Print Inference error
         # Check getPolicyAsVec for this MDP!
@@ -430,7 +431,8 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
     inferred_policy_variance = [np.sum(np.ones(infer_mdp.theta.size))]
     reward_fractions = []
 
-    theta_std_dev_min = 0.1
+    theta_std_dev_min = 0.3
+    min_uncertainty = 0.5
 
     # Ensure initial state for batch 0 will be uniformly, randomly selected.
     env_mdp.init_set = policy_keys_to_print
@@ -683,7 +685,10 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
     recorded_inferred_policy_L1_norms = [L1_norm_of_initial_policy_guess]
     inferred_policy_variance = [np.sum(np.ones(infer_mdp.theta.size))]
 
-    theta_std_dev_min = 0.1
+    theta_std_dev_min = 0.3
+    min_uncertainty = 0.6
+    moving_average_buffer_length = 300
+    velocity_memory = 0.1
 
     # Ensure initial state for batch 0 will be uniformly, randomly selected.
     env_mdp.init_set = policy_keys_to_print
@@ -728,17 +733,17 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
     # step size to be inversly proportional to the negative of the log-probablilty of the observed data given the
     # MAP estimate of the observed action outcomes.
     if nominal_log_prob_data != 0.0:
-        eps = 0.01 / (-nominal_log_prob_data)
+        eps = 0.03 / (-nominal_log_prob_data)
     else:
         eps = 0.01 / (hist_idx + 1)
     infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                           theta_std_dev_0=infer_mdp.theta_std_dev, theta_0=infer_mdp.theta,
                           reference_policy_vec=true_env_policy_vec, monte_carlo_size=num_theta_samples,
-                          print_iterations=False, eps=eps, velocity_memory=0.0, theta_std_dev_min=theta_std_dev_min,
+                          print_iterations=False, eps=eps, velocity_memory=velocity_memory, theta_std_dev_min=theta_std_dev_min,
                           theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
-                          moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
-                          precomputed_observed_action_indices=observed_action_indices[:hist_idx + 1],
-                          min_uncertainty=theta_std_dev_min)
+                          moving_avg_min_slope=0.001, moving_average_buffer_length=moving_average_buffer_length,
+                          do_plot=False, precomputed_observed_action_indices=observed_action_indices[:hist_idx + 1],
+                          min_uncertainty=min_uncertainty)
 
     # Print Inference error
     # Check getPolicyAsVec for this MDP!
@@ -789,13 +794,13 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
     passive_infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                           theta_std_dev_0=passive_infer_mdp.theta_std_dev, theta_0=passive_infer_mdp.theta,
                           reference_policy_vec=true_env_policy_vec, monte_carlo_size=num_theta_samples,
-                          print_iterations=False, eps=eps, velocity_memory=0.0, theta_std_dev_min=theta_std_dev_min,
-                          theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
-                          moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
-                          precomputed_observed_action_indices=observed_action_indices,
+                          print_iterations=False, eps=eps, velocity_memory=velocity_memory, theta_std_dev_min=theta_std_dev_min,
+                          theta_std_dev_max=np.inf, nominal_log_prob_data=passive_nominal_log_prob_data,
+                          moving_avg_min_slope=0.001, moving_average_buffer_length=moving_average_buffer_length,
+                          do_plot=False, precomputed_observed_action_indices=observed_action_indices,
                           additional_precomputed_observed_action_indices=passive_additional_observed_action_indices,
                           additional_samples=passive_additional_samples,
-                          min_uncertainty=theta_std_dev_min)
+                          min_uncertainty=min_uncertainty)
     inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, passive_infer_mdp.getPolicyAsVec())
     print('PASSIVE with resamples: L1-norm as a fraction of max error: {:0.3f}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
     passive_policy_L1_norms.append(inferred_policy_L1_norm_error)
@@ -850,13 +855,13 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
     active_infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                           theta_std_dev_0=active_infer_mdp.theta_std_dev, theta_0=active_infer_mdp.theta,
                           reference_policy_vec=true_env_policy_vec, monte_carlo_size=num_theta_samples,
-                          print_iterations=False, eps=eps, velocity_memory=0.0, theta_std_dev_min=theta_std_dev_min,
-                          theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
-                          moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
-                          precomputed_observed_action_indices=observed_action_indices,
+                          print_iterations=False, eps=eps, velocity_memory=velocity_memory, theta_std_dev_min=theta_std_dev_min,
+                          theta_std_dev_max=np.inf, nominal_log_prob_data=active_nominal_log_prob_data,
+                          moving_avg_min_slope=0.001, moving_average_buffer_length=moving_average_buffer_length,
+                          do_plot=False, precomputed_observed_action_indices=observed_action_indices,
                           additional_precomputed_observed_action_indices=active_additional_observed_action_indices,
                           additional_samples=active_additional_samples,
-                          min_uncertainty=theta_std_dev_min)
+                          min_uncertainty=min_uncertainty)
     inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, active_infer_mdp.getPolicyAsVec())
     print('ACTIVE with resamples: L1-norm as a fraction of max error: {:0.3f}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
     active_policy_L1_norms.append(inferred_policy_L1_norm_error)
