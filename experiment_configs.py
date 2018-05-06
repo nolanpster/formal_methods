@@ -570,28 +570,29 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
     @param alphabet_dict Required if plot_policys is True
     """
     if file_with_policy is None:
-        file_with_policy =  'robot_mdps_180412_2025_HIST_500eps10steps_180412_2026_Policy_180412_2026'
+        file_with_policy =  'robot_mdps_180428_1521_HIST_1000eps10steps_180428_1521_Policy_180428_1521'
 
     print 'Next File loaded is for building environmental policy:'
     (single_agent_mdp, pickled_inference_file) = DataHelper.loadPickledPolicyInferenceMDP(file_with_policy)
 
-    # Build a feature vector that only has a mobile kernel on the robot location.
+    # Build a feature vector that only has a mobile kernel on the robot location but is defined for the joint
+    # state-space.
     copied_single_agent_mdp = deepcopy(single_agent_mdp)
     joint_grid_states = multi_agent_mdp.env_policy[1].keys()
     env_action_list = copied_single_agent_mdp.action_list
     trans_func = copied_single_agent_mdp.T
     repulsive_feature_vector = FeatureVector(env_action_list, trans_func, copied_single_agent_mdp.graph,
-                                             ggk_centers=[0], std_devs=[3.0], ggk_mobile_indices=[0],
-                                             state_list=joint_grid_states, state_idx_to_infer=1,
+                                             ggk_centers=[3,4,9, 0], std_devs=[0.5,0.5, 0.5, 3.5],
+                                             ggk_mobile_indices=[3], state_list=joint_grid_states, state_idx_to_infer=1,
                                              mobile_kernel_state_idx=0)
+                                             #ggk_centers=[0], std_devs=[1.5], ggk_mobile_indices=[0],
     #                           0, N, S, E, W
-    repulsive_theta = np.array([0.,10,10.,10.,10.])
+    #repulsive_theta = np.array([0.,1,1.,1.,1.])
+    repulsive_theta = np.array([1, 0, 0, 0, 0] + [1, 0, 0, 0, 0] + [1, 0, 0, 0, 0] + [0.,.5,.5,.5,.5])
 
-
-    theta_lengt = copied_single_agent_mdp.theta
     # Linearly combine old Q-function with repulsive Q-function.
-    new_env_policy = augmentSoftmaxPolicy(copied_single_agent_mdp.theta, copied_single_agent_mdp.phi_at_state,
-                                          repulsive_theta, repulstive_feature_vector,
+    new_env_policy = augmentSoftmaxPolicy(np.zeros_like(copied_single_agent_mdp.theta), copied_single_agent_mdp.phi_at_state,
+                                          repulsive_theta, repulsive_feature_vector,
                                           trans_function=copied_single_agent_mdp.T,
                                           policy_keys_to_use=joint_grid_states, action_list=env_action_list,
                                           temperature=0.1)
