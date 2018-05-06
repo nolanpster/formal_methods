@@ -177,8 +177,8 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
     # To enable a solution of the MDP with multiple methods, copy the MDP, set the initial state likelihood
     # distributions and then solve the MDPs.
     EM_mdp = deepcopy(VI_mdp)
-    EM_mdp.solve(do_print=do_print, method='expectationMaximization', write_video=False,
-                 policy_keys_to_print=policy_keys_to_print)
+    EM_mdp.solve(do_print=do_print, method='expectationMaximization', policy_keys_to_print=policy_keys_to_print,
+                 horizon_length=50, num_iters=400, do_incremental_e_step=True)
     VI_mdp.solve(do_print=do_print, method='valueIteration', write_video=False,
                  policy_keys_to_print=policy_keys_to_print)
 
