@@ -29,7 +29,7 @@ np.set_printoptions(precision=4)
 # Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
 grid_dim = [8, 8] # [num-rows, num-cols]
-grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
+grid_map = np.array(range(0,np.prod(grid_dim))).reshape(grid_dim)
 
 # Create a list of tuples where the tuples have length @c num_agents and represent the joint states of the agents.
 num_agents = 1
@@ -188,7 +188,7 @@ if __name__=='__main__':
         # Use policy to simulate and record results.
         #
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
-        hist_dtype = DataHelp.getSmallestNumpyUnsignedIntType(mdp.num_states)
+        hist_dtype = DataHelp.getSmallestNumpyUnsignedIntType(mdp.num_states * mdp.num_states)
         run_histories = np.zeros([num_episodes, steps_per_episode], dtype=hist_dtype)
         for episode in range(num_episodes):
             # Create time-history for this episode.
@@ -223,7 +223,7 @@ if __name__=='__main__':
         # Infer the policy from the recorded data.
 
         # Precompute observed actions for all episodes. Should do this in a "history" class.
-        observation_dtype  = DataHelp.getSmallestNumpyUnsignedIntType(mdp.num_actions)
+        observation_dtype  = DataHelp.getSmallestNumpyUnsignedIntType(mdp.num_states * mdp.num_actions)
         observed_action_indices = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
         observed_action_probs = np.empty([num_episodes, steps_per_episode], dtype=infer_dtype)
         for episode in xrange(num_episodes):

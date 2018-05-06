@@ -29,7 +29,7 @@ np.set_printoptions(precision=4)
 # Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
 grid_dim = [8, 8] # [num-rows, num-cols]
-grid_map = np.array(range(0,np.prod(grid_dim)), dtype=np.int8).reshape(grid_dim)
+grid_map = np.array(range(0,np.prod(grid_dim))).reshape(grid_dim)
 
 # Create a list of tuples where the tuples have length @c num_agents and represent the joint states of the agents.
 num_agents = 1

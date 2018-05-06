@@ -282,8 +282,8 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
     winning_reward['0_Empty'] = 1.0
 
     # Data types are constant for every batch.
-    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(arena_mdp.num_observable_states)
-    observation_dtype  = DataHelper.getSmallestNumpyUnsignedIntType(arena_mdp.num_actions)
+    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(arena_mdp.num_states * arena_mdp.num_actions)
+    observation_dtype  = DataHelper.getSmallestNumpyUnsignedIntType( arena_mdp.num_states * arena_mdp.num_actions)
 
     # Create a dictionary of observable states for printing.
     policy_keys_to_print = deepcopy([(state[0], arena_mdp.dra.get_transition(arena_mdp.L[state], state[1])) for state in
@@ -406,8 +406,8 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
     infer_mdp.theta_std_dev = np.ones(infer_mdp.theta.size)
 
     # Data types are constant for every batch.
-    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_observable_states)
-    observation_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_actions)
+    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_states * env_mdp.num_actions)
+    observation_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_states * env_mdp.num_actions)
 
 
     # Variables for logging data
@@ -665,8 +665,8 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
     infer_mdp.theta_std_dev = np.ones(infer_mdp.theta.size)
 
     # Data types are constant for every batch.
-    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_observable_states)
-    observation_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_actions)
+    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_states * env_mdp.num_actions)
+    observation_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_states * env_mdp.num_actions)
 
 
     # Variables for logging data

@@ -789,10 +789,11 @@ class PolicyInference(object):
         #  Precompute the indices in a policy vector of length (num-states * num-actions) given the observed actions and
         #  the episodes. Note that the histories are (num-episodes by num-time-steps) large, but the matrix of policy
         #  vector indices is (num-episodes by num-time-steps - 1).
-        self.episode_policy_vec_indices = (histories[:, :-1] * self.mdp.num_actions
+        self.episode_policy_vec_indices = (np.multiply(histories[:, :-1], self.mdp.num_actions, dtype=np.uint32)
                                            + self.observed_action_indices[:, 1:]).ravel()
         if self.use_additional_samples:
-            sample_policy_vec_indices = (self.additional_samples[:,:-1] * self.mdp.num_actions
+            sample_policy_vec_indices = (np.multiply(self.additional_samples[:,:-1], self.mdp.num_actions,
+                                         dtype=np.uint32)
                                          + self.additional_observed_action_indices[:,1:]).ravel()
             self.episode_policy_vec_indices = np.hstack((self.episode_policy_vec_indices, sample_policy_vec_indices))
 

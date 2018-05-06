@@ -31,7 +31,7 @@ np.set_printoptions(precision=4)
 grid_dim = [5, 5] # [num-rows, num-cols]
 num_cells = np.prod(grid_dim)
 cell_indices = range(0, num_cells)
-grid_map = np.array(cell_indices, dtype=np.int8).reshape(grid_dim)
+grid_map = np.array(cell_indices).reshape(grid_dim)
 
 # Create a list of tuples where the tuples have length @c num_agents and represent the joint states of the agents.
 num_agents = 2

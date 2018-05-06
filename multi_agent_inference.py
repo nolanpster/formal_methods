@@ -31,7 +31,7 @@ np.set_printoptions(precision=4)
 grid_dim = [5, 5] # [num-rows, num-cols]
 num_cells = np.prod(grid_dim)
 cell_indices = range(0, num_cells)
-grid_map = np.array(cell_indices, dtype=np.int8).reshape(grid_dim)
+grid_map = np.array(cell_indices).reshape(grid_dim)
 
 # Create a list of tuples where the tuples have length @c num_agents and represent the joint states of the agents.
 num_agents = 2
@@ -232,7 +232,7 @@ if gather_new_data:
     # Use policy to simulate and record results.
     #
     # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
-    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(demo_mdp.num_observable_states)
+    hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(demo_mdp.num_states * demo_mdp.num_actions)
     run_histories = np.zeros([num_episodes, steps_per_episode], dtype=hist_dtype)
     executed_robot_actions = np.zeros([num_episodes, steps_per_episode], dtype=hist_dtype)
     for episode in range(num_episodes):
@@ -269,7 +269,7 @@ if perform_new_inference:
         monte_carlo_size = None
 
     # Precompute observed actions for all episodes. Should do this in a "history" class.
-    observation_dtype  = DataHelper.getSmallestNumpyUnsignedIntType(demo_mdp.num_actions)
+    observation_dtype  = DataHelper.getSmallestNumpyUnsignedIntType(demo_mdp.num_states * demo_mdp.num_actions)
     observed_action_indices = np.empty([num_episodes, steps_per_episode], dtype=observation_dtype)
     observed_action_probs = np.empty([num_episodes, steps_per_episode], dtype=infer_dtype)
     for episode in xrange(num_episodes):
