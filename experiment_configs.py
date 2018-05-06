@@ -471,9 +471,9 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
                 observed_action_probs[hist_idx, t_step] = infer_mdp.P(prev_state[0], infer_mdp.action_list[obs_act_idx],
                                                                      this_state[0])
 
-        DataHelper.printStateHistories(run_histories[batch_idx:hist_idx + 1], env_mdp.observable_states)
+        #DataHelper.printStateHistories(run_histories[batch_idx:hist_idx + 1], env_mdp.observable_states)
         nominal_log_prob_data = np.log(observed_action_probs[:hist_idx + 1, 1:]).sum()
-        print "Nomainal log prob data: {}".format(nominal_log_prob_data)
+        print "Nomainal log prob data: {:0.2f}".format(nominal_log_prob_data)
 
         ### Infer ###
         # Since the gradient variance is proportional to the size of the demonstration, we'll set the gradient ascent
@@ -490,13 +490,12 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
                               theta_std_dev_max=np.inf, nominal_log_prob_data=nominal_log_prob_data,
                               moving_avg_min_slope=0.001, moving_average_buffer_length=60, do_plot=False,
                               precomputed_observed_action_indices=observed_action_indices[:hist_idx + 1],
-                              min_uncertainty=theta_std_dev_min)
+                              min_uncertainty=min_uncertainty)
 
         # Print Inference error
         # Check getPolicyAsVec for this MDP!
         inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
-        print('Batch {}: L1-norm from ref to inferred policy: {}.'.format(batch, inferred_policy_L1_norm_error))
-        print('L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
+        print('Batch {0:d}: L1-norm as a fraction of max error: {1:0.2f}.'.format(batch, inferred_policy_L1_norm_error/2/infer_mdp.num_states))
         recorded_inferred_policy_L1_norms.append(inferred_policy_L1_norm_error)
         inferred_policy_variance.append(np.sum(np.power(infer_mdp.theta_std_dev, 2)))
 
@@ -507,7 +506,7 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
             start_at_max_unc = np.zeros(active_initial_dist.shape)
             start_at_max_unc[np.argmax(active_initial_dist)] = 1.0
         batch_stop_time = time.time()
-        print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
+        print('Batch {0:d} runtime {1:0.2f} sec.'.format(batch, batch_stop_time - batch_start_time))
 
     return recorded_inferred_policy_L1_norms, inferred_policy_variance
 
@@ -661,10 +660,7 @@ def convertSingleAgentEnvPolicyToMultiAgent(multi_agent_mdp, joint_state_labels,
 def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj_length=10,
                                                second_traj_count=20, second_traj_length=2,
                                                inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
-                                               num_theta_samples=1000, robot_goal_states=None,
-                                               use_active_inference=True):
-
-    print "Using {} inference.".format("active" if use_active_inference else "passive")
+                                               num_theta_samples=1000, robot_goal_states=None, initial_traj_states=None):
 
     # Create a dictionary of observable states for printing, this removes the 'dra' states, so we can then turn it into
     # a vector for numerical comparison (infinite-norm).
@@ -722,7 +718,9 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
             observed_action_probs[hist_idx, t_step] = infer_mdp.P(prev_state[0], infer_mdp.action_list[obs_act_idx],
                                                                  this_state[0])
 
-    DataHelper.printStateHistories(run_histories, env_mdp.observable_states)
+    print_histories = False
+    if print_histories:
+        DataHelper.printStateHistories(run_histories, env_mdp.observable_states)
     nominal_log_prob_data = np.log(observed_action_probs[:, 1:]).sum()
 
     ### Infer ###
@@ -745,7 +743,7 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
     # Print Inference error
     # Check getPolicyAsVec for this MDP!
     inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, infer_mdp.getPolicyAsVec())
-    print('First Try: L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
+    print('First Try: L1-norm as a fraction of max error: {:0.3f}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
     recorded_inferred_policy_L1_norms.append(inferred_policy_L1_norm_error)
     inferred_policy_variance.append(np.sum(np.power(infer_mdp.theta_std_dev, 2)))
 
@@ -779,7 +777,8 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
             passive_additional_observed_action_probs[hist_idx, t_step] = passive_infer_mdp.P(prev_state[0], passive_infer_mdp.action_list[obs_act_idx],
                                                                  this_state[0])
 
-    DataHelper.printStateHistories(passive_additional_samples, env_mdp.observable_states)
+    if print_histories:
+        DataHelper.printStateHistories(passive_additional_samples, env_mdp.observable_states)
     passive_nominal_log_prob_data = (np.log(passive_additional_observed_action_probs[:, 1:]).sum() +
                                      nominal_log_prob_data)
 
@@ -798,7 +797,7 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
                           additional_samples=passive_additional_samples,
                           min_uncertainty=theta_std_dev_min)
     inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, passive_infer_mdp.getPolicyAsVec())
-    print('PASSIVE with resamples: L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
+    print('PASSIVE with resamples: L1-norm as a fraction of max error: {:0.3f}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
     passive_policy_L1_norms.append(inferred_policy_L1_norm_error)
     passive_policy_variance.append(np.sum(np.power(passive_infer_mdp.theta_std_dev, 2)))
 
@@ -839,7 +838,8 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
             active_additional_observed_action_probs[hist_idx, t_step] = active_infer_mdp.P(prev_state[0], active_infer_mdp.action_list[obs_act_idx],
                                                                  this_state[0])
 
-    DataHelper.printStateHistories(active_additional_samples, env_mdp.observable_states)
+    if print_histories:
+        DataHelper.printStateHistories(active_additional_samples, env_mdp.observable_states)
     active_nominal_log_prob_data = (np.log(active_additional_observed_action_probs[:, 1:]).sum() +
                                      nominal_log_prob_data)
 
@@ -858,7 +858,7 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
                           additional_samples=active_additional_samples,
                           min_uncertainty=theta_std_dev_min)
     inferred_policy_L1_norm_error = MDP.getPolicyL1Norm(true_env_policy_vec, active_infer_mdp.getPolicyAsVec())
-    print('ACTIVE with resamples: L1-norm as a fraction of max error: {}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
+    print('ACTIVE with resamples: L1-norm as a fraction of max error: {:0.3f}.'.format(inferred_policy_L1_norm_error/2/infer_mdp.num_states))
     active_policy_L1_norms.append(inferred_policy_L1_norm_error)
     active_policy_variance.append(np.sum(np.power(active_infer_mdp.theta_std_dev, 2)))
 
