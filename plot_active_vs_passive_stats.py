@@ -74,7 +74,6 @@ if multi_agent:
     passive_rewards_per_batch = passive_data_dict['passive_inference_count_of_trajs_reacing_goal']
     passive_rewards_per_batch[1:] = np.diff(passive_rewards_per_batch,axis=0)
 
-
     PlotHelper.plotValueStatsVsBatch(val_array_1=active_rewards_per_batch,
                                      val_array_2=passive_rewards_per_batch,
                                      title='Agent 1 Rewards per batch', ylabel='Count of Trajectories',

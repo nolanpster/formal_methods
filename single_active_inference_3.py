@@ -197,3 +197,4 @@ file_name_prefix = 'single_agent_resample_stats_{}_trials_{}_trajs_{}_steps_resa
 
 DataHelper.pickleInferenceStatistics(generated_data, file_name_prefix)
 
+plt.show()

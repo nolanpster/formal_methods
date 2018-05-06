@@ -251,16 +251,16 @@ if __name__=='__main__':
         else:
             eps = 0.001
         if inference_method in ['historyMLE', 'iterativeBayes', 'gradientAscentGaussianTheta'] or use_fixed_kernel_set:
-           theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,
-                                             do_print=False, reference_policy_vec=reference_policy_vec,
-                                             monte_carlo_size=monte_carlo_size, dtype=infer_dtype,
-                                             print_iterations=True, eps=eps, velocity_memory=0.2,
-                                             moving_avg_min_improvement=-np.inf,theta_std_dev_0=np.ones(num_kernels_in_set*5), theta_std_dev_max=np.inf,
-                                             theta_std_dev_min=0.3, moving_average_buffer_length=400,
-                                             moving_avg_min_slope=0.001,
-                                             precomputed_observed_action_indices=observed_action_indices,
-                                             nominal_log_prob_data=nominal_log_prob_data,
-                                             use_precomputed_phi=True, max_uncertainty=0.0)
+            theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories,
+                                              do_print=False, reference_policy_vec=reference_policy_vec,
+                                              monte_carlo_size=monte_carlo_size, dtype=infer_dtype,
+                                              print_iterations=True, eps=eps, velocity_memory=0.1,
+                                              moving_avg_min_improvement=-np.inf,theta_std_dev_0=1*np.ones(num_kernels_in_set*5), theta_std_dev_max=np.inf,
+                                              theta_std_dev_min=0.3, moving_average_buffer_length=200,
+                                              moving_avg_min_slope=0.001,
+                                              precomputed_observed_action_indices=observed_action_indices,
+                                              nominal_log_prob_data=nominal_log_prob_data,
+                                              use_precomputed_phi=True, min_uncertainty=0.5)
         else:
             if batch_size_for_kernel_set > 1:
                 print_inference_iterations = False
