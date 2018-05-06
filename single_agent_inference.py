@@ -28,7 +28,7 @@ np.set_printoptions(precision=4)
 ########################################################################################################################
 # Grid, number of agents, obstacle, label, action, initial and goal state configuration
 
-grid_dim = [8, 8] # [num-rows, num-cols]
+grid_dim = [32, 32] # [num-rows, num-cols]
 grid_map = np.array(range(0,np.prod(grid_dim))).reshape(grid_dim)
 
 # Create a list of tuples where the tuples have length @c num_agents and represent the joint states of the agents.
@@ -44,15 +44,15 @@ red = LTL_plus('red')
 empty = LTL_plus('E') # <-- 'E' is defined to be 'empty' in LTL_plus class.
 alphabet_dict = {'empty': empty, 'green': green, 'red': red}
 labels = {state: empty for state in states}
-labels[(18,)] = green
+labels[(100,)] = green
 
 # Starting and final states
 initial_state = (53,)
-goal_state = (18,) # Currently assumess only one goal.
-labels[(21,)] = red
-labels[(29,)] = red
-labels[(41,)] = red
-labels[(42,)] = red
+goal_state = (100,) # Currently assumess only one goal.
+labels[(325,)] = red
+labels[(326,)] = red
+labels[(327,)] = red
+labels[(328,)] = red
 
 # Numpy Data type to use for transition probability matrices (affects speed / precision)
 prob_dtype = np.float64
@@ -77,8 +77,8 @@ solve_with_uniform_distribution = True
 if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
     make_new_mdp = False
-    pickled_mdp_file_to_load  = 'robot_mdps_180502_2038'
     skip_product_calcs = True
+    pickled_mdp_file_to_load  = 'robot_mdps_180505_1841'
     write_mdp_policy_csv = False
 
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -86,9 +86,9 @@ if __name__=='__main__':
     # determine how large the demonstration set should be.
     gather_new_data = False
     #initial_traj_states = [0, 7, 56, 63]
-    num_episodes = 5000
-    steps_per_episode = 10
-    pickled_episodes_file_to_load = 'robot_mdps_180502_2038_HIST_5000eps10steps_180504_0902'
+    num_episodes = 100
+    steps_per_episode = 5
+    pickled_episodes_file_to_load = 'robot_mdps_180505_1841_HIST_100eps5steps_180505_1842'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
@@ -106,12 +106,26 @@ if __name__=='__main__':
     # Gradient Ascent kernel configurations
     use_fixed_kernel_set = True
     if use_fixed_kernel_set is True:
-        kernel_centers = [frozenset(range(0, num_states, 5)) | frozenset([21,29,41,42])]
+        # Configure a grid of kernels with even spaceing
+        row_interval = 5
+        row_start = 7
+        kernel_rows = np.arange(row_start, grid_dim[0], row_interval)
+        num_kernel_rows = kernel_rows.size
+        kernel_rows = kernel_rows.reshape(num_kernel_rows, 1) # Reshape so we can broadcast to make @ref kernel_grid
+        kernel_rows *= grid_dim[1] # Cell number at start of each row
+
+        col_interval = 5
+        col_start = 7
+        kernel_cols = np.arange(col_start, grid_dim[1], col_interval)
+
+        kernel_grid = kernel_rows + kernel_cols
+
+        kernel_centers = [frozenset(kernel_grid.ravel()) | frozenset([325,326,327,328])]
         #kernel_centers = [frozenset([0, 4, 12, 13, 14, 20, 24])]
         #kernel_centers = [frozenset(range(0, num_states, 1))]
         #kernel_centers = [frozenset((0, 4, 12, 20, 24))]
         num_kernels_in_set = len(kernel_centers[0])
-        kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
+        kernel_sigmas = np.array([5.5]*num_kernels_in_set, dtype=infer_dtype)
         batch_size_for_kernel_set = 1
     else:
         kernel_count_start = 16
