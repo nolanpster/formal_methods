@@ -119,7 +119,7 @@ def getDRAAvoidRedGetToGreen(alphabet_dict, save_dra_to_dot_file=False):
     return co_safe_dra
 
 def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, grid_map, gamma=0.9, act_prob=dict([]),
-                    do_print=False, init_set=None,prob_dtype=np.float64, act_cost=0.0):
+                    do_print=False, init_set=None,prob_dtype=np.float64, act_cost=0.0, skip_product_calcs=False):
     """
     @brief Configure the product MDP and DRA.
 
@@ -152,7 +152,6 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
                       'West': act_cost,
                       'Empty': 1.0
         }
-    skip_product_calcs = False
     if skip_product_calcs:
         sink_list = [state for state, label in labels.iteritems() if label is not alphabet_dict['empty']]
     else:
@@ -167,7 +166,12 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
     # Create a dictionary of observable states for printing.
     policy_keys_to_print = deepcopy([(state[0], VI_mdp.dra.get_transition(VI_mdp.L[state], state[1])) for state in
                                      VI_mdp.states if 'q0' in state])
-    VI_mdp.setObservableStates(observable_states=policy_keys_to_print)
+
+    if not skip_product_calcs:
+        VI_mdp.setObservableStates(observable_states=policy_keys_to_print)
+    else:
+        # States are _not_ combinations of MDP and DRA states so all states are observable.
+        pass
 
     ##### SOLVE #####
     # To enable a solution of the MDP with multiple methods, copy the MDP, set the initial state likelihood
@@ -246,7 +250,11 @@ def makeMultiAgentGridMDPxDRA(states, initial_state, action_set, alphabet_dict, 
     else:
         policy_keys_to_print = deepcopy([(state[0], demo_mdp.dra.get_transition(demo_mdp.L[state], state[1])) for state
                                          in demo_mdp.states if 'q0' in state])
-    demo_mdp.setObservableStates(observable_states=policy_keys_to_print)
+    if skip_product_calcs:
+        demo_mdp.setObservableStates(observable_states=policy_keys_to_print)
+    else:
+        # States are _not_ combinations of MDP and DRA states so all states are observable.
+        pass
 
     ##### SOLVE #####
     # To enable a solution of the MDP with multiple methods, copy the MDP, set the initial state likelihood
@@ -391,14 +399,18 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
 
 def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories_per_batch=100, num_steps_per_traj=15,
                             inference_method='gradientAscentGaussianTheta', infer_dtype=np.float64,
-                            num_theta_samples=1000, robot_goal_states=None, use_active_inference=True):
+                            num_theta_samples=1000, robot_goal_states=None, use_active_inference=True,
+                            env_mdp_has_dra_states=False):
 
     print "Using {} inference.".format("active" if use_active_inference else "passive")
 
     # Create a dictionary of observable states for printing, this removes the 'dra' states, so we can then turn it into
     # a vector for numerical comparison (infinite-norm).
-    policy_keys_to_print = deepcopy([(state[0], env_mdp.dra.get_transition(env_mdp.L[state], state[1])) for state in
-                                     env_mdp.states if 'q0' in state])
+    if env_mdp_has_dra_states:
+        policy_keys_to_print = deepcopy([(state[0], env_mdp.dra.get_transition(env_mdp.L[state], state[1])) for state in
+                                         env_mdp.states if 'q0' in state])
+    else:
+        policy_keys_to_print = env_mdp.states
     true_env_policy_vec = env_mdp.getPolicyAsVec(policy_keys_to_print)
 
     # Initial inference params.

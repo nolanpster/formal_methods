@@ -78,6 +78,7 @@ if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
     make_new_mdp = False
     pickled_mdp_file_to_load  = 'robot_mdps_180502_2038'
+    skip_product_calcs = True
     write_mdp_policy_csv = False
 
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -167,7 +168,8 @@ if __name__=='__main__':
             init_set = None
         (EM_mdp, VI_mdp, policy_keys_to_print, policy_difference) = \
             ExperimentConfigs.makeGridMDPxDRA(states, initial_state, action_list, alphabet_dict, labels, grid_map,
-                                              do_print=True, init_set=init_set, prob_dtype=prob_dtype)
+                                              do_print=True, init_set=init_set, prob_dtype=prob_dtype,
+                                              skip_product_calcs=skip_product_calcs)
         variables_to_save = [EM_mdp, VI_mdp, policy_keys_to_print, policy_difference]
         pickled_mdp_file = DataHelp.pickleMDP(variables_to_save, name_prefix="robot_mdps")
     else:
@@ -181,6 +183,8 @@ if __name__=='__main__':
 
     # Choose which policy to use for demonstration.
     mdp = EM_mdp
+    if skip_product_calcs:
+        policy_keys_to_print = mdp.states
     reference_policy_vec = mdp.getPolicyAsVec(policy_keys_to_print)
     #mdp.computeErgodicCoefficient()
 
