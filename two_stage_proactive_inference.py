@@ -52,8 +52,8 @@ alphabet_dict = {'empty': empty, 'green': green, 'red': red}
 # generation start with a uniform (MDP.S default) distribution across the values assigned to MDP.init_set. Set this to
 # _False_ to have EM and the MDP always start from the `initial_state` below.
 solve_with_uniform_distribution = False
-robot_initial_cell = 24
-env_initial_cell = 12
+robot_initial_cell = 19
+env_initial_cell = 11
 initial_state = (robot_initial_cell, env_initial_cell)
 
 # Currently assumes the robot only has one goal cell. Also, fixed obstacles only affect the robot.
@@ -99,29 +99,30 @@ env_action_list = joint_action_list[(env_idx * num_grid_actions) : (env_idx * nu
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
 pickled_mdp_file_to_load  = 'multi_agent_mdps_180423_1611'
+#pickled_mdp_file_to_load  = 'multi_agent_mdps_180429_2220' # Stochastic
 act_cost =  0.0
 
-true_optimal_policies_to_load = 'true_optimal_policies_em_15H_100N_Inference_Stats_180423_2008'
+true_optimal_policies_to_load = 'true_optimal_policies_em_15H_100N_Inference_Stats_180428_1203'
 
 # Geodesic Gaussian Kernel centers
 gg_kernel_centers = range(0, num_cells, 1)
 gg_kernel_centers = [0, 4, 12, 20, 24, 24]  # Last kernel is the 'mobile' kernel
-gg_kernel_centers = range(0, num_cells, 4) + [6, 18] + [24]
+gg_kernel_centers = range(0, num_cells, 4) + [6, 10, 14, 18] + [24]
 #gg_kernel_centers = range(0, num_cells, 1) + [24]
 num_kernels_in_set = len(gg_kernel_centers)
-kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
+kernel_sigmas = np.array([1.0]*num_kernels_in_set, dtype=infer_dtype)
 ggk_mobile_indices = [num_kernels_in_set-1]
 
 # Gaussian Theta params
-use_active_inference = True
+use_active_inference = False
 num_theta_samples = 1000
-inference_temp = 0.5
+inference_temp = 0.3
 
 # Batch configurations
-num_batches = 10
-traj_count_per_batch = 30
-traj_length = 9
-num_experiment_trials = 10
+num_batches = 2
+traj_count_per_batch = 2
+traj_length = 8
+num_experiment_trials = 25
 ########################################################################################################################
 # Create / Load Multi Agent MDP
 #
@@ -159,6 +160,8 @@ demo_mdp.infer_env_mdp.temp = inference_temp
 
 demo_mdp.init_set = [(initial_state,)]
 demo_mdp.setInitialProbDist(demo_mdp.init_set)
+
+demo_mdp.gamma = 0.99
 
 # The original environment policy in the MDP is a random walk. So we load a file containing a more interesting
 # environent policy (generated in a single agent environment) then copy it into the joint state-space. Additionally, we

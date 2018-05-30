@@ -52,7 +52,12 @@ goal_state = (100,) # Currently assumess only one goal.
 labels[(325,)] = red
 labels[(326,)] = red
 labels[(327,)] = red
-labels[(328,)] = red
+labels[(325+32,)] = red
+labels[(326+32,)] = red
+labels[(327+32,)] = red
+labels[(325+64,)] = red
+labels[(326+64,)] = red
+labels[(327+64,)] = red
 
 # Numpy Data type to use for transition probability matrices (affects speed / precision)
 prob_dtype = np.float64
@@ -78,7 +83,7 @@ if __name__=='__main__':
     # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
     make_new_mdp = False
     skip_product_calcs = True
-    pickled_mdp_file_to_load  = 'robot_mdps_180505_1841'
+    pickled_mdp_file_to_load  = 'robot_mdps_180506_1723'
     write_mdp_policy_csv = False
 
     # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -86,16 +91,16 @@ if __name__=='__main__':
     # determine how large the demonstration set should be.
     gather_new_data = False
     #initial_traj_states = [0, 7, 56, 63]
-    num_episodes = 100
+    num_episodes = 150
     steps_per_episode = 5
-    pickled_episodes_file_to_load = 'robot_mdps_180505_1841_HIST_100eps5steps_180505_1842'
+    pickled_episodes_file_to_load = 'robot_mdps_180506_1723_HIST_150eps5steps_180506_1723'
 
     # Perform/load policy inference options. If @c perform_new_inference is false, load the
     # @pickled_inference_mdps_file. The inference statistics files contain an array of L1-norm errors from the
     # demonstration policy.
-    perform_new_inference = True
+    perform_new_inference = False
     pickled_inference_mdps_file_to_load  = \
-        'robot_mdps_180424_2200_HIST_10eps10steps_180425_1723_Policy_180425_1723'
+        'robot_mdps_180506_1723_HIST_150eps5steps_180506_1723_Policy_180506_1753'
     load_inference_statistics = (not perform_new_inference) & False
     pickled_inference_statistics_file_to_load  = \
         'robot_mdps_180221_1237_HIST_250eps15steps_180221_1306_Inference_Stats_180221_1431'
@@ -120,12 +125,13 @@ if __name__=='__main__':
 
         kernel_grid = kernel_rows + kernel_cols
 
-        kernel_centers = [frozenset(kernel_grid.ravel()) | frozenset([325,326,327,328])]
+        #kernel_centers = [frozenset(kernel_grid.ravel()) | frozenset([325,326,327,328])]
+        kernel_centers = [[746, 99, 111, 121, 455, 335, 505, 825, 1023] + [326+32]]
         #kernel_centers = [frozenset([0, 4, 12, 13, 14, 20, 24])]
         #kernel_centers = [frozenset(range(0, num_states, 1))]
         #kernel_centers = [frozenset((0, 4, 12, 20, 24))]
         num_kernels_in_set = len(kernel_centers[0])
-        kernel_sigmas = np.array([5.5]*num_kernels_in_set, dtype=infer_dtype)
+        kernel_sigmas = np.array([10, 5.5, 5, 6, 6, 6, 8, 6, 2.5 , 2], dtype=infer_dtype)
         batch_size_for_kernel_set = 1
     else:
         kernel_count_start = 16
@@ -143,7 +149,7 @@ if __name__=='__main__':
 
 
     # Plotting lags
-    plot_all_grids = False
+    plot_all_grids = True
     plot_initial_mdp_grids = False
     plot_inferred_mdp_grids = True
     plot_demonstration = True
@@ -153,8 +159,10 @@ if __name__=='__main__':
     plot_loaded_phi = False
     plot_loaded_kernel = False
     plot_inference_statistics = False
+    plot_grid_error = True
     plot_flags = [plot_all_grids, plot_initial_mdp_grids, plot_inferred_mdp_grids, plot_new_phi, plot_loaded_phi,
-                  plot_new_kernel, plot_loaded_kernel, plot_inference_statistics, plot_demonstration, plot_uncertainty]
+                  plot_new_kernel, plot_loaded_kernel, plot_inference_statistics, plot_demonstration, plot_uncertainty,
+                  plot_grid_error]
     if plot_new_kernel and plot_loaded_kernel:
         raise ValueError('Can not plot both new and loaded kernel in same call.')
     if plot_new_kernel:
@@ -182,7 +190,7 @@ if __name__=='__main__':
             init_set = None
         (EM_mdp, VI_mdp, policy_keys_to_print, policy_difference) = \
             ExperimentConfigs.makeGridMDPxDRA(states, initial_state, action_list, alphabet_dict, labels, grid_map,
-                                              do_print=True, init_set=init_set, prob_dtype=prob_dtype,
+                                              do_print=False, init_set=init_set, prob_dtype=prob_dtype,
                                               skip_product_calcs=skip_product_calcs)
         variables_to_save = [EM_mdp, VI_mdp, policy_keys_to_print, policy_difference]
         pickled_mdp_file = DataHelp.pickleMDP(variables_to_save, name_prefix="robot_mdps")
@@ -208,6 +216,10 @@ if __name__=='__main__':
         # Current policy E{T|R} 6.7. Start by simulating 10 steps each episode.
         hist_dtype = DataHelp.getSmallestNumpyUnsignedIntType(mdp.num_states * mdp.num_states)
         run_histories = np.zeros([num_episodes, steps_per_episode], dtype=hist_dtype)
+        #for episode, init_state in zip(xrange(num_episodes), initial_traj_states):
+        #    # Create time-history for this episode.
+        #    mdp.current_state = policy_keys_to_print[init_state]
+        #    run_histories[episode, 0] = init_state #As initial state
         for episode in range(num_episodes):
             # Create time-history for this episode.
             _, run_histories[episode, 0] = mdp.resetState()
@@ -231,7 +243,7 @@ if __name__=='__main__':
         # between two grid-cells.
         infer_mdp = InferenceMDP(init=initial_state, action_list=action_list, states=states,
                                  act_prob=deepcopy(act_prob), grid_map=grid_map, L=labels,
-                                 gg_kernel_centers=kernel_centers[0], kernel_sigmas=kernel_sigmas, temp=0.3)
+                                 gg_kernel_centers=kernel_centers[0], kernel_sigmas=kernel_sigmas, temp=0.2)
         print 'Built InferenceMDP with kernel set:'
         print(kernel_centers[0])
         if not perform_new_inference and (plot_new_phi or plot_new_kernel):
@@ -261,7 +273,7 @@ if __name__=='__main__':
 
         print 'Nominal Log prob {}'.format(nominal_log_prob_data)
         if nominal_log_prob_data != 0.0:
-            eps = 0.02 / (-nominal_log_prob_data)
+            eps = 0.01 / (-nominal_log_prob_data)
         else:
             eps = 0.001
         if inference_method in ['historyMLE', 'iterativeBayes', 'gradientAscentGaussianTheta'] or use_fixed_kernel_set:
@@ -270,11 +282,11 @@ if __name__=='__main__':
                                               monte_carlo_size=monte_carlo_size, dtype=infer_dtype,
                                               print_iterations=True, eps=eps, velocity_memory=0.1,
                                               moving_avg_min_improvement=-np.inf,theta_std_dev_0=1*np.ones(num_kernels_in_set*5), theta_std_dev_max=np.inf,
-                                              theta_std_dev_min=0.3, moving_average_buffer_length=200,
+                                              theta_std_dev_min=0.3, moving_average_buffer_length=60,
                                               moving_avg_min_slope=0.001,
                                               precomputed_observed_action_indices=observed_action_indices,
                                               nominal_log_prob_data=nominal_log_prob_data,
-                                              use_precomputed_phi=True, min_uncertainty=0.5)
+                                              use_precomputed_phi=True, min_uncertainty=0.5, do_plot=False)
         else:
             if batch_size_for_kernel_set > 1:
                 print_inference_iterations = False
@@ -327,8 +339,9 @@ if __name__=='__main__':
             DataHelp.loadPickledInferenceStatistics(pickled_inference_statistics_file_to_load)
 
     # Remember that variable @ref mdp is used for demonstration.
+    inferred_policy_vec = infer_mdp.getPolicyAsVec()
     if len(policy_keys_to_print) == infer_mdp.num_states:
-        infered_policy_L1_norm_error = MDP.getPolicyL1Norm(reference_policy_vec, infer_mdp.getPolicyAsVec())
+        infered_policy_L1_norm_error = MDP.getPolicyL1Norm(reference_policy_vec, inferred_policy_vec)
         print('L1-norm between reference and inferred policy: {}.'.format(infered_policy_L1_norm_error))
         print('L1-norm as a fraction of max error: {}.'.format(infered_policy_L1_norm_error/2/num_states))
     else:
@@ -373,16 +386,22 @@ if __name__=='__main__':
                 order_of_keys = [key for key in states]
                 list_of_tuples = [(key, policy[key]) for key in order_of_keys]
             policy = OrderedDict(list_of_tuples)
+            if kernel_loc is None:
+                kernel_sigs = None
+            else:
+                kernel_sigs = deepcopy(kernel_sigmas)
             fig = base_policy_grid.configurePlot(title, policy, action_list, use_print_keys, policy_keys_to_print,
-                                                 decimals=2, kernel_locations=kernel_loc)
-            plt.savefig('{}_solved.tif'.format(title), dpi=400, transparent=False)
+                                                 decimals=2, kernel_locations=kernel_loc,
+                                                 kernel_sigmas=kernel_sigs)
+            #plt.savefig('{}_solved.tif'.format(title), dpi=400, transparent=False)
 
         print '\n\nHEY! You! With the face! (computers don\'t have faces) Mazimize figure window to correctly show ' \
                 'arrow/dot size ratio!\n'
 
     if plot_demonstration:
         demo_grid = PlotHelp.PlotDemonstration(maze, cmap, y_center_offset=0.6, x_center_offset=0.3, fontsize=32)
-        demo_grid.configurePlot('', run_histories)
+        demo_grid.configurePlot('', run_histories, kernel_locations=infer_mdp.kernel_centers,
+                               kernel_sigmas=kernel_sigmas)
 
     if plot_loaded_kernel or plot_new_kernel:
         if not perform_new_inference and plot_new_kernel:
@@ -407,6 +426,7 @@ if __name__=='__main__':
                                              states=infer_mdp.states)
 
     if plot_uncertainty:
+        use_heatmap = True
         # Only for GaussianTheta
         uncertainty_grid = PlotHelp.UncertaintyPlot(maze, cmap, grid_map)
         policy_uncertainty = infer_mdp.policy_uncertainty_as_vec.reshape([infer_mdp.num_states, infer_mdp.num_actions])
@@ -414,14 +434,25 @@ if __name__=='__main__':
             param_vector_indices = xrange(act_idx, len(infer_mdp.theta), len(action_list))
             uncertainty_vals = infer_mdp.theta_std_dev[param_vector_indices]
             title='Param Uncertainty'
-            fig, ax = uncertainty_grid.configurePlot(title, infer_mdp.kernel_centers, uncertainty_vals, act_str=str(act))
+            fig, ax = uncertainty_grid.configurePlot(title, infer_mdp.kernel_centers, uncertainty_vals,
+                    act_str=str(act), use_heatmap=use_heatmap)
             # Plot aggregate state-action uncertainty at states here
             fig, ax = uncertainty_grid.configurePlot('Policy Uncertainty', infer_mdp.grid_map.ravel(),
-                                                     policy_uncertainty[:, act_idx], act_str=str(act))
+                                                     policy_uncertainty[:, act_idx], act_str=str(act),
+                                                     use_heatmap=use_heatmap)
         # Plot uncertainties at states (summed over actions)
         title = ''
         fig, ax = uncertainty_grid.configurePlot(title, infer_mdp.grid_map.ravel(), policy_uncertainty.sum(axis=1) ,
-                                                 act_str='')
+                                                 act_str='', use_heatmap=use_heatmap)
+
+    if plot_grid_error:
+        error_grid = PlotHelp.ErrorPlot(maze, cmap, grid_map)
+        policy_error = np.abs((inferred_policy_vec - reference_policy_vec)/2).reshape(infer_mdp.num_states,
+                                                                                  infer_mdp.num_actions)
+        policy_error_at_state = np.sum(policy_error, axis=1)
+        fix, ax = error_grid.configurePlot('', policy_error_at_state)
+        import pdb; pdb.set_trace()
+
 
     if plot_inference_statistics:
         infer_mdp.inferPolicy(method='historyMLE', histories=run_histories, do_print=False)

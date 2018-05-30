@@ -86,7 +86,7 @@ act_prob = ExperimentConfigs.getActionProbabilityDictionary(prob_dtype)
 ########################################################################################################################
 # MDP solution/load options. If @c make_new_mdp is false load the @c pickled_mdp_file.
 make_new_mdp = False
-pickled_mdp_file_to_load  = 'robot_mdps_180430_1810'
+pickled_mdp_file_to_load  = 'robot_mdps_180504_1257'
 act_cost = 0.0
 
 
@@ -98,16 +98,18 @@ gg_kernel_centers = frozenset(range(0, num_states, 5)) | frozenset([21,29,41,42]
 #gg_kernel_centers = frozenset(range(1, num_states, 2)) | frozenset([13,14, 20])
 #gg_kernel_centers = frozenset([0, 4, 12, 13, 14, 20, 24])
 num_kernels_in_set = len(gg_kernel_centers)
-kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
+kernel_sigmas = np.array([1.5]*num_kernels_in_set, dtype=infer_dtype)
 
 # Gaussian Theta params
 num_theta_samples = 1000
-inference_temp = 0.5
+inference_temp = 0.4
 
 # Batch configurations
-initial_traj_count = 3
-initial_traj_length = 10
-second_traj_count = 10
+initial_traj_count = 100
+initial_traj_length = 5
+#initial_traj_states = [0, 7, 56, 63]
+initial_traj_states = None
+second_traj_count = 100
 second_traj_length = 2
 num_experiment_trials = 10
 ########################################################################################################################
@@ -165,7 +167,8 @@ for trial in range(num_experiment_trials):
                                                second_traj_count=second_traj_count,
                                                second_traj_length=second_traj_length,
                                                inference_method='gradientAscentGaussianTheta', infer_dtype=infer_dtype,
-                                               num_theta_samples=num_theta_samples, robot_goal_states=None)
+                                               num_theta_samples=num_theta_samples, robot_goal_states=None,
+                                               initial_traj_states=initial_traj_states)
 
     active_policy_L1_norm_sets.append(active_policy_L1_norms)
     active_parameter_variances.append(active_parameter_variance)

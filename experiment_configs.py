@@ -34,15 +34,15 @@ def getActionProbabilityDictionary(dtype=np.float64):
     # 8) Transition prob when in SW corner cell.
     #
     # Column values are probabilities of ['Empty', 'north', 'south', 'east', 'west'] actions.
-    act_prob = {'North': np.array([[0.0, 0.8, 0.0, 0.1, 0.1],
-                                   [0.8, 0.0, 0.0, 0.1, 0.1],
-                                   [0.0, 0.8, 0.0, 0.1, 0.1],
-                                   [0.1, 0.8, 0.0, 0.0, 0.1],
-                                   [0.1, 0.8, 0.0, 0.1, 0.0],
-                                   [0.9, 0.0, 0.0, 0.0, 0.1],
-                                   [0.9, 0.0, 0.0, 0.1, 0.0],
-                                   [0.1, 0.8, 0.0, 0.0, 0.1],
-                                   [0.1, 0.8, 0.0, 0.1, 0.0]]
+    act_prob = {'North': np.array([[0.2, 0.4, 0.0, 0.2, 0.2],
+                                   [0.6, 0.0, 0.0, 0.2, 0.2],
+                                   [0.2, 0.4, 0.0, 0.2, 0.2],
+                                   [0.4, 0.4, 0.0, 0.0, 0.2],
+                                   [0.4, 0.4, 0.0, 0.2, 0.0],
+                                   [0.8, 0.0, 0.0, 0.0, 0.2],
+                                   [0.8, 0.0, 0.0, 0.2, 0.0],
+                                   [0.4, 0.4, 0.0, 0.0, 0.2],
+                                   [0.1, 0.4, 0.0, 0.2, 0.0]]
                                   , dtype=dtype),
                 'South': np.array([[0.0, 0.0, 0.8, 0.1, 0.1],
                                    [0.0, 0.0, 0.8, 0.1, 0.1],
@@ -54,24 +54,24 @@ def getActionProbabilityDictionary(dtype=np.float64):
                                    [0.9, 0.0, 0.0, 0.0, 0.1],
                                    [0.9, 0.0, 0.0, 0.1, 0.0]]
                                   , dtype=dtype),
-                'East': np.array([[0.0, 0.1, 0.1, 0.8, 0.0],
-                                  [0.1, 0.0, 0.1, 0.8, 0.0],
-                                  [0.1, 0.1, 0.0, 0.8, 0.0],
-                                  [0.8, 0.1, 0.1, 0.0, 0.0],
-                                  [0.0, 0.1, 0.1, 0.8, 0.0],
-                                  [0.9, 0.0, 0.1, 0.0, 0.0],
-                                  [0.1, 0.0, 0.1, 0.8, 0.0],
+                'East': np.array([[0.1, 0.1, 0.2, 0.6, 0.0],
+                                  [0.2, 0.0, 0.2, 0.6, 0.0],
+                                  [0.3, 0.1, 0.0, 0.6, 0.0],
+                                  [0.7, 0.1, 0.2, 0.0, 0.0],
+                                  [0.1, 0.1, 0.2, 0.6, 0.0],
+                                  [0.8, 0.0, 0.2, 0.0, 0.0],
+                                  [0.2, 0.0, 0.2, 0.6, 0.0],
                                   [0.9, 0.1, 0.0, 0.0, 0.0],
-                                  [0.1, 0.1, 0.0, 0.8, 0.0]]
+                                  [0.3, 0.1, 0.0, 0.6, 0.0]]
                                  , dtype=dtype),
-                'West': np.array([[0.0, 0.1, 0.1, 0.0, 0.8],
-                                  [0.1, 0.0, 0.1, 0.0, 0.8],
-                                  [0.1, 0.1, 0.0, 0.0, 0.8],
-                                  [0.0, 0.1, 0.1, 0.0, 0.8],
-                                  [0.8, 0.1, 0.1, 0.0, 0.0],
-                                  [0.1, 0.0, 0.1, 0.0, 0.8],
-                                  [0.9, 0.0, 0.1, 0.0, 0.0],
-                                  [0.1, 0.1, 0.0, 0.0, 0.8],
+                'West': np.array([[0.1, 0.1, 0.2, 0.0, 0.6],
+                                  [0.2, 0.0, 0.2, 0.0, 0.6],
+                                  [0.3, 0.1, 0.0, 0.0, 0.6],
+                                  [0.1, 0.1, 0.2, 0.0, 0.6],
+                                  [0.7, 0.1, 0.2, 0.0, 0.0],
+                                  [0.2, 0.0, 0.2, 0.0, 0.6],
+                                  [0.8, 0.0, 0.2, 0.0, 0.0],
+                                  [0.3, 0.1, 0.0, 0.0, 0.6],
                                   [0.9, 0.1, 0.0, 0.0, 0.0]]
                                  , dtype=dtype),
                 'Empty': np.array([[1.0, 0.0, 0.0, 0.0, 0.0],
@@ -178,7 +178,7 @@ def makeGridMDPxDRA(states, initial_state, action_set, alphabet_dict, labels, gr
     # distributions and then solve the MDPs.
     EM_mdp = deepcopy(VI_mdp)
     EM_mdp.solve(do_print=do_print, method='expectationMaximization', policy_keys_to_print=policy_keys_to_print,
-                 horizon_length=50, num_iters=400, do_incremental_e_step=True)
+                 horizon_length=50, num_iters=400, do_incremental_e_step=True, print_iterations=False)
     VI_mdp.solve(do_print=do_print, method='valueIteration', write_video=False,
                  policy_keys_to_print=policy_keys_to_print)
 
@@ -378,7 +378,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
 
         if use_active_inference:
             # Go through and pop keys from policy_uncertainty into a dict built from policy_keys_to_print.
-            bonus_reward_dict = makeBonusReward(infer_mdp.policy_uncertainty)
+            bonus_reward_dict = makeBonusReward(infer_mdp.policy_uncertainty, batch)
             arena_mdp.configureReward(winning_reward, bonus_reward_at_state=bonus_reward_dict, act_cost=act_cost)
             bonus_reward_vec = arena_mdp.getPolicyAsVec(policy_keys_to_use=bonus_reward_dict.keys(),
                                                         policy_to_convert=bonus_reward_dict,
@@ -390,7 +390,7 @@ def rolloutInferSolve(arena_mdp, robot_idx, env_idx, num_batches=10, num_traject
         # Need to reset the policy to something _very_ sub-optimal for EM.
         arena_mdp.makeUniformPolicy()
         arena_mdp.solve(do_print=False, method='expectationMaximization', print_iterations=False,
-                        horizon_length=15, num_iters=100, do_incremental_e_step=True)
+                        horizon_length=15, num_iters=300, do_incremental_e_step=True)
         robot_policy_err_to_opt.append(MDP.getPolicyL1Norm(true_optimal_VI_policy, arena_mdp.getPolicyAsVec()))
         batch_stop_time = time.time()
         print('Batch {} runtime {} sec.'.format(batch, batch_stop_time - batch_start_time))
@@ -444,7 +444,7 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
     observed_action_probs = np.empty([num_trajectories_per_batch * num_batches, num_steps_per_traj], dtype=infer_dtype)
 
     for batch in range(num_batches):
-        if use_active_inference and batch > 0 and not any(np.isnan(active_initial_dist)) and (batch % 2):
+        if use_active_inference and batch > 0 and not any(np.isnan(active_initial_dist)):# and (batch % 2):
             # Select the state with the highest uncertainty to be the initial state for all trajectories. Another way to
             # do this would be to have a prioritiezed weighting of states based off of their variance.
             env_mdp.setInitialProbDist(env_mdp.init_set, init_prob=active_initial_dist)
@@ -512,8 +512,8 @@ def rolloutInferSingleAgent(env_mdp, infer_mdp, num_batches=10, num_trajectories
 
     return recorded_inferred_policy_L1_norms, inferred_policy_variance
 
-def makeBonusReward(policy_uncertainty_dict):
-    exploration_weight = 0.2
+def makeBonusReward(policy_uncertainty_dict, batch):
+    exploration_weight = 0.5*0.9**batch
     bonus_reward_dict = dict.fromkeys(policy_uncertainty_dict)
     for state in policy_uncertainty_dict:
         bonus_reward_dict[state] = {}
@@ -673,7 +673,7 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
 
     # Initial inference params.
     infer_mdp.theta = np.zeros(len(infer_mdp.phi))
-    infer_mdp.theta_std_dev = np.ones(infer_mdp.theta.size)
+    infer_mdp.theta_std_dev = np.ones(infer_mdp.theta.size)*1
 
     # Data types are constant for every batch.
     hist_dtype = DataHelper.getSmallestNumpyUnsignedIntType(env_mdp.num_states * env_mdp.num_actions)
@@ -695,6 +695,7 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
     env_mdp.init_set = policy_keys_to_print
     env_mdp.setInitialProbDist(env_mdp.init_set)
 
+    #initial_traj_count = infer_mdp.grid_cell_vec.size
     # Preallocate an array to hold trajectory rollouts, a.k.a demonstrations/histories.
     run_histories = np.zeros([initial_traj_count, initial_traj_length], dtype=hist_dtype)
     observed_action_indices = np.empty([initial_traj_count, initial_traj_length], dtype=observation_dtype)
@@ -705,10 +706,13 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
     additional_observed_action_probs = np.empty([second_traj_count, second_traj_length], dtype=infer_dtype)
 
     ### Roll Out ###
+    #for episode, init_state in zip(xrange(initial_traj_count), initial_traj_states):
     for episode in xrange(initial_traj_count):
         # Create time-history for this episode.
         hist_idx = episode
         _, run_histories[hist_idx, 0] = env_mdp.resetState()
+        #env_mdp.current_state = policy_keys_to_print[init_state]
+        #run_histories[hist_idx, 0] = init_state #As initial state
         for t_step in xrange(1, initial_traj_length):
             # Take step
             _, run_histories[hist_idx, t_step] = env_mdp.step()
@@ -768,6 +772,8 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
         # Create time-history for this episode.
         hist_idx = episode
         _, passive_additional_samples[hist_idx, 0] = env_mdp.resetState()
+        #env_mdp.current_state = policy_keys_to_print[episode]
+        #passive_additional_samples[hist_idx, 0] = episode #As initial state
         for t_step in xrange(1, second_traj_length):
             # Take step
             _, passive_additional_samples[hist_idx, t_step] = env_mdp.step()
@@ -820,6 +826,7 @@ def rolloutInferResample(env_mdp, infer_mdp, initial_traj_count=20, initial_traj
     # Reconfigure initial ditribution
     active_initial_dist = \
         np.sum(active_infer_mdp.policy_uncertainty_as_vec.reshape(active_infer_mdp.num_states, active_infer_mdp.num_actions), axis=1)
+    active_initial_dist -= min(active_initial_dist)
     active_initial_dist /= sum(active_initial_dist)
     if not any(np.isnan(active_initial_dist)):
         env_mdp.setInitialProbDist(env_mdp.init_set, init_prob=active_initial_dist)

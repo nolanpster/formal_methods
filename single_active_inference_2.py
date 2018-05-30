@@ -110,11 +110,13 @@ kernel_cols = np.arange(col_start, grid_dim[1], col_interval)
 
 kernel_grid = kernel_rows + kernel_cols
 
-gg_kernel_centers = frozenset(kernel_grid.ravel()) | frozenset([325,326,327,328])
+gg_kernel_centers = [746, 99, 111, 121, 455, 235, 335, 505, 825, 990] + [327]
+#gg_kernel_centers = frozenset(kernel_grid.ravel()) | frozenset([325,326,327,328])
 
 #gg_kernel_centers = frozenset([0, 4, 12, 13, 14, 20, 24])
 num_kernels_in_set = len(gg_kernel_centers)
-kernel_sigmas = np.array([5.5]*num_kernels_in_set, dtype=infer_dtype)
+#kernel_sigmas = np.array([5.5]*num_kernels_in_set, dtype=infer_dtype)
+kernel_sigmas = np.array([10, 5.5, 5, 6, 6, 4, 6, 8, 6, 3 , 3], dtype=infer_dtype)
 
 # Gaussian Theta params
 use_active_inference = True
@@ -122,9 +124,9 @@ num_theta_samples = 1000
 inference_temp = 0.4
 
 # Batch configurations
-num_batches = 10
-traj_count_per_batch = 5
-traj_length = 5
+num_batches = 100
+traj_count_per_batch = 
+traj_length = 2
 num_experiment_trials = 10
 ########################################################################################################################
 # Create / Load Multi Agent MDP

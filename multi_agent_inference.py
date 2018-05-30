@@ -53,7 +53,7 @@ alphabet_dict = {'empty': empty, 'green': green, 'red': red}
 # _False_ to have EM and the MDP always start from the `initial_state` below.
 solve_with_uniform_distribution = False
 robot_initial_cell = 24
-env_initial_cell = 20
+env_initial_cell = 10
 initial_state = (robot_initial_cell, env_initial_cell)
 
 # Currently assumes the robot only has one goal cell. Also, fixed obstacles only affect the robot.
@@ -105,7 +105,7 @@ solve_for_true_optimal_robot_policy = False
 pickled_mdp_file_to_load  = 'multi_agent_mdps_180423_1611'
 act_cost =  0.0
 
-optimal_policy_file = 'true_optimal_policies_em_15H_100N_Inference_Stats_180423_2008'
+optimal_policy_file = 'true_optimal_policies_em_15H_100N_Inference_Stats_180428_2158'
 
 
 # Demonstration history set of  episodes (aka trajectories) create/load options. If @c gather_new_data is false,
@@ -113,31 +113,31 @@ optimal_policy_file = 'true_optimal_policies_em_15H_100N_Inference_Stats_180423_
 # determine how large the demonstration set should be.
 gather_new_data = False
 print_history_analysis = False
-num_episodes = 3000
-steps_per_episode = 10
+num_episodes = 5
+steps_per_episode = 9
 pickled_episodes_file_to_load = 'multi_agent_mdps_180423_1611_HIST_3000eps10steps_180425_1523'
 
 # Perform/load policy inference options. If @c perform_new_inference is false, load the @pickled_inference_mdps_file.
-perform_new_inference = True
+perform_new_inference = False
 pickled_two_stage_mdps_file_to_load  = 'two_stage_multi_agent_mdps_180413_0938'
 inference_method = 'gradientAscentGaussianTheta'
 gg_kernel_centers = [0, 4, 12, 20, 24, 24]  # Last kernel is the 'mobile' kernel
 gg_kernel_centers = range(0, num_cells, 4) + [6, 18]  + [24]
 gg_kernel_centers = range(0, num_cells, 1) + [24]
 num_kernels_in_set = len(gg_kernel_centers)
-kernel_sigmas = np.array([2.0]*num_kernels_in_set, dtype=infer_dtype)
+kernel_sigmas = np.array([1.0]*num_kernels_in_set, dtype=infer_dtype)
 ggk_mobile_indices = [num_kernels_in_set-1]
 
 # Gaussian Theta params
 inference_temp = 0.5
-num_theta_samples = 2000
+num_theta_samples = 1000
 
 # Plotting flags
 plot_all_grids = False
 plot_VI_mdp_grids = False
 plot_EM_mdp_grids = False
 plot_inferred_mdp_grids = False
-plot_uncertainty = False
+plot_uncertainty = True
 plot_iterations = True # Inference iters
 plot_flags = [plot_all_grids, plot_VI_mdp_grids, plot_EM_mdp_grids, plot_inferred_mdp_grids, plot_uncertainty,
               plot_iterations]
@@ -173,8 +173,10 @@ else:
 # Override recorded initial dist to be uniform. Note that policy_keys_to_print are the reachable initial states, and we
 # want to set the initial state-set to only include the states where the robot is at `robot_initial_cell`.
 VI_mdp.init_set = VI_mdp.states
-#VI_mdp.init_set = ((24, 20),)
+VI_mdp.init_set = ((24, 10),)
 VI_mdp.setInitialProbDist(VI_mdp.init_set)
+
+VI_mdp.gamma = 0.9
 
 # The original environment policy in the MDP is a random walk. So we load a file containing a more interesting
 # environent policy (generated in a single agent environment) then copy it into the joint state-space. Additionally, we
@@ -182,7 +184,7 @@ VI_mdp.setInitialProbDist(VI_mdp.init_set)
 # by the robot. (Repulsive factors are buried in the method below). The method below updates the VI_mdp.env_policy
 # dictionary. Arguments new_phi/kernel_... are lies, they are unused and hard coded in the function.
 ExperimentConfigs.convertSingleAgentEnvPolicyToMultiAgent(VI_mdp, labels, state_env_idx=env_idx,
-                                                          new_kernel_weight=1.0, new_phi_sigma=1.0, plot_policies=False,
+                                                          new_kernel_weight=1.0, new_phi_sigma=1.0, plot_policies=True,
                                                           alphabet_dict=alphabet_dict,
                                                           fixed_obstacle_labels=fixed_obs_labels)
 
@@ -198,7 +200,7 @@ EM_mdp = deepcopy(VI_mdp)
 if solve_EM:
     EM_mdp.makeUniformPolicy()
     em_stats = EM_mdp.solve(method='expectationMaximization', do_print=False, print_iterations=True, horizon_length=15,
-                            num_iters=100, do_incremental_e_step=True)
+                            num_iters=800, do_incremental_e_step=True)
     EM_policy = EM_mdp.getPolicyAsVec()
     EM_error = EM_mdp.getPolicyL1Norm(VI_policy, EM_policy)
     print 'EM L1 error: {}'.format(EM_error)
@@ -207,13 +209,13 @@ if solve_EM:
 if solve_for_true_optimal_robot_policy:
     optimal_mdp = deepcopy(VI_mdp)
     optimal_mdp.infer_env_mdp.policy = optimal_mdp.env_policy[env_idx]
-    optimal_mdp.solve(method='valueIteration', do_print=False, print_iterations=True)
+    #optimal_mdp.solve(method='valueIteration', do_print=False, print_iterations=True)
     optimal_VI_policy = optimal_mdp.getPolicyAsVec(policy_keys_to_use=policy_keys_to_print)
     VI_mdp = deepcopy(optimal_mdp)
 
     optimal_mdp.makeUniformPolicy()
-    optimal_mdp.solve(method='expectationMaximization', do_print=False, print_iterations=True, horizon_length=15,
-                      num_iters=100, do_incremental_e_step=True)
+    optimal_mdp.solve(method='expectationMaximization', do_print=False, print_iterations=True, horizon_length=25,
+                      num_iters=500, do_incremental_e_step=True)
     optimal_EM_policy = optimal_mdp.getPolicyAsVec(policy_keys_to_use=policy_keys_to_print)
     EM_policy = optimal_EM_policy
     EM_error = EM_mdp.getPolicyL1Norm(optimal_VI_policy, optimal_EM_policy)
@@ -297,7 +299,7 @@ if perform_new_inference:
 
     theta_vec = infer_mdp.inferPolicy(method=inference_method, histories=run_histories, do_print=False,
                                       reference_policy_vec=true_env_policy_vec, use_precomputed_phi=True,
-                                      monte_carlo_size=monte_carlo_size, print_iterations=True, eps=0.00001,
+                                      monte_carlo_size=monte_carlo_size, print_iterations=True, eps=0.01,
                                       velocity_memory=0.0, theta_std_dev_min=0.2, theta_std_dev_max=np.inf,
                                       nominal_log_prob_data=nominal_log_prob_data, moving_avg_min_slope=0.001,
                                       moving_average_buffer_length=60,do_plot=plot_iterations)

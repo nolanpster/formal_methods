@@ -7,11 +7,14 @@ import numpy as np
 from pprint import pprint
 import warnings
 
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.cm as cm
 from matplotlib.patches import Wedge
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Set warning filter before pandas import so pandas recognizes it.
 import warnings
@@ -101,11 +104,25 @@ class PlotGrid(object):
         self.fontsize = fontsize
 
     def configurePlot(self, title):
-        fig = plt.figure(figsize=(13, 13), dpi=100)
+        fig = plt.figure(figsize=(20, 20), dpi=100)
         ax = fig.add_subplot(1, 1, 1)
         self.quadmesh = ax.pcolormesh(self.x, self.y, self.maze_cells, edgecolor='k', linewidth=0.5, cmap=self.cmap)
         ax.set_title(title, fontsize=self.fontsize)
         return fig, ax
+
+    def addKernelLocations(self, ax, kernel_centers, kernel_sigmas=None):
+        # Add marker to cells at kernel centers.
+        circ_handles = []
+        if kernel_sigmas is None:
+            radius = np.ones(len(kernel_centers))
+        else:
+            radius = kernel_sigmas
+        for kern_idx, kern_cell in enumerate(kernel_centers):
+            circ_handles += [Wedge((self.x_cent[kern_cell], self.y_cent[kern_cell]), radius[kern_idx], 0, 360,
+                                   width=0.05 * radius[kern_idx])]
+        circle_collection = PatchCollection(circ_handles, alpha=0.4)
+        ax.add_collection(circle_collection)
+
 
 
 class PlotKernel(PlotGrid):
@@ -171,9 +188,10 @@ class UncertaintyPlot(PlotGrid):
         super(self.__class__, self).__init__(maze_cells[:-1, :-1], cmap)
         self.grid_map = grid_map
 
-    def configurePlot(self, title, uncertainty_locations, uncertainty_magnitude, only_param_values=True, act_str=None,
-                      do_print=False):
+    def configurePlot(self, title, uncertainty_locations, uncertainty_magnitude, only_param_values=True, act_str='',
+                      do_print=False, use_heatmap=True):
         """
+        @param use_heatmap plots 3d if falst
         """
         fig, ax = super(self.__class__, self).configurePlot(title)
         bar_height = np.zeros(self.maze_cells.size)
@@ -184,24 +202,80 @@ class UncertaintyPlot(PlotGrid):
         if do_print:
             print('Values of bars in {} uncertainty plot.'.format('parameter' if only_param_values else ''))
             pprint(bar_height)
-        ax1 = fig.add_subplot(111, projection='3d')
-        ax1.view_init(elev=46, azim=-76)
 
-        num_cells = bar_height.size
-        zpos = np.zeros(num_cells)
-        dx = np.ones(num_cells)
-        dy = np.ones(num_cells)
+        if use_heatmap:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                im = ax.pcolormesh(bar_height.reshape(self.grid_dim), cmap=cm.gray, antialiased=True)
+                plt.title(title+act_str, fontsize=self.fontsize)
+                # Invert y-axis because we're plotting this like an image with origin in upper left corner.
+                ax.invert_yaxis()
+                plt.xticks(fontsize=26)
+                plt.yticks(fontsize=26)
+
+            # Axis adjustments for allowing a square plot after adding a colorbar.
+            the_divider = make_axes_locatable(ax)
+            color_axis = the_divider.append_axes("right", size="5%", pad=0.1)
+            cb = fig.colorbar(im, cax=color_axis)
+            cb.ax.tick_params(labelsize=26)
+        else:
+            # Do 3D Plot
+            ax = fig.add_subplot(111, projection='3d')
+            ax.view_init(elev=46, azim=-76)
+
+            num_cells = bar_height.size
+            zpos = np.zeros(num_cells)
+            dx = np.ones(num_cells)
+            dy = np.ones(num_cells)
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                ax.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, bar_height.ravel(), color='#e2ca76')
+                # Invert y-axis because we're plotting this like an image with origin in upper left corner.
+                ax.invert_yaxis()
+            plt.axis('off')
+            fig.tight_layout()
+            plt.title(title+act_str, fontsize=self.fontsize)
+        #plt.savefig('elem_idx_0_act_{}.tif'.format(act_str), dpi=400, transparent=False)
+        return fig, ax
+
+class ErrorPlot(PlotGrid):
+
+    def __init__(self, maze_cells, cmap, grid_map):
+        # Drop last row and column from maze_cells due to formatting decision for super class.
+        super(self.__class__, self).__init__(maze_cells[:-1, :-1], cmap)
+        self.grid_map = grid_map
+
+    def configurePlot(self, title, error_magnitude, act_str='', do_print=False):
+        """
+        """
+        fig, ax = super(self.__class__, self).configurePlot(title)
+        error_val = np.zeros(self.maze_cells.size)
+        for cell, mag_val in enumerate(error_magnitude):
+            error_val[cell] = mag_val
+        error_val.reshape(self.grid_dim)
+
+        if do_print:
+            pprint(error_val)
+
+        num_cells = error_val.size
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            ax1.bar3d(self.x.ravel(), self.y.ravel(), zpos, dx, dy, bar_height.ravel(), color='#e2ca76')
+            im = ax.pcolormesh(error_val.reshape(self.grid_dim), cmap=cm.gray, antialiased=True)
             # Invert y-axis because we're plotting this like an image with origin in upper left corner.
-            ax1.invert_yaxis()
-        plt.axis('off')
+            ax.invert_yaxis()
+            plt.xticks(fontsize=26)
+            plt.yticks(fontsize=26)
+
+        # Axis adjustments for allowing a square plot after adding a colorbar.
+        the_divider = make_axes_locatable(ax)
+        color_axis = the_divider.append_axes("right", size="5%", pad=0.1)
+        cb = fig.colorbar(im, cax=color_axis)
+        cb.ax.tick_params(labelsize=26)
         plt.title(title+act_str, fontsize=self.fontsize)
         #plt.savefig('elem_idx_0_act_{}.tif'.format(act_str), dpi=400, transparent=False)
-        fig.tight_layout()
-        return fig, ax1
+        return fig, ax
 
 class PlotPolicy(PlotGrid):
 
@@ -212,13 +286,13 @@ class PlotPolicy(PlotGrid):
         self.zero_mag = np.zeros(np.array(self.grid_dim))
         # Make these configurable eventually.
         self.quiv_angs = {'North': np.pi/2, 'South': -np.pi/2, 'East': 0, 'West': np.pi}
-        self.quiv_scale = 15
-        self.stay_scale = 250
+        self.quiv_scale = 60
+        self.stay_scale = 260
         self.prob_disp_thresh = 0.02
         self.predefined_action_set = frozenset(self.quiv_angs.keys())
 
     def configurePlot(self, title, policy, action_list, use_print_keys=False, policy_keys_to_print=None, decimals=2,
-                       kernel_locations=None, stay_action='Empty', do_print=False):
+                       kernel_locations=None, stay_action='Empty', do_print=False, kernel_sigmas=None):
         fig, ax = super(self.__class__, self).configurePlot(title)
         #cb = plt.colorbar()
         #cb.remove()
@@ -263,16 +337,10 @@ class PlotPolicy(PlotGrid):
             act_probs = np.array(act_probs) # This is redundanct for everything except the value iteration policy.
             U = np.cos(self.quiv_angs[act])*act_probs
             V = np.sin(self.quiv_angs[act])*act_probs
-            Q = plt.quiver(this_x_cent, this_y_cent, U, V, scale=self.quiv_scale, units='width')
+            Q = plt.quiver(this_x_cent, this_y_cent, U, V, scale=self.quiv_scale, units='height')
 
         if kernel_locations is not None:
-            # Add marker to cells at kernel centers.
-            circ_handles = []
-            radius = 0.5 # Relative to cell width.
-            for kern_cell in kernel_locations:
-                circ_handles += [Wedge((self.x_cent[kern_cell], self.y_cent[kern_cell]), radius, 0, 360, width=0.05)]
-            circle_collection = PatchCollection(circ_handles, alpha=0.4)
-            ax.add_collection(circle_collection)
+            self.addKernelLocations(ax, kernel_locations, kernel_sigmas)
 
         plt.gca().invert_yaxis()
         fig.tight_layout()
@@ -299,7 +367,7 @@ class PlotDemonstration(PlotGrid):
         self.x_cent = self.x[:-1,:-1].ravel()+x_center_offset
         self.y_cent = self.y[:-1,:-1].ravel()+y_center_offset
 
-    def configurePlot(self, title, histories, do_print=False):
+    def configurePlot(self, title, histories, do_print=False, kernel_locations=None, kernel_sigmas=None):
 
         fig, ax = super(self.__class__, self).configurePlot(title)
         cells_visited, times_in_demo = np.unique(histories, return_counts=True)
@@ -310,6 +378,8 @@ class PlotDemonstration(PlotGrid):
 
         for x, y, count in zip(this_x_cent, this_y_cent, times_in_demo):
             plt.text(x, y, str(count), fontsize=self.fontsize)
+        if kernel_locations is not None:
+            self.addKernelLocations(ax, kernel_locations, kernel_sigmas)
         plt.gca().invert_yaxis()
         fig.tight_layout()
 
